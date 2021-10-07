@@ -169,13 +169,13 @@ namespace VWA
             {
                 if (auto it = defines.find(macroName); it != defines.end())
                 {
-                    input.replace(currentMacro, macroNextLine - currentMacro + 1, it->second);
+                    input.replace(currentMacro, macroNameEnd - currentMacro + 1, it->second);
                     continue;
                 }
                 if (auto it2 = counters.find(macroName); it2 != counters.end())
                 {
                     auto asString = std::to_string(it2->second);
-                    input.replace(currentMacro, macroNextLine - currentMacro + 1, asString);
+                    input.replace(currentMacro, macroNameEnd - currentMacro + 1, asString);
                     continue;
                 }
 
