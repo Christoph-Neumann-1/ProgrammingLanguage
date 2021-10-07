@@ -8,19 +8,7 @@
 #include <boost/regex.hpp>
 
 //TODO ifdef and variables
-//TODO escape new line
 //TODO require keywords not have letters at end/start
-
-/*
-Escape sequence rules:
-\ before preprocessor directive = directive ignored and the \ is removed
-all aditional \ before that are just left as is for the next step of the interpreter
-If you wish for it to be not executed and to have backslashes, place a \+space  before the other \ 
-\ as well as \+new line are removed before going to the interpreter
-If you, for some reason wish to have a \ at the end of the line and have a newline, place a \+space at the end of the line
-If you wish to have a \+space, just use two spaces
-The removal of \ + new line happens at the start of the preprocessor, the removal of \ + space happens at the end of the preprocessor
-*/
 
 namespace VWA
 {
@@ -58,6 +46,8 @@ namespace VWA
             input = boost::regex_replace(input, commentMatcher, "$1");
         }
         std::unordered_map<std::string, Macro> macros;
+        std::unordered_map<std::string, std::string> defines;
+        std::unordered_map<std::string, int> counters;
 
         size_t currentMacroDefine = 0;
         while (true)
@@ -111,34 +101,101 @@ namespace VWA
                 currentMacro++;
                 continue;
             }
-            bool macroHasArgs = true;
-            size_t macroNameEnd = input.find('(', currentMacro);
-            if (macroNameEnd == std::string::npos)
+
+            if (input[currentMacro + 1] == '#')
             {
-                macroNameEnd = input.find('\n', currentMacro);
-                macroHasArgs = false;
+                //TODO: regex
+                auto macroNextLine = input.find('\n', currentMacro + 2);
+                if (macroNextLine == std::string::npos)
+                {
+                    macroNextLine = input.length();
+                }
+                size_t macroNameEnd = input.find(' ', currentMacro + 2);
+                if (macroNameEnd == std::string::npos || macroNameEnd > macroNextLine)
+                {
+                    macroNameEnd = macroNextLine;
+                }
+                std::string macroName(input.substr(currentMacro + 2, macroNameEnd - currentMacro - 2));
+
+                size_t macroEnd = macroNameEnd;
+
+                auto getNextArg = [&]() -> std::string
+                {
+                    auto nextSpace = input.find(' ', macroEnd + 1);
+                    if (nextSpace == std::string::npos || nextSpace > macroNextLine)
+                    {
+                        if (macroEnd == macroNextLine)
+                        {
+                            throw std::runtime_error("Macro argument not found");
+                        }
+                        else
+                        {
+                            nextSpace = macroNextLine;
+                        }
+                    }
+                    auto arg = input.substr(macroEnd+1, nextSpace - macroEnd-1);
+                    macroEnd = nextSpace;
+                    return arg;
+                };
+                if(macroName=="define")
+                {
+                    auto what=getNextArg();
+                    auto value=getNextArg();
+                    defines[what]=value;
+                input.erase(currentMacro, macroNextLine - currentMacro+1);
+                }
+                continue;
             }
-            if (macroNameEnd == std::string::npos)
+
+            bool macroHasArgs = true;
+            auto macroNextLine = input.find('\n', currentMacro);
+            if (macroNextLine == std::string::npos)
             {
+                macroNextLine = input.length() - 1;
+            }
+            size_t macroNameEnd = input.find('(', currentMacro);
+            if (macroNameEnd == std::string::npos || macroNameEnd > macroNextLine)
+            {
+                macroHasArgs = false;
                 macroNameEnd = input.find(' ');
             }
             if (macroNameEnd == std::string::npos)
             {
-                macroNameEnd = input.size();
+                macroNameEnd = macroNextLine + 1;
             }
             std::string macroName(input.substr(currentMacro + 1, macroNameEnd - currentMacro - 1));
             macroName.erase(std::remove(macroName.begin(), macroName.end(), ' '), macroName.end());
-            auto macro = macros.find(macroName);
-            if (macro == macros.end())
-            {
-                throw std::runtime_error("Macro not found: " + macroName);
-            }
             if (!macroHasArgs)
             {
-                input.replace(currentMacro, macroNameEnd - currentMacro + 1, macro->second.body);
+                if (auto it = defines.find(macroName); it != defines.end())
+                {
+                    input.replace(currentMacro, macroNextLine - currentMacro + 1, it->second);
+                    continue;
+                }
+                if (auto it2 = counters.find(macroName); it2 != counters.end())
+                {
+                    auto asString = std::to_string(it2->second);
+                    input.replace(currentMacro, macroNextLine - currentMacro + 1, asString);
+                    continue;
+                }
+
+                if (auto macro = macros.find(macroName); macro == macros.end())
+                {
+                    throw std::runtime_error("Identifier not found " + macroName);
+                }
+                else
+                {
+                    input.replace(currentMacro, macroNameEnd - currentMacro + 1, macro->second.body);
+                    continue;
+                }
             }
             else
             {
+                auto macro = macros.find(macroName);
+                if (macro == macros.end())
+                {
+                    throw std::runtime_error("Identifier not found" + macroName);
+                }
                 size_t macroArgsLast;
                 size_t currentpos = 0;
 
