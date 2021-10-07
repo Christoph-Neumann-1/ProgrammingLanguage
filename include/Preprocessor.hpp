@@ -5,6 +5,7 @@
 #include <vector>
 #include <unordered_map>
 #include <stdexcept>
+#include <boost/regex.hpp>
 
 //TODO ifdef and variables
 //TODO escape new line
@@ -52,6 +53,10 @@ namespace VWA
                 newline = input.find("\\\n");
             }
         }
+        {
+            boost::regex commentMatcher("(^|\n)//.*?(\n|$)");
+            input = boost::regex_replace(input, commentMatcher, "$1");
+        }
         std::unordered_map<std::string, Macro> macros;
 
         size_t currentMacroDefine = 0;
@@ -64,18 +69,9 @@ namespace VWA
             {
                 if (input[currentMacroDefine - 1] != '\n')
                 {
-                    if (input[currentMacroDefine - 1] == '\\')
-                        if (currentMacroDefine > 1)
-                        {
-                            if (input[currentMacroDefine - 2] != '\n')
-                            {
-                                currentMacroDefine += 5;
-                                continue;
-                            }
-                        }
-                    input.erase(currentMacroDefine - 1, 1);
+                    currentMacroDefine += 5;
+                    continue;
                 }
-                break;
             }
 
             auto endMacro = currentMacroDefine + 5;
@@ -91,19 +87,7 @@ namespace VWA
                 {
                     break;
                 }
-                if (input[endMacro - 1] == '\\')
-                {
-                    if (endMacro > 1)
-                    {
-                        if (input[endMacro - 2] != '\n')
-                        {
-                            endMacro += 7;
-                            continue;
-                        }
-                    }
-                    input.erase(endMacro - 1, 1);
-                    break;
-                }
+                endMacro += 8;
             }
 
             auto macroNextLine = input.find('\n', currentMacroDefine);
@@ -208,11 +192,11 @@ namespace VWA
             }
         }
         {
-            auto space=input.find("\\ ");
-            while (space!=std::string::npos)
+            auto space = input.find("\\ ");
+            while (space != std::string::npos)
             {
-                input.replace(space,2,"");
-                space=input.find("\\ ",space);
+                input.replace(space, 2, "");
+                space = input.find("\\ ", space);
             }
         }
         return input;
