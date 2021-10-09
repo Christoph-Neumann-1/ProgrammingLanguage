@@ -281,19 +281,27 @@ namespace VWA
                 }
                 std::vector<std::string> macroArgs;
                 auto macroArgsStart = macroNameEnd + 1;
-                auto macroArgsCurrent = macroArgsStart;
+                auto macroArgsCurrent = macroArgsStart-1;
                 for (size_t i = macroArgsStart; i <= macroArgsLast; i++)
                 {
                     if (input[i] == ',')
                     {
-                        if (!(i > macroArgsStart && input[i - 1] == '\\'))
+                        if (i > macroArgsStart)
                         {
-                            macroArgs.push_back(input.substr(macroArgsCurrent, i - macroArgsCurrent));
-                            macroArgsCurrent = i + 1;
+                            if (input[i - 1] != '\\')
+                            {
+                                macroArgs.push_back(input.substr(macroArgsCurrent+1, i - macroArgsCurrent-1));
+                                macroArgsCurrent = i + 1;
+                            }
+                            else
+                            {
+                                input.erase(i - 1, 1);
+                                i--;
+                            }
                         }
                     }
                 }
-                macroArgs.push_back(input.substr(macroArgsCurrent, macroArgsLast - macroArgsCurrent + 1));
+                macroArgs.push_back(input.substr(macroArgsCurrent+1, macroArgsLast - macroArgsCurrent));
                 std::string macroBody = macro->second.body;
                 for (size_t i = 0; i < macroArgs.size(); i++)
                 {
