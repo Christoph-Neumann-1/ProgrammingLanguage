@@ -126,32 +126,66 @@ namespace VWA
                     {
                         if (macroEnd == macroNextLine)
                         {
-                            throw std::runtime_error("Macro argument not found");
+                            throw std::runtime_error("Argument not found");
                         }
                         else
                         {
                             nextSpace = macroNextLine;
                         }
                     }
-                    auto arg = input.substr(macroEnd+1, nextSpace - macroEnd-1);
+                    auto arg = input.substr(macroEnd + 1, nextSpace - macroEnd - 1);
                     macroEnd = nextSpace;
                     return arg;
                 };
-                if(macroName=="define")
+                if (macroName == "define")
                 {
-                    auto what=getNextArg();
-                    auto value=getNextArg();
-                    defines[what]=value;
-                input.erase(currentMacro, macroNextLine - currentMacro+1);
+                    auto what = getNextArg();
+                    std::string value;
+                    try
+                    {
+                        value = getNextArg();
+                    }
+                    catch(...)
+                    {
+                        value = "";
+                    }
+                    defines[what] = value;
+                    input.erase(currentMacro, macroNextLine - currentMacro + 1);
+                    continue;
                 }
-                continue;
+                if (macroName == "ifdef")
+                {
+                    auto what = defines.contains(getNextArg());
+                    size_t endIfDef = macroNextLine;
+                    endIfDef = input.find("##endifdef", endIfDef);
+                    if (endIfDef == std::string::npos)
+                    {
+                        throw std::runtime_error("#endifdef not found");
+                    }
+                    auto endIfDefNextLine = input.find('\n', endIfDef);
+                    if (endIfDefNextLine == std::string::npos)
+                    {
+                        endIfDefNextLine = input.length() - 1;
+                    }
+                    if (!what)
+                    {
+                        input.erase(currentMacro, endIfDefNextLine - currentMacro + 1);
+                    }
+                    else
+                    {
+                        input.erase(endIfDef, endIfDefNextLine - endIfDef + 1);
+                        input.erase(currentMacro, macroNextLine - currentMacro + 1);
+                    }
+                    continue;
+                }
+                throw std::runtime_error("Unknown preprocessor command");
             }
 
             bool macroHasArgs = true;
             auto macroNextLine = input.find('\n', currentMacro);
             if (macroNextLine == std::string::npos)
             {
-                macroNextLine = input.length() - 1;
+                macroNextLine = input.length();
             }
             size_t macroNameEnd = input.find('(', currentMacro);
             if (macroNameEnd == std::string::npos || macroNameEnd > macroNextLine)
@@ -161,7 +195,7 @@ namespace VWA
             }
             if (macroNameEnd == std::string::npos)
             {
-                macroNameEnd = macroNextLine + 1;
+                macroNameEnd = macroNextLine;
             }
             std::string macroName(input.substr(currentMacro + 1, macroNameEnd - currentMacro - 1));
             macroName.erase(std::remove(macroName.begin(), macroName.end(), ' '), macroName.end());
@@ -185,7 +219,7 @@ namespace VWA
                 }
                 else
                 {
-                    input.replace(currentMacro, macroNameEnd - currentMacro + 1, macro->second.body);
+                    input.replace(currentMacro, macroNameEnd - currentMacro+1, macro->second.body);
                     continue;
                 }
             }
