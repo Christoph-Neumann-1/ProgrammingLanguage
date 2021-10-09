@@ -66,8 +66,33 @@ namespace VWA
                 buffer.resize(size);
                 fread(&buffer[0], size, 1, file);
                 fclose(file);
-                input.replace(current, next - current, buffer);
-                continue;
+                auto firstNewLine = buffer.find('\n');
+                if (firstNewLine == std::string::npos)
+                    firstNewLine = buffer.size();
+                std::string_view firstLine(buffer.data(), firstNewLine);
+                std::string_view contents(buffer);
+                if (firstLine.length() >= 6)
+                    if (firstLine.find("##once") != firstLine.npos)
+                    {
+                        bool hasBeenIncluded = false;
+                        //Check if file has already been included
+                        for (auto &mfile : includedFiles)
+                        {
+                            if (mfile.compare(path))
+                            {
+                                hasBeenIncluded = true;
+                                break;
+                            }
+                        }
+                        if (!hasBeenIncluded)
+                        {
+                            includedFiles.push_back(path);
+                            contents = contents.substr(firstNewLine, contents.size() - firstNewLine);
+                        }
+                        else
+                            contents = "";
+                    }
+                input.replace(current, next - current, contents);
             }
         }
         {
@@ -80,7 +105,7 @@ namespace VWA
         }
         {
             std::regex commentMatcher("(^|\n)//.*?(\n|$)");
-            input=std::regex_replace(input, commentMatcher, "$1");
+            input = std::regex_replace(input, commentMatcher, "$1");
         }
         std::unordered_map<std::string, Macro> macros;
         std::unordered_map<std::string, std::string> defines;
@@ -270,7 +295,7 @@ namespace VWA
                     }
                     else
                     {
-                        throw std::runtime_error("Could not find: "+name);
+                        throw std::runtime_error("Could not find: " + name);
                     }
 
                     continue;
