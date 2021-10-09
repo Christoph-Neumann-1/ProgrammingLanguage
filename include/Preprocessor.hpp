@@ -5,8 +5,9 @@
 #include <vector>
 #include <unordered_map>
 #include <stdexcept>
-#include <boost/regex.hpp>
+#include <regex>
 #include <cstdio>
+#include <filesystem>
 
 //TODO ifdef and variables
 //TODO require keywords not have letters at end/start
@@ -35,6 +36,8 @@ namespace VWA
     std::string preprocess(std::string input)
     {
         {
+            //TODO include directories
+            std::vector<std::filesystem::path> includedFiles;
             auto current = 0;
             while (true)
             {
@@ -76,8 +79,8 @@ namespace VWA
             }
         }
         {
-            boost::regex commentMatcher("(^|\n)//.*?(\n|$)");
-            input = boost::regex_replace(input, commentMatcher, "$1");
+            std::regex commentMatcher("(^|\n)//.*?(\n|$)");
+            input=std::regex_replace(input, commentMatcher, "$1");
         }
         std::unordered_map<std::string, Macro> macros;
         std::unordered_map<std::string, std::string> defines;

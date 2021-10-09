@@ -15,7 +15,6 @@ file(GLOB_RECURSE SOURCES "src/*.cpp")
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 #link boost
-target_link_libraries(${PROJECT_NAME} boost_system boost_regex)
 
 add_subdirectory(extern/googletest)
 add_subdirectory(tests)
