@@ -170,6 +170,40 @@ namespace VWA
                 {
                     input.erase(currentMacro, macroNextLine - currentMacro + 1);
                 };
+                auto ifblock = [&](auto &&condition, const std::string &name)
+                {
+                    size_t endIf = macroNextLine;
+                    if (name.empty())
+                    {
+                        endIf = input.find("##endif", endIf);
+                        if (endIf == std::string::npos)
+                        {
+                            throw std::runtime_error("ENDIF not found");
+                        }
+                    }
+                    else
+                    {
+                        endIf = input.find("##endif " + name, endIf);
+                        if (endIf == std::string::npos)
+                        {
+                            throw std::runtime_error("ENDIF not found " + name);
+                        }
+                    }
+                    auto endIfNextLine = input.find('\n', endIf);
+                    if (endIfNextLine == std::string::npos)
+                    {
+                        endIfNextLine = input.length() - 1;
+                    }
+                    if (condition())
+                    {
+                        input.erase(endIf, endIfNextLine - endIf + 1);
+                        deleteLine();
+                    }
+                    else
+                    {
+                        input.erase(currentMacro, endIfNextLine - currentMacro + 1);
+                    }
+                };
                 auto evaluateArgument = [&](const std::string &arg, auto &&evaluateArgument) -> int
                 {
                     //If the argument is a number return it. It is considered a number if the first character is a digit.
@@ -249,231 +283,65 @@ namespace VWA
                 if (macroName == "ifdef")
                 {
                     auto args = getArgs(1, 2);
-                    size_t endIfDef = macroNextLine;
-                    endIfDef = input.find("##endif", endIfDef);
-                    if (endIfDef == std::string::npos)
-                    {
-                        throw std::runtime_error("#endif not found");
-                    }
-                    auto endIfDefNextLine = input.find('\n', endIfDef);
-                    if (endIfDefNextLine == std::string::npos)
-                    {
-                        endIfDefNextLine = input.length() - 1;
-                    }
-                    if (!defines.contains(args[0]))
-                    {
-                        input.erase(currentMacro, endIfDefNextLine - currentMacro + 1);
-                    }
-                    else
-                    {
-                        input.erase(endIfDef, endIfDefNextLine - endIfDef + 1);
-                        deleteLine();
-                    }
+                    ifblock([&]()
+                            { return defines.contains(args[0]); },
+                            args.size() > 1 ? args[1] : "");
                     continue;
                 }
                 if (macroName == "ifndef")
                 {
                     auto args = getArgs(1, 2);
-                    size_t endIfDef = macroNextLine;
-                    endIfDef = input.find("##endif", endIfDef);
-                    if (endIfDef == std::string::npos)
-                    {
-                        throw std::runtime_error("#endifndef not found");
-                    }
-                    auto endIfDefNextLine = input.find('\n', endIfDef);
-                    if (endIfDefNextLine == std::string::npos)
-                    {
-                        endIfDefNextLine = input.length() - 1;
-                    }
-                    if (defines.contains(args[0]))
-                    {
-                        input.erase(currentMacro, endIfDefNextLine - currentMacro + 1);
-                    }
-                    else
-                    {
-                        input.erase(endIfDef, endIfDefNextLine - endIfDef + 1);
-                        deleteLine();
-                    }
+                    ifblock([&]()
+                            { return !defines.contains(args[0]); },
+                            args.size() > 1 ? args[1] : "");
                     continue;
                 }
                 if (macroName == "ifeq")
                 {
-                    auto args = getArgs(2, 3);
-                    auto it = counters.find(args[0]);
-                    if (it == counters.end())
-                    {
-                        throw std::runtime_error("Unknown variable: " + args[0]);
-                    }
-                    auto endIfEq = macroNextLine;
-                    endIfEq = input.find("##endif", endIfEq);
-                    if (endIfEq == std::string::npos)
-                    {
-                        throw std::runtime_error("##endif");
-                    }
-                    auto endIfEqNextLine = input.find('\n', endIfEq);
-                    if (endIfEqNextLine == std::string::npos)
-                    {
-                        endIfEqNextLine = input.length() - 1;
-                    }
-                    if (evaluateArgument(args[1], evaluateArgument) != it->second)
-                    {
-                        input.erase(currentMacro, endIfEqNextLine - currentMacro + 1);
-                    }
-                    else
-                    {
-                        input.erase(endIfEq, endIfEqNextLine - endIfEq + 1);
-                        deleteLine();
-                    }
+                    auto args = getArgs(1, 2);
+                    ifblock([&]()
+                            { return evaluateArgument(args[0], evaluateArgument) == evaluateArgument(args[1], evaluateArgument); },
+                            args.size() > 2 ? args[2] : "");
                     continue;
                 }
                 if (macroName == "ifneq")
                 {
-                    auto args = getArgs(2, 3);
-                    auto it = counters.find(args[0]);
-                    if (it == counters.end())
-                    {
-                        throw std::runtime_error("Unknown variable: " + args[0]);
-                    }
-                    auto endIfEq = macroNextLine;
-                    endIfEq = input.find("##endif", endIfEq);
-                    if (endIfEq == std::string::npos)
-                    {
-                        throw std::runtime_error("##endif");
-                    }
-                    auto endIfEqNextLine = input.find('\n', endIfEq);
-                    if (endIfEqNextLine == std::string::npos)
-                    {
-                        endIfEqNextLine = input.length() - 1;
-                    }
-                    if (evaluateArgument(args[1], evaluateArgument) == it->second)
-                    {
-                        input.erase(currentMacro, endIfEqNextLine - currentMacro + 1);
-                    }
-                    else
-                    {
-                        input.erase(endIfEq, endIfEqNextLine - endIfEq + 1);
-                        deleteLine();
-                    }
+                    auto args = getArgs(1, 2);
+                    ifblock([&]()
+                            { return evaluateArgument(args[0], evaluateArgument) != evaluateArgument(args[1], evaluateArgument); },
+                            args.size() > 2 ? args[2] : "");
                     continue;
                 }
                 if (macroName == "ifgt")
                 {
-                    auto args = getArgs(2, 3);
-                    auto it = counters.find(args[0]);
-                    if (it == counters.end())
-                    {
-                        throw std::runtime_error("Unknown variable: " + args[0]);
-                    }
-                    auto endIfEq = macroNextLine;
-                    endIfEq = input.find("##endif", endIfEq);
-                    if (endIfEq == std::string::npos)
-                    {
-                        throw std::runtime_error("##endif");
-                    }
-                    auto endIfEqNextLine = input.find('\n', endIfEq);
-                    if (endIfEqNextLine == std::string::npos)
-                    {
-                        endIfEqNextLine = input.length() - 1;
-                    }
-                    if (evaluateArgument(args[1], evaluateArgument) < it->second)
-                    {
-                        input.erase(endIfEq, endIfEqNextLine - endIfEq + 1);
-                        deleteLine();
-                    }
-                    else
-                    {
-                        input.erase(currentMacro, endIfEqNextLine - currentMacro + 1);
-                    }
+                    auto args = getArgs(1, 2);
+                    ifblock([&]()
+                            { return evaluateArgument(args[0], evaluateArgument) > evaluateArgument(args[1], evaluateArgument); },
+                            args.size() > 2 ? args[2] : "");
                     continue;
                 }
                 if (macroName == "iflt")
                 {
-                    auto args = getArgs(2, 3);
-                    auto it = counters.find(args[0]);
-                    if (it == counters.end())
-                    {
-                        throw std::runtime_error("Unknown variable: " + args[0]);
-                    }
-                    auto endIfEq = macroNextLine;
-                    endIfEq = input.find("##endif", endIfEq);
-                    if (endIfEq == std::string::npos)
-                    {
-                        throw std::runtime_error("##endif");
-                    }
-                    auto endIfEqNextLine = input.find('\n', endIfEq);
-                    if (endIfEqNextLine == std::string::npos)
-                    {
-                        endIfEqNextLine = input.length() - 1;
-                    }
-                    if (evaluateArgument(args[1], evaluateArgument) > it->second)
-                    {
-                        input.erase(endIfEq, endIfEqNextLine - endIfEq + 1);
-                        deleteLine();
-                    }
-                    else
-                    {
-                        input.erase(currentMacro, endIfEqNextLine - currentMacro + 1);
-                    }
+                    auto args = getArgs(1, 2);
+                    ifblock([&]()
+                            { return evaluateArgument(args[0], evaluateArgument) < evaluateArgument(args[1], evaluateArgument); },
+                            args.size() > 2 ? args[2] : "");
                     continue;
                 }
                 if (macroName == "ifgteq")
                 {
-                    auto args = getArgs(2, 3);
-                    auto it = counters.find(args[0]);
-                    if (it == counters.end())
-                    {
-                        throw std::runtime_error("Unknown variable: " + args[0]);
-                    }
-                    auto endIfEq = macroNextLine;
-                    endIfEq = input.find("##endif", endIfEq);
-                    if (endIfEq == std::string::npos)
-                    {
-                        throw std::runtime_error("##endif");
-                    }
-                    auto endIfEqNextLine = input.find('\n', endIfEq);
-                    if (endIfEqNextLine == std::string::npos)
-                    {
-                        endIfEqNextLine = input.length() - 1;
-                    }
-                    if (evaluateArgument(args[1], evaluateArgument) <= it->second)
-                    {
-                        input.erase(endIfEq, endIfEqNextLine - endIfEq + 1);
-                        deleteLine();
-                    }
-                    else
-                    {
-                        input.erase(currentMacro, endIfEqNextLine - currentMacro + 1);
-                    }
+                    auto args = getArgs(1, 2);
+                    ifblock([&]()
+                            { return evaluateArgument(args[0], evaluateArgument) >= evaluateArgument(args[1], evaluateArgument); },
+                            args.size() > 2 ? args[2] : "");
                     continue;
                 }
                 if (macroName == "iflteq")
                 {
-                    auto args = getArgs(2, 3);
-                    auto it = counters.find(args[0]);
-                    if (it == counters.end())
-                    {
-                        throw std::runtime_error("Unknown variable: " + args[0]);
-                    }
-                    auto endIfEq = macroNextLine;
-                    endIfEq = input.find("##endif", endIfEq);
-                    if (endIfEq == std::string::npos)
-                    {
-                        throw std::runtime_error("##endif");
-                    }
-                    auto endIfEqNextLine = input.find('\n', endIfEq);
-                    if (endIfEqNextLine == std::string::npos)
-                    {
-                        endIfEqNextLine = input.length() - 1;
-                    }
-                    if (evaluateArgument(args[1], evaluateArgument) >= it->second)
-                    {
-                        input.erase(endIfEq, endIfEqNextLine - endIfEq + 1);
-                        deleteLine();
-                    }
-                    else
-                    {
-                        input.erase(currentMacro, endIfEqNextLine - currentMacro + 1);
-                    }
+                    auto args = getArgs(1, 2);
+                    ifblock([&]()
+                            { return evaluateArgument(args[0], evaluateArgument) <= evaluateArgument(args[1], evaluateArgument); },
+                            args.size() > 2 ? args[2] : "");
                     continue;
                 }
                 if (macroName == "pureText")
