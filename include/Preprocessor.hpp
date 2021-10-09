@@ -12,6 +12,11 @@
 //TODO variables
 //TODO require keywords not have letters at end/start
 //TODO reduce copies of strings. Use segments of data to reduce the amount of characters moved when replacing stuff
+//TODO integrate with math interpreter for full math support
+//TODO command to evaluate the value of a define and store it. Example: #define x #y #define y test ##eval x this should not support any directives, only try to look up the value,
+//until there is no more # at the beginning
+//TODO possible argument evaluation everywhere(like in include directives)
+//TODO DRY
 
 namespace VWA
 {
@@ -161,6 +166,7 @@ namespace VWA
         {
             if (handleEscapeSequence(input, currentMacro))
             {
+                //TODO escape directives
                 currentMacro++;
                 continue;
             }
@@ -182,6 +188,29 @@ namespace VWA
 
                 size_t macroEnd = macroNameEnd;
 
+                auto deleteLine = [&]()
+                {
+                    input.erase(currentMacro, macroNextLine - currentMacro + 1);
+                };
+                auto evaluateArgument = [&](const std::string &arg, auto &&evaluateArgument) -> int
+                {
+                    //If the argument is a number return it. It is considered a number if the first character is a digit.
+                    if (std::isdigit(arg[0]))
+                    {
+                        return std::stoi(arg);
+                    }
+                    //Otherwise check if the argument is a counter
+                    if (auto it = counters.find(arg); it != counters.end())
+                    {
+                        return it->second;
+                    }
+                    //As a last option check if it is a define and convert said refine to a number. This is recursive, so a this will run until the argument is a number, or empty.
+                    if (auto it = defines.find(arg); it != defines.end())
+                    {
+                        return evaluateArgument(it->second, evaluateArgument);
+                    }
+                    throw std::runtime_error("Unknown argument: " + arg);
+                };
                 auto getNextArg = [&]() -> std::string
                 {
                     auto nextSpace = input.find(' ', macroEnd + 1);
@@ -213,14 +242,14 @@ namespace VWA
                         value = "";
                     }
                     defines[what] = value;
-                    input.erase(currentMacro, macroNextLine - currentMacro + 1);
+                    deleteLine();
                     continue;
                 }
                 if (macroName == "undef")
                 {
                     auto what = getNextArg();
                     defines.erase(what);
-                    input.erase(currentMacro, macroNextLine - currentMacro + 1);
+                    deleteLine();
                     continue;
                 }
                 if (macroName == "ifdef")
@@ -244,7 +273,7 @@ namespace VWA
                     else
                     {
                         input.erase(endIfDef, endIfDefNextLine - endIfDef + 1);
-                        input.erase(currentMacro, macroNextLine - currentMacro + 1);
+                        deleteLine();
                     }
                     continue;
                 }
@@ -269,11 +298,10 @@ namespace VWA
                     else
                     {
                         input.erase(endIfDef, endIfDefNextLine - endIfDef + 1);
-                        input.erase(currentMacro, macroNextLine - currentMacro + 1);
+                        deleteLine();
                     }
                     continue;
                 }
-                //Only for defines and counters
                 if (macroName == "pureText")
                 {
                     auto name = getNextArg();
@@ -301,7 +329,138 @@ namespace VWA
 
                     continue;
                 }
-
+                if (macroName == "inc")
+                {
+                    auto name = getNextArg();
+                    auto it = counters.find(name);
+                    if (it == counters.end())
+                    {
+                        throw std::runtime_error("Could not find: " + name);
+                    }
+                    it->second++;
+                    deleteLine();
+                    continue;
+                }
+                if (macroName == "dec")
+                {
+                    auto name = getNextArg();
+                    auto it = counters.find(name);
+                    if (it == counters.end())
+                    {
+                        throw std::runtime_error("Could not find: " + name);
+                    }
+                    it->second--;
+                    deleteLine();
+                    continue;
+                }
+                if (macroName == "set")
+                {
+                    auto name = getNextArg();
+                    int value;
+                    try
+                    {
+                        value = evaluateArgument(getNextArg(),evaluateArgument);
+                    }
+                    catch (...)
+                    {
+                        value=0;
+                    }
+                    counters[name] = value;
+                    deleteLine();
+                    continue;
+                }
+                if (macroName == "del")
+                {
+                    auto name = getNextArg();
+                    auto it = counters.find(name);
+                    if (it == counters.end())
+                    {
+                        //TODO: debug message about alredy being deleted
+                    }
+                    counters.erase(it);
+                    deleteLine();
+                    continue;
+                }
+                if (macroName == "mul")
+                {
+                    //TODO get number of args. If 2 then multiply and store in arg0
+                    //This would not add any functionality, but it would make code more readable
+                    auto result = getNextArg();
+                    auto operand1 = getNextArg();
+                    auto operand2 = getNextArg();
+                    auto it = counters.find(operand1);
+                    if (it == counters.end())
+                    {
+                        throw std::runtime_error("Could not find: " + operand1);
+                    }
+                    it->second = evaluateArgument(operand1, evaluateArgument) * evaluateArgument(operand2, evaluateArgument);
+                    deleteLine();
+                    continue;
+                }
+                if (macroName == "div")
+                {
+                    //TODO get number of args. If 2 then multiply and store in arg0
+                    //This would not add any functionality, but it would make code more readable
+                    auto result = getNextArg();
+                    auto operand1 = getNextArg();
+                    auto operand2 = getNextArg();
+                    auto it = counters.find(operand1);
+                    if (it == counters.end())
+                    {
+                        throw std::runtime_error("Could not find: " + operand1);
+                    }
+                    it->second = evaluateArgument(operand1, evaluateArgument) / evaluateArgument(operand2, evaluateArgument);
+                    deleteLine();
+                    continue;
+                }
+                if (macroName == "mod")
+                {
+                    //TODO get number of args. If 2 then multiply and store in arg0
+                    //This would not add any functionality, but it would make code more readable
+                    auto result = getNextArg();
+                    auto operand1 = getNextArg();
+                    auto operand2 = getNextArg();
+                    auto it = counters.find(operand1);
+                    if (it == counters.end())
+                    {
+                        throw std::runtime_error("Could not find: " + operand1);
+                    }
+                    it->second = evaluateArgument(operand1, evaluateArgument) % evaluateArgument(operand2, evaluateArgument);
+                    deleteLine();
+                    continue;
+                }
+                if (macroName == "add")
+                {
+                    //TODO get number of args. If 2 then multiply and store in arg0
+                    //This would not add any functionality, but it would make code more readable
+                    auto result = getNextArg();
+                    auto operand1 = getNextArg();
+                    auto operand2 = getNextArg();
+                    auto it = counters.find(operand1);
+                    if (it == counters.end())
+                    {
+                        throw std::runtime_error("Could not find: " + operand1);
+                    }
+                    it->second = evaluateArgument(operand1, evaluateArgument) + evaluateArgument(operand2, evaluateArgument);
+                    deleteLine();
+                    continue;
+                }
+                if (macroName == "sub")
+                {
+                    //TODO get number of args. If 2 then multiply and store in arg0
+                    //This would not add any functionality, but it would make code more readable
+                    auto result = getNextArg();
+                    auto operand1 = getNextArg();
+                    auto operand2 = getNextArg();
+                    auto it = counters.find(operand1);
+                    if (it == counters.end())
+                    {
+                        throw std::runtime_error("Could not find: " + operand1);
+                    }
+                    it->second = evaluateArgument(operand1, evaluateArgument) - evaluateArgument(operand2, evaluateArgument);
+                    deleteLine();
+                    continue;
+                }
                 throw std::runtime_error("Unknown preprocessor command");
             }
 
@@ -317,7 +476,7 @@ namespace VWA
                 macroHasArgs = false;
                 macroNameEnd = input.find(' ');
             }
-            if (macroNameEnd == std::string::npos)
+            if (macroNameEnd == std::string::npos || macroNameEnd > macroNextLine)
             {
                 macroNameEnd = macroNextLine;
             }
