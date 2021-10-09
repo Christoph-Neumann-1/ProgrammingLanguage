@@ -253,32 +253,25 @@ namespace VWA
                         input.replace(currentMacro, macroEnd - currentMacro + 1, it->second);
                         currentMacro += it->second.length();
                     }
-                    if (auto it2 = counters.find(name); it2 != counters.end())
+                    else if (auto it2 = counters.find(name); it2 != counters.end())
                     {
                         auto asString = std::to_string(it2->second);
-                        input.replace(currentMacro, macroNameEnd - currentMacro + 1, asString);
+                        input.replace(currentMacro, macroEnd - currentMacro + 1, asString);
                         currentMacro += asString.length();
                     }
+                    //Ignores args
+                    else if (auto it3 = macros.find(name); it3 != macros.end())
+                    {
+                        input.replace(currentMacro, macroEnd - currentMacro + 1, it3->second.body);
+                        currentMacro += it3->second.body.length();
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Could not find: "+name);
+                    }
+
                     continue;
                 }
-                // if (macroName == "include")
-                // {
-                //     auto path = getNextArg();
-                //     auto file = fopen(path.c_str(), "r");
-                //     if (!file)
-                //     {
-                //         throw std::runtime_error("Could not open file: " + path);
-                //     }
-                //     std::string buffer;
-                //     fseek(file, 0, SEEK_END);
-                //     auto size = ftell(file);
-                //     fseek(file, 0, SEEK_SET);
-                //     buffer.resize(size);
-                //     fread(&buffer[0], size, 1, file);
-                //     fclose(file);
-                //     input.replace(currentMacro, macroNextLine - currentMacro + 1, buffer);
-                //     continue;
-                // }
 
                 throw std::runtime_error("Unknown preprocessor command");
             }
