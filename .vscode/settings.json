@@ -70,6 +70,7 @@
         "typeinfo": "cpp",
         "semaphore": "cpp",
         "complex": "cpp",
-        "typeindex": "cpp"
+        "typeindex": "cpp",
+        "codecvt": "cpp"
     }
 }

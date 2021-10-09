@@ -9,14 +9,20 @@
 #include <cstdio>
 #include <filesystem>
 
-//TODO variables
-//TODO require keywords not have letters at end/start
 //TODO reduce copies of strings. Use segments of data to reduce the amount of characters moved when replacing stuff
 //TODO integrate with math interpreter for full math support
 //TODO command to evaluate the value of a define and store it. Example: #define x #y #define y test ##eval x this should not support any directives, only try to look up the value,
 //until there is no more # at the beginning
 //TODO possible argument evaluation everywhere(like in include directives)
 //TODO DRY
+//TODO track lines
+//TODO more built in functions(file name, line number, error, assert, to uppercase ...)
+//TODO possible injection of functions for later
+//TODO includes relative to the file they are written in
+//TODO document
+//TODO template for the comparison operations to avoid redundancy
+//TODO optional number of args for the add and other int ops
+//TODO debug logging
 
 namespace VWA
 {
@@ -39,7 +45,7 @@ namespace VWA
             return false;
         }
     }
-    std::string preprocess(std::string input)
+    std::string preprocess(std::string input, std::unordered_map<std::string, std::string> defines = {}, std::unordered_map<std::string, int> counters = {})
     {
         {
             //TODO include directories
@@ -72,32 +78,6 @@ namespace VWA
                 buffer.resize(size);
                 fread(&buffer[0], size, 1, file);
                 fclose(file);
-                // auto firstNewLine = buffer.find('\n');
-                // if (firstNewLine == std::string::npos)
-                //     firstNewLine = buffer.size();
-                // std::string_view firstLine(buffer.data(), firstNewLine);
-                // std::string_view contents(buffer);
-                // if (firstLine.length() >= 6)
-                //     if (firstLine.find("##once") != firstLine.npos)
-                //     {
-                //         bool hasBeenIncluded = false;
-                //         //Check if file has already been included
-                //         for (auto &mfile : includedFiles)
-                //         {
-                //             if (mfile.compare(path))
-                //             {
-                //                 hasBeenIncluded = true;
-                //                 break;
-                //             }
-                //         }
-                //         if (!hasBeenIncluded)
-                //         {
-                //             includedFiles.push_back(path);
-                //             contents = contents.substr(firstNewLine, contents.size() - firstNewLine);
-                //         }
-                //         else
-                //             contents = "";
-                //     }
                 input.replace(current, next - current, buffer);
             }
         }
@@ -114,8 +94,6 @@ namespace VWA
             input = std::regex_replace(input, commentMatcher, "$1");
         }
         std::unordered_map<std::string, Macro> macros;
-        std::unordered_map<std::string, std::string> defines;
-        std::unordered_map<std::string, int> counters;
 
         size_t currentMacroDefine = 0;
         while (true)
@@ -218,7 +196,7 @@ namespace VWA
                     {
                         if (macroEnd == macroNextLine)
                         {
-                            throw std::runtime_error("Argument not found");
+                            return std::string();
                         }
                         else
                         {
@@ -229,18 +207,31 @@ namespace VWA
                     macroEnd = nextSpace;
                     return arg;
                 };
+                //TODO: named ifs
+                //TODO: else if
+                auto getArgs = [&](int min = -1, int max = -1) -> std::vector<std::string>
+                {
+                    std::vector<std::string> args;
+                    while (true)
+                    {
+                        if (args.size() == max)
+                            break;
+                        auto arg = getNextArg();
+                        if (arg.empty())
+                        {
+                            break;
+                        }
+                        args.push_back(arg);
+                    }
+                    if (args.size() < min)
+                        throw std::runtime_error("Not enough arguments given to preprocessor directive");
+                    return args;
+                };
                 if (macroName == "define")
                 {
                     auto what = getNextArg();
                     std::string value;
-                    try
-                    {
-                        value = getNextArg();
-                    }
-                    catch (...)
-                    {
-                        value = "";
-                    }
+                    value = getNextArg();
                     defines[what] = value;
                     deleteLine();
                     continue;
@@ -248,25 +239,28 @@ namespace VWA
                 if (macroName == "undef")
                 {
                     auto what = getNextArg();
+                    if (what.empty())
+                        throw std::runtime_error("No argument given to undef");
+
                     defines.erase(what);
                     deleteLine();
                     continue;
                 }
                 if (macroName == "ifdef")
                 {
-                    auto what = defines.contains(getNextArg());
+                    auto args = getArgs(1, 2);
                     size_t endIfDef = macroNextLine;
-                    endIfDef = input.find("##endifdef", endIfDef);
+                    endIfDef = input.find("##endif", endIfDef);
                     if (endIfDef == std::string::npos)
                     {
-                        throw std::runtime_error("#endifdef not found");
+                        throw std::runtime_error("#endif not found");
                     }
                     auto endIfDefNextLine = input.find('\n', endIfDef);
                     if (endIfDefNextLine == std::string::npos)
                     {
                         endIfDefNextLine = input.length() - 1;
                     }
-                    if (!what)
+                    if (!defines.contains(args[0]))
                     {
                         input.erase(currentMacro, endIfDefNextLine - currentMacro + 1);
                     }
@@ -279,9 +273,9 @@ namespace VWA
                 }
                 if (macroName == "ifndef")
                 {
-                    auto what = defines.contains(getNextArg());
+                    auto args = getArgs(1, 2);
                     size_t endIfDef = macroNextLine;
-                    endIfDef = input.find("##endifndef", endIfDef);
+                    endIfDef = input.find("##endif", endIfDef);
                     if (endIfDef == std::string::npos)
                     {
                         throw std::runtime_error("#endifndef not found");
@@ -291,7 +285,7 @@ namespace VWA
                     {
                         endIfDefNextLine = input.length() - 1;
                     }
-                    if (what)
+                    if (defines.contains(args[0]))
                     {
                         input.erase(currentMacro, endIfDefNextLine - currentMacro + 1);
                     }
@@ -302,9 +296,193 @@ namespace VWA
                     }
                     continue;
                 }
+                if (macroName == "ifeq")
+                {
+                    auto args = getArgs(2, 3);
+                    auto it = counters.find(args[0]);
+                    if (it == counters.end())
+                    {
+                        throw std::runtime_error("Unknown variable: " + args[0]);
+                    }
+                    auto endIfEq = macroNextLine;
+                    endIfEq = input.find("##endif", endIfEq);
+                    if (endIfEq == std::string::npos)
+                    {
+                        throw std::runtime_error("##endif");
+                    }
+                    auto endIfEqNextLine = input.find('\n', endIfEq);
+                    if (endIfEqNextLine == std::string::npos)
+                    {
+                        endIfEqNextLine = input.length() - 1;
+                    }
+                    if (evaluateArgument(args[1], evaluateArgument) != it->second)
+                    {
+                        input.erase(currentMacro, endIfEqNextLine - currentMacro + 1);
+                    }
+                    else
+                    {
+                        input.erase(endIfEq, endIfEqNextLine - endIfEq + 1);
+                        deleteLine();
+                    }
+                    continue;
+                }
+                if (macroName == "ifneq")
+                {
+                    auto args = getArgs(2, 3);
+                    auto it = counters.find(args[0]);
+                    if (it == counters.end())
+                    {
+                        throw std::runtime_error("Unknown variable: " + args[0]);
+                    }
+                    auto endIfEq = macroNextLine;
+                    endIfEq = input.find("##endif", endIfEq);
+                    if (endIfEq == std::string::npos)
+                    {
+                        throw std::runtime_error("##endif");
+                    }
+                    auto endIfEqNextLine = input.find('\n', endIfEq);
+                    if (endIfEqNextLine == std::string::npos)
+                    {
+                        endIfEqNextLine = input.length() - 1;
+                    }
+                    if (evaluateArgument(args[1], evaluateArgument) == it->second)
+                    {
+                        input.erase(currentMacro, endIfEqNextLine - currentMacro + 1);
+                    }
+                    else
+                    {
+                        input.erase(endIfEq, endIfEqNextLine - endIfEq + 1);
+                        deleteLine();
+                    }
+                    continue;
+                }
+                if (macroName == "ifgt")
+                {
+                    auto args = getArgs(2, 3);
+                    auto it = counters.find(args[0]);
+                    if (it == counters.end())
+                    {
+                        throw std::runtime_error("Unknown variable: " + args[0]);
+                    }
+                    auto endIfEq = macroNextLine;
+                    endIfEq = input.find("##endif", endIfEq);
+                    if (endIfEq == std::string::npos)
+                    {
+                        throw std::runtime_error("##endif");
+                    }
+                    auto endIfEqNextLine = input.find('\n', endIfEq);
+                    if (endIfEqNextLine == std::string::npos)
+                    {
+                        endIfEqNextLine = input.length() - 1;
+                    }
+                    if (evaluateArgument(args[1], evaluateArgument) < it->second)
+                    {
+                        input.erase(endIfEq, endIfEqNextLine - endIfEq + 1);
+                        deleteLine();
+                    }
+                    else
+                    {
+                        input.erase(currentMacro, endIfEqNextLine - currentMacro + 1);
+                    }
+                    continue;
+                }
+                if (macroName == "iflt")
+                {
+                    auto args = getArgs(2, 3);
+                    auto it = counters.find(args[0]);
+                    if (it == counters.end())
+                    {
+                        throw std::runtime_error("Unknown variable: " + args[0]);
+                    }
+                    auto endIfEq = macroNextLine;
+                    endIfEq = input.find("##endif", endIfEq);
+                    if (endIfEq == std::string::npos)
+                    {
+                        throw std::runtime_error("##endif");
+                    }
+                    auto endIfEqNextLine = input.find('\n', endIfEq);
+                    if (endIfEqNextLine == std::string::npos)
+                    {
+                        endIfEqNextLine = input.length() - 1;
+                    }
+                    if (evaluateArgument(args[1], evaluateArgument) > it->second)
+                    {
+                        input.erase(endIfEq, endIfEqNextLine - endIfEq + 1);
+                        deleteLine();
+                    }
+                    else
+                    {
+                        input.erase(currentMacro, endIfEqNextLine - currentMacro + 1);
+                    }
+                    continue;
+                }
+                if (macroName == "ifgteq")
+                {
+                    auto args = getArgs(2, 3);
+                    auto it = counters.find(args[0]);
+                    if (it == counters.end())
+                    {
+                        throw std::runtime_error("Unknown variable: " + args[0]);
+                    }
+                    auto endIfEq = macroNextLine;
+                    endIfEq = input.find("##endif", endIfEq);
+                    if (endIfEq == std::string::npos)
+                    {
+                        throw std::runtime_error("##endif");
+                    }
+                    auto endIfEqNextLine = input.find('\n', endIfEq);
+                    if (endIfEqNextLine == std::string::npos)
+                    {
+                        endIfEqNextLine = input.length() - 1;
+                    }
+                    if (evaluateArgument(args[1], evaluateArgument) <= it->second)
+                    {
+                        input.erase(endIfEq, endIfEqNextLine - endIfEq + 1);
+                        deleteLine();
+                    }
+                    else
+                    {
+                        input.erase(currentMacro, endIfEqNextLine - currentMacro + 1);
+                    }
+                    continue;
+                }
+                if (macroName == "iflteq")
+                {
+                    auto args = getArgs(2, 3);
+                    auto it = counters.find(args[0]);
+                    if (it == counters.end())
+                    {
+                        throw std::runtime_error("Unknown variable: " + args[0]);
+                    }
+                    auto endIfEq = macroNextLine;
+                    endIfEq = input.find("##endif", endIfEq);
+                    if (endIfEq == std::string::npos)
+                    {
+                        throw std::runtime_error("##endif");
+                    }
+                    auto endIfEqNextLine = input.find('\n', endIfEq);
+                    if (endIfEqNextLine == std::string::npos)
+                    {
+                        endIfEqNextLine = input.length() - 1;
+                    }
+                    if (evaluateArgument(args[1], evaluateArgument) >= it->second)
+                    {
+                        input.erase(endIfEq, endIfEqNextLine - endIfEq + 1);
+                        deleteLine();
+                    }
+                    else
+                    {
+                        input.erase(currentMacro, endIfEqNextLine - currentMacro + 1);
+                    }
+                    continue;
+                }
                 if (macroName == "pureText")
                 {
                     auto name = getNextArg();
+                    if (name.empty())
+                    {
+                        throw std::runtime_error("pureText: no name");
+                    }
                     if (auto it = defines.find(name); it != defines.end())
                     {
                         input.replace(currentMacro, macroEnd - currentMacro + 1, it->second);
@@ -355,23 +533,21 @@ namespace VWA
                 }
                 if (macroName == "set")
                 {
-                    auto name = getNextArg();
+                    auto args = getArgs(1, 2);
                     int value;
-                    try
-                    {
-                        value = evaluateArgument(getNextArg(),evaluateArgument);
-                    }
-                    catch (...)
-                    {
-                        value=0;
-                    }
-                    counters[name] = value;
+                    if (args.size() == 1)
+                        value = 0;
+                    else
+                        value = evaluateArgument(getNextArg(), evaluateArgument);
+                    counters[args[0]] = value;
                     deleteLine();
                     continue;
                 }
                 if (macroName == "del")
                 {
                     auto name = getNextArg();
+                    if (name.empty())
+                        throw std::runtime_error("del: no name");
                     auto it = counters.find(name);
                     if (it == counters.end())
                     {
@@ -383,81 +559,71 @@ namespace VWA
                 }
                 if (macroName == "mul")
                 {
-                    //TODO get number of args. If 2 then multiply and store in arg0
-                    //This would not add any functionality, but it would make code more readable
-                    auto result = getNextArg();
-                    auto operand1 = getNextArg();
-                    auto operand2 = getNextArg();
-                    auto it = counters.find(operand1);
+                    auto args = getArgs(2, 3);
+                    auto val1 = evaluateArgument(args[0], evaluateArgument);
+                    auto val2 = evaluateArgument(args[1], evaluateArgument);
+                    auto it = counters.find(args[args.size() == 3 ? 2 : 0]);
                     if (it == counters.end())
                     {
-                        throw std::runtime_error("Could not find: " + operand1);
+                        throw std::runtime_error("Could not find: " + args[args.size() == 3 ? 2 : 0]);
                     }
-                    it->second = evaluateArgument(operand1, evaluateArgument) * evaluateArgument(operand2, evaluateArgument);
+                    it->second = val1 * val2;
                     deleteLine();
                     continue;
                 }
                 if (macroName == "div")
                 {
-                    //TODO get number of args. If 2 then multiply and store in arg0
-                    //This would not add any functionality, but it would make code more readable
-                    auto result = getNextArg();
-                    auto operand1 = getNextArg();
-                    auto operand2 = getNextArg();
-                    auto it = counters.find(operand1);
+                    auto args = getArgs(2, 3);
+                    auto val1 = evaluateArgument(args[0], evaluateArgument);
+                    auto val2 = evaluateArgument(args[1], evaluateArgument);
+                    auto it = counters.find(args[args.size() == 3 ? 2 : 0]);
                     if (it == counters.end())
                     {
-                        throw std::runtime_error("Could not find: " + operand1);
+                        throw std::runtime_error("Could not find: " + args[args.size() == 3 ? 2 : 0]);
                     }
-                    it->second = evaluateArgument(operand1, evaluateArgument) / evaluateArgument(operand2, evaluateArgument);
+                    it->second = val1 / val2;
                     deleteLine();
                     continue;
                 }
                 if (macroName == "mod")
                 {
-                    //TODO get number of args. If 2 then multiply and store in arg0
-                    //This would not add any functionality, but it would make code more readable
-                    auto result = getNextArg();
-                    auto operand1 = getNextArg();
-                    auto operand2 = getNextArg();
-                    auto it = counters.find(operand1);
+                    auto args = getArgs(2, 3);
+                    auto val1 = evaluateArgument(args[0], evaluateArgument);
+                    auto val2 = evaluateArgument(args[1], evaluateArgument);
+                    auto it = counters.find(args[args.size() == 3 ? 2 : 0]);
                     if (it == counters.end())
                     {
-                        throw std::runtime_error("Could not find: " + operand1);
+                        throw std::runtime_error("Could not find: " + args[args.size() == 3 ? 2 : 0]);
                     }
-                    it->second = evaluateArgument(operand1, evaluateArgument) % evaluateArgument(operand2, evaluateArgument);
+                    it->second = val1 + val2;
                     deleteLine();
                     continue;
                 }
                 if (macroName == "add")
                 {
-                    //TODO get number of args. If 2 then multiply and store in arg0
-                    //This would not add any functionality, but it would make code more readable
-                    auto result = getNextArg();
-                    auto operand1 = getNextArg();
-                    auto operand2 = getNextArg();
-                    auto it = counters.find(operand1);
+                    auto args = getArgs(2, 3);
+                    auto val1 = evaluateArgument(args[0], evaluateArgument);
+                    auto val2 = evaluateArgument(args[1], evaluateArgument);
+                    auto it = counters.find(args[args.size() == 3 ? 2 : 0]);
                     if (it == counters.end())
                     {
-                        throw std::runtime_error("Could not find: " + operand1);
+                        throw std::runtime_error("Could not find: " + args[args.size() == 3 ? 2 : 0]);
                     }
-                    it->second = evaluateArgument(operand1, evaluateArgument) + evaluateArgument(operand2, evaluateArgument);
+                    it->second = val1 + val2;
                     deleteLine();
                     continue;
                 }
                 if (macroName == "sub")
                 {
-                    //TODO get number of args. If 2 then multiply and store in arg0
-                    //This would not add any functionality, but it would make code more readable
-                    auto result = getNextArg();
-                    auto operand1 = getNextArg();
-                    auto operand2 = getNextArg();
-                    auto it = counters.find(operand1);
+                    auto args = getArgs(2, 3);
+                    auto val1 = evaluateArgument(args[0], evaluateArgument);
+                    auto val2 = evaluateArgument(args[1], evaluateArgument);
+                    auto it = counters.find(args[args.size() == 3 ? 2 : 0]);
                     if (it == counters.end())
                     {
-                        throw std::runtime_error("Could not find: " + operand1);
+                        throw std::runtime_error("Could not find: " + args[args.size() == 3 ? 2 : 0]);
                     }
-                    it->second = evaluateArgument(operand1, evaluateArgument) - evaluateArgument(operand2, evaluateArgument);
+                    it->second = val1 - val2;
                     deleteLine();
                     continue;
                 }
