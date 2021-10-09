@@ -9,8 +9,9 @@
 #include <cstdio>
 #include <filesystem>
 
-//TODO ifdef and variables
+//TODO variables
 //TODO require keywords not have letters at end/start
+//TODO reduce copies of strings. Use segments of data to reduce the amount of characters moved when replacing stuff
 
 namespace VWA
 {
@@ -150,7 +151,7 @@ namespace VWA
             std::string macroName(input.substr(currentMacroDefine + 6, macroNextLine - currentMacroDefine - 6));
             macroName.erase(std::remove(macroName.begin(), macroName.end(), ' '), macroName.end());
             auto macroBody = input.substr(macroNextLine + 1, endMacro - macroNextLine - 2);
-            macros[macroName] = Macro{.body = std::string(macroBody)};
+            macros[macroName] = Macro{.body = std::move(macroBody)};
             auto nextNewLine = input.find('\n', endMacro);
             if (nextNewLine == std::string::npos)
                 nextNewLine = input.length() - 1;
