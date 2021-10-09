@@ -153,6 +153,13 @@ namespace VWA
                     input.erase(currentMacro, macroNextLine - currentMacro + 1);
                     continue;
                 }
+                if (macroName == "undef")
+                {
+                    auto what = getNextArg();
+                    defines.erase(what);
+                    input.erase(currentMacro, macroNextLine - currentMacro + 1);
+                    continue;
+                }
                 if (macroName == "ifdef")
                 {
                     auto what = defines.contains(getNextArg());
@@ -200,6 +207,23 @@ namespace VWA
                     {
                         input.erase(endIfDef, endIfDefNextLine - endIfDef + 1);
                         input.erase(currentMacro, macroNextLine - currentMacro + 1);
+                    }
+                    continue;
+                }
+                //Only for defines and counters
+                if (macroName == "pureText")
+                {
+                    auto name=getNextArg();
+                    if (auto it = defines.find(name); it != defines.end())
+                    {
+                        input.replace(currentMacro, macroEnd - currentMacro + 1, it->second);
+                        currentMacro += it->second.length();
+                    }
+                    if (auto it2 = counters.find(name); it2 != counters.end())
+                    {
+                        auto asString = std::to_string(it2->second);
+                        input.replace(currentMacro, macroNameEnd - currentMacro + 1, asString);
+                        currentMacro += asString.length();
                     }
                     continue;
                 }
@@ -281,7 +305,7 @@ namespace VWA
                 }
                 std::vector<std::string> macroArgs;
                 auto macroArgsStart = macroNameEnd + 1;
-                auto macroArgsCurrent = macroArgsStart-1;
+                auto macroArgsCurrent = macroArgsStart - 1;
                 for (size_t i = macroArgsStart; i <= macroArgsLast; i++)
                 {
                     if (input[i] == ',')
@@ -290,7 +314,7 @@ namespace VWA
                         {
                             if (input[i - 1] != '\\')
                             {
-                                macroArgs.push_back(input.substr(macroArgsCurrent+1, i - macroArgsCurrent-1));
+                                macroArgs.push_back(input.substr(macroArgsCurrent + 1, i - macroArgsCurrent - 1));
                                 macroArgsCurrent = i + 1;
                             }
                             else
@@ -301,7 +325,7 @@ namespace VWA
                         }
                     }
                 }
-                macroArgs.push_back(input.substr(macroArgsCurrent+1, macroArgsLast - macroArgsCurrent));
+                macroArgs.push_back(input.substr(macroArgsCurrent + 1, macroArgsLast - macroArgsCurrent));
                 std::string macroBody = macro->second.body;
                 for (size_t i = 0; i < macroArgs.size(); i++)
                 {
