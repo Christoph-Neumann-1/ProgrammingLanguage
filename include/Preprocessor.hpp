@@ -145,7 +145,7 @@ namespace VWA
                     {
                         value = getNextArg();
                     }
-                    catch(...)
+                    catch (...)
                     {
                         value = "";
                     }
@@ -168,6 +168,31 @@ namespace VWA
                         endIfDefNextLine = input.length() - 1;
                     }
                     if (!what)
+                    {
+                        input.erase(currentMacro, endIfDefNextLine - currentMacro + 1);
+                    }
+                    else
+                    {
+                        input.erase(endIfDef, endIfDefNextLine - endIfDef + 1);
+                        input.erase(currentMacro, macroNextLine - currentMacro + 1);
+                    }
+                    continue;
+                }
+                if (macroName == "ifndef")
+                {
+                    auto what = defines.contains(getNextArg());
+                    size_t endIfDef = macroNextLine;
+                    endIfDef = input.find("##endifndef", endIfDef);
+                    if (endIfDef == std::string::npos)
+                    {
+                        throw std::runtime_error("#endifndef not found");
+                    }
+                    auto endIfDefNextLine = input.find('\n', endIfDef);
+                    if (endIfDefNextLine == std::string::npos)
+                    {
+                        endIfDefNextLine = input.length() - 1;
+                    }
+                    if (what)
                     {
                         input.erase(currentMacro, endIfDefNextLine - currentMacro + 1);
                     }
@@ -219,7 +244,7 @@ namespace VWA
                 }
                 else
                 {
-                    input.replace(currentMacro, macroNameEnd - currentMacro+1, macro->second.body);
+                    input.replace(currentMacro, macroNameEnd - currentMacro + 1, macro->second.body);
                     continue;
                 }
             }
