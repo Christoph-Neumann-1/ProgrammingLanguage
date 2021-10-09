@@ -24,6 +24,21 @@
 //TODO optional number of args for the add and other int ops
 //TODO debug logging
 
+#define PREPROCESSOR_BINARY_MATH_OP(op)                      \
+    auto args = getArgs(2, 3);                               \
+    auto val1 = evaluateArgument(args[0], evaluateArgument); \
+    auto val2 = evaluateArgument(args[1], evaluateArgument); \
+    counters[args[args.size() == 3 ? 2 : 0]] = val1 op val2; \
+    deleteLine();                                            \
+    continue;
+
+#define PREPROCESSOR_MATH_COMPARISON(op)                                                                            \
+    auto args = getArgs(1, 2);                                                                                      \
+    ifblock([&]()                                                                                                   \
+            { return evaluateArgument(args[0], evaluateArgument) op evaluateArgument(args[1], evaluateArgument); }, \
+            args.size() > 2 ? args[2] : "");                                                                        \
+    continue;
+
 namespace VWA
 {
     namespace
@@ -241,8 +256,6 @@ namespace VWA
                     macroEnd = nextSpace;
                     return arg;
                 };
-                //TODO: named ifs
-                //TODO: else if
                 auto getArgs = [&](int min = -1, int max = -1) -> std::vector<std::string>
                 {
                     std::vector<std::string> args;
@@ -298,51 +311,27 @@ namespace VWA
                 }
                 if (macroName == "ifeq")
                 {
-                    auto args = getArgs(1, 2);
-                    ifblock([&]()
-                            { return evaluateArgument(args[0], evaluateArgument) == evaluateArgument(args[1], evaluateArgument); },
-                            args.size() > 2 ? args[2] : "");
-                    continue;
+                    PREPROCESSOR_MATH_COMPARISON(==)
                 }
                 if (macroName == "ifneq")
                 {
-                    auto args = getArgs(1, 2);
-                    ifblock([&]()
-                            { return evaluateArgument(args[0], evaluateArgument) != evaluateArgument(args[1], evaluateArgument); },
-                            args.size() > 2 ? args[2] : "");
-                    continue;
+                    PREPROCESSOR_MATH_COMPARISON(!=)
                 }
                 if (macroName == "ifgt")
                 {
-                    auto args = getArgs(1, 2);
-                    ifblock([&]()
-                            { return evaluateArgument(args[0], evaluateArgument) > evaluateArgument(args[1], evaluateArgument); },
-                            args.size() > 2 ? args[2] : "");
-                    continue;
+                    PREPROCESSOR_MATH_COMPARISON(>)
                 }
                 if (macroName == "iflt")
                 {
-                    auto args = getArgs(1, 2);
-                    ifblock([&]()
-                            { return evaluateArgument(args[0], evaluateArgument) < evaluateArgument(args[1], evaluateArgument); },
-                            args.size() > 2 ? args[2] : "");
-                    continue;
+                    PREPROCESSOR_MATH_COMPARISON(<)
                 }
                 if (macroName == "ifgteq")
                 {
-                    auto args = getArgs(1, 2);
-                    ifblock([&]()
-                            { return evaluateArgument(args[0], evaluateArgument) >= evaluateArgument(args[1], evaluateArgument); },
-                            args.size() > 2 ? args[2] : "");
-                    continue;
+                    PREPROCESSOR_MATH_COMPARISON(>=)
                 }
                 if (macroName == "iflteq")
                 {
-                    auto args = getArgs(1, 2);
-                    ifblock([&]()
-                            { return evaluateArgument(args[0], evaluateArgument) <= evaluateArgument(args[1], evaluateArgument); },
-                            args.size() > 2 ? args[2] : "");
-                    continue;
+                    PREPROCESSOR_MATH_COMPARISON(<=)
                 }
                 if (macroName == "pureText")
                 {
@@ -406,7 +395,7 @@ namespace VWA
                     if (args.size() == 1)
                         value = 0;
                     else
-                        value = evaluateArgument(getNextArg(), evaluateArgument);
+                        value = evaluateArgument(args[1], evaluateArgument);
                     counters[args[0]] = value;
                     deleteLine();
                     continue;
@@ -427,73 +416,23 @@ namespace VWA
                 }
                 if (macroName == "mul")
                 {
-                    auto args = getArgs(2, 3);
-                    auto val1 = evaluateArgument(args[0], evaluateArgument);
-                    auto val2 = evaluateArgument(args[1], evaluateArgument);
-                    auto it = counters.find(args[args.size() == 3 ? 2 : 0]);
-                    if (it == counters.end())
-                    {
-                        throw std::runtime_error("Could not find: " + args[args.size() == 3 ? 2 : 0]);
-                    }
-                    it->second = val1 * val2;
-                    deleteLine();
-                    continue;
+                    PREPROCESSOR_BINARY_MATH_OP(*)
                 }
                 if (macroName == "div")
                 {
-                    auto args = getArgs(2, 3);
-                    auto val1 = evaluateArgument(args[0], evaluateArgument);
-                    auto val2 = evaluateArgument(args[1], evaluateArgument);
-                    auto it = counters.find(args[args.size() == 3 ? 2 : 0]);
-                    if (it == counters.end())
-                    {
-                        throw std::runtime_error("Could not find: " + args[args.size() == 3 ? 2 : 0]);
-                    }
-                    it->second = val1 / val2;
-                    deleteLine();
-                    continue;
+                    PREPROCESSOR_BINARY_MATH_OP(/)
                 }
                 if (macroName == "mod")
                 {
-                    auto args = getArgs(2, 3);
-                    auto val1 = evaluateArgument(args[0], evaluateArgument);
-                    auto val2 = evaluateArgument(args[1], evaluateArgument);
-                    auto it = counters.find(args[args.size() == 3 ? 2 : 0]);
-                    if (it == counters.end())
-                    {
-                        throw std::runtime_error("Could not find: " + args[args.size() == 3 ? 2 : 0]);
-                    }
-                    it->second = val1 + val2;
-                    deleteLine();
-                    continue;
+                    PREPROCESSOR_BINARY_MATH_OP(%)
                 }
                 if (macroName == "add")
                 {
-                    auto args = getArgs(2, 3);
-                    auto val1 = evaluateArgument(args[0], evaluateArgument);
-                    auto val2 = evaluateArgument(args[1], evaluateArgument);
-                    auto it = counters.find(args[args.size() == 3 ? 2 : 0]);
-                    if (it == counters.end())
-                    {
-                        throw std::runtime_error("Could not find: " + args[args.size() == 3 ? 2 : 0]);
-                    }
-                    it->second = val1 + val2;
-                    deleteLine();
-                    continue;
+                    PREPROCESSOR_BINARY_MATH_OP(+)
                 }
                 if (macroName == "sub")
                 {
-                    auto args = getArgs(2, 3);
-                    auto val1 = evaluateArgument(args[0], evaluateArgument);
-                    auto val2 = evaluateArgument(args[1], evaluateArgument);
-                    auto it = counters.find(args[args.size() == 3 ? 2 : 0]);
-                    if (it == counters.end())
-                    {
-                        throw std::runtime_error("Could not find: " + args[args.size() == 3 ? 2 : 0]);
-                    }
-                    it->second = val1 - val2;
-                    deleteLine();
-                    continue;
+                    PREPROCESSOR_BINARY_MATH_OP(-)
                 }
                 throw std::runtime_error("Unknown preprocessor command");
             }
@@ -618,3 +557,6 @@ namespace VWA
         return input;
     }
 }
+
+#undef PREPROCESSOR_MATH_COMPARISON
+#undef PREPROCESSOR_BINARY_MATH_OP
