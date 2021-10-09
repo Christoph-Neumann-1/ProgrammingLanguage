@@ -1,11 +1,14 @@
 #include <iostream>
 #include <Preprocessor.hpp>
 #include <cstdio>
+#include <filesystem>
 
 int main(int argc, char* argv[])
 {
     //Load file to string
-    auto file=fopen("/home/christoph/GitRepos/VWA-Project/testfile.src","r");
+    // auto fileName = argv[1];
+    std::string fileName = "/home/christoph/GitRepos/VWA-Project/testfile.src";
+    auto file=fopen(fileName.c_str(),"r");
     if(file==nullptr)
     {
         std::cout<<"File not found"<<std::endl;
@@ -19,6 +22,8 @@ int main(int argc, char* argv[])
     buffer.resize(size);
     fread(&buffer[0],size,1,file);
     fclose(file);
+    //Change working directory
+    std::filesystem::current_path(std::filesystem::path(fileName).parent_path());
 
     std::cout<<VWA::preprocess(buffer)<<std::endl;
 

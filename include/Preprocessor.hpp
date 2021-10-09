@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <stdexcept>
 #include <boost/regex.hpp>
+#include <cstdio>
 
 //TODO ifdef and variables
 //TODO require keywords not have letters at end/start
@@ -33,6 +34,39 @@ namespace VWA
     }
     std::string preprocess(std::string input)
     {
+        {
+            auto current = 0;
+            while (true)
+            {
+                current = input.find("##include", current);
+                if (current == std::string::npos)
+                    break;
+                if (input[current - 1] == '\\')
+                {
+                    input.erase(current - 1, 1);
+                    current += 8;
+                    continue;
+                }
+                auto next = input.find('\n', current);
+                if (next == std::string::npos)
+                    next = input.size();
+                auto path = input.substr(current + 10, next - current - 10);
+                auto file = fopen(path.c_str(), "r");
+                if (!file)
+                {
+                    throw std::runtime_error("Could not open file: " + path);
+                }
+                std::string buffer;
+                fseek(file, 0, SEEK_END);
+                auto size = ftell(file);
+                fseek(file, 0, SEEK_SET);
+                buffer.resize(size);
+                fread(&buffer[0], size, 1, file);
+                fclose(file);
+                input.replace(current, next - current, buffer);
+                continue;
+            }
+        }
         {
             auto newline = input.find("\\\n");
             while (newline != std::string::npos)
@@ -213,7 +247,7 @@ namespace VWA
                 //Only for defines and counters
                 if (macroName == "pureText")
                 {
-                    auto name=getNextArg();
+                    auto name = getNextArg();
                     if (auto it = defines.find(name); it != defines.end())
                     {
                         input.replace(currentMacro, macroEnd - currentMacro + 1, it->second);
@@ -227,6 +261,25 @@ namespace VWA
                     }
                     continue;
                 }
+                // if (macroName == "include")
+                // {
+                //     auto path = getNextArg();
+                //     auto file = fopen(path.c_str(), "r");
+                //     if (!file)
+                //     {
+                //         throw std::runtime_error("Could not open file: " + path);
+                //     }
+                //     std::string buffer;
+                //     fseek(file, 0, SEEK_END);
+                //     auto size = ftell(file);
+                //     fseek(file, 0, SEEK_SET);
+                //     buffer.resize(size);
+                //     fread(&buffer[0], size, 1, file);
+                //     fclose(file);
+                //     input.replace(currentMacro, macroNextLine - currentMacro + 1, buffer);
+                //     continue;
+                // }
+
                 throw std::runtime_error("Unknown preprocessor command");
             }
 
