@@ -3,6 +3,7 @@
 #include <memory>
 #include <iterator>
 
+//TODO: iterator over all characters in file.
 namespace VWA
 {
     struct Line
@@ -241,6 +242,52 @@ namespace VWA
                     ret += '\n';
             }
             return ret;
+        }
+
+        struct FilePos
+        {
+            iterator line;
+            size_t firstChar;
+        };
+        FilePos find(char c, iterator line, size_t character)
+        {
+            for (; line != end(); line++)
+            {
+                if (auto res = line->content.find(c, character); res != line->content.npos)
+                {
+                    return {line, res};
+                }
+                character = 0;
+            }
+            return {end(), std::string::npos};
+        }
+        FilePos find(char c, iterator line)
+        {
+            return find(c, line, 0);
+        }
+        FilePos find(char c)
+        {
+            return find(c, m_first);
+        }
+        FilePos find(const std::string_view str, iterator line, size_t character)
+        {
+            for (; line != end(); line++)
+            {
+                if (auto res = line->content.find(str, character); res != line->content.npos)
+                {
+                    return {line, res};
+                }
+                character = 0;
+            }
+            return {end(), std::string::npos};
+        }
+        FilePos find(const std::string_view str, iterator line)
+        {
+            return find(str, line, 0);
+        }
+        FilePos find(const std::string_view str)
+        {
+            return find(str, begin());
         }
     };
 
