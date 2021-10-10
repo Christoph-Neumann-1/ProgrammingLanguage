@@ -1,31 +1,28 @@
 #include <iostream>
-#include <Preprocessor.hpp>
-#include <cstdio>
+// #include <Preprocessor.hpp>
 #include <filesystem>
+#include <File.hpp>
+#include <Preprocessor.hpp>
 
-int main(int argc, char* argv[])
+//TODO proper interface
+int main(int argc, char *argv[])
 {
     //Load file to string
     // auto fileName = argv[1];
     std::string fileName = "/home/christoph/GitRepos/VWA-Project/testfile.src";
-    auto file=fopen(fileName.c_str(),"r");
-    if(file==nullptr)
+    std::ifstream file(fileName);
+    if (!file.is_open())
     {
-        std::cout<<"File not found"<<std::endl;
-        return 1;
+        std::cout << "File not found" << std::endl;
+        return -1;
     }
-    std::string buffer;
-    //read entire file to string
-    fseek(file,0,SEEK_END);
-    auto size=ftell(file);
-    fseek(file,0,SEEK_SET);
-    buffer.resize(size);
-    fread(&buffer[0],size,1,file);
-    fclose(file);
+    VWA::File input(file);
+    file.close();
+
     //Change working directory
     std::filesystem::current_path(std::filesystem::path(fileName).parent_path());
 
-    std::cout<<VWA::preprocess(buffer)<<std::endl;
+    std::cout << VWA::preprocess(input).toString() << std::endl;
 
     return 0;
 }

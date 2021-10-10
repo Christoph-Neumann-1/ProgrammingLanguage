@@ -16,7 +16,8 @@ namespace VWA
         Line(Line *_next, Line *_prev, int line_number = 0, std::string_view content = "") : content(content), prev(_prev), next(_next), lineNumber(line_number) {}
         ~Line()
         {
-            delete next;
+            if (next != this)
+                delete next;
         }
         ///@brief Removes the links to other lines, allowing for this line to be deleted
         void detach()
@@ -28,7 +29,7 @@ namespace VWA
 
     class File
     {
-        Line *const m_end, *m_first;
+        Line *m_end, *m_first;
 
     public:
         struct iterator
@@ -53,10 +54,7 @@ namespace VWA
             }
             iterator &operator++()
             {
-                if (current->next)
-                    current = current->next;
-                else
-                    throw std::out_of_range("Tried incrementing iterator end");
+                current = current->next;
                 return *this;
             }
             iterator &operator--()
@@ -134,7 +132,12 @@ namespace VWA
             return iterator(m_end);
         }
 
-        File() : m_end(new Line(nullptr, nullptr, -1, "")), m_first(m_end) {}
+        File() : m_end(new Line(nullptr, nullptr, -1, "")), m_first(m_end)
+        {
+            //To allow for easier iteration
+            //Example: removeLine in loop
+            m_end->next = m_end;
+        }
 
         File(std::ifstream &file) : File()
         {
@@ -143,6 +146,39 @@ namespace VWA
             {
                 append(tmp);
             }
+        }
+
+        File(File &other) : File()
+        {
+            for (auto &line : other)
+            {
+                append(line.content);
+            }
+        }
+        File(File &&other) : m_end(other.m_end), m_first(other.m_first)
+        {
+            other.m_first = nullptr;
+        }
+
+        File &operator=(File &other)
+        {
+            delete m_first;
+            m_end = new Line(nullptr, nullptr, -1, "");
+            m_first = m_end;
+            m_end->next = m_end;
+            for (auto &line : other)
+            {
+                append(line.content);
+            }
+            return *this;
+        }
+        File &operator=(File &&other)
+        {
+            delete m_first;
+            m_first = other.m_first;
+            m_end = other.m_end;
+            other.m_first = nullptr;
+            return *this;
         }
 
         ~File()
@@ -239,6 +275,24 @@ namespace VWA
             return next;
         }
 
+        /**
+         * @brief Deletes all lines from start to end.
+         * 
+         * @param start inclusive
+         * @param end not inclusive
+         * @return iterator pointing to the next line after the deleted lines  (=end)
+         */
+        iterator removeLines(const iterator &start, const iterator &end)
+        {
+            if (start == this->end())
+                return end;
+            for (auto it = start; it != end;)
+            {
+                it = removeLine(it);
+            }
+            return end;
+        }
+
         bool empty() const
         {
             return m_first == nullptr;
@@ -257,8 +311,8 @@ namespace VWA
 
         struct FilePos
         {
-            iterator line;
-            size_t firstChar;
+            iterator line = nullptr;
+            size_t firstChar = -1;
         };
         FilePos find(char c, iterator line, size_t character)
         {

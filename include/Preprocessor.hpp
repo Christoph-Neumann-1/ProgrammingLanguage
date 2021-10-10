@@ -5,9 +5,8 @@
 #include <vector>
 #include <unordered_map>
 #include <stdexcept>
-#include <regex>
-#include <cstdio>
 #include <filesystem>
+#include <File.hpp>
 
 //TODO reduce copies of strings. Use segments of data to reduce the amount of characters moved when replacing stuff
 //TODO integrate with math interpreter for full math support
@@ -20,203 +19,177 @@
 //TODO possible injection of functions for later
 //TODO includes relative to the file they are written in
 //TODO document
-//TODO template for the comparison operations to avoid redundancy
-//TODO optional number of args for the add and other int ops
 //TODO debug logging
 
-#define PREPROCESSOR_BINARY_MATH_OP(op)                      \
-    auto args = getArgs(2, 3);                               \
-    auto val1 = evaluateArgument(args[0], evaluateArgument); \
-    auto val2 = evaluateArgument(args[1], evaluateArgument); \
-    counters[args[args.size() == 3 ? 2 : 0]] = val1 op val2; \
-    deleteLine();                                            \
+#define PREPROCESSOR_BINARY_MATH_OP(op)                          \
+    auto args = getArgs(2, 3);                                   \
+    auto val1 = evaluateArgument(args[0], evaluateArgument);     \
+    auto val2 = evaluateArgument(args[1], evaluateArgument);     \
+    counters[args[args.size() == 3 ? 2 : 0]] = val1 op val2;     \
+    currentMacro.line = inputFile.removeLine(currentMacro.line); \
+    currentMacro.firstChar = 0;                                  \
     continue;
 
-#define PREPROCESSOR_MATH_COMPARISON(op)                                                                            \
-    auto args = getArgs(1, 2);                                                                                      \
-    ifblock([&]()                                                                                                   \
-            { return evaluateArgument(args[0], evaluateArgument) op evaluateArgument(args[1], evaluateArgument); }, \
-            args.size() > 2 ? args[2] : "");                                                                        \
+#define PREPROCESSOR_MATH_COMPARISON(op)                                                                                                \
+    auto args = getArgs(1, 2);                                                                                                          \
+    currentMacro.line = ifblock([&]()                                                                                                   \
+                                { return evaluateArgument(args[0], evaluateArgument) op evaluateArgument(args[1], evaluateArgument); }, \
+                                args.size() > 2 ? args[2] : "");                                                                        \
+    currentMacro.firstChar = 0;                                                                                                         \
     continue;
 
 namespace VWA
 {
-    namespace
-    {
-        struct Macro
-        {
-            std::string body;
-        };
-        bool handleEscapeSequence(std::string &string, size_t &pos)
-        {
-            if (pos == 0)
-                return 0;
-            if (string[pos - 1] == '\\')
-            {
-                string.erase(pos - 1, 1);
-                pos--;
-                return true;
-            }
-            return false;
-        }
-    }
-    std::string preprocess(std::string input, std::unordered_map<std::string, std::string> defines = {}, std::unordered_map<std::string, int> counters = {})
+    File preprocess(File inputFile, std::unordered_map<std::string, std::string> defines = {}, std::unordered_map<std::string, int> counters = {})
     {
         {
             //TODO include directories
-            std::vector<std::filesystem::path> includedFiles;
-            size_t current = 0;
+            File::iterator current = inputFile.begin();
             while (true)
             {
-                current = input.find("##include", current);
-                if (current == std::string::npos)
+                auto res = inputFile.find("##include", current);
+                if (res.firstChar != 0 || res.firstChar == std::string::npos)
                     break;
-                if (input[current - 1] == '\\')
-                {
-                    input.erase(current - 1, 1);
-                    current += 8;
-                    continue;
-                }
-                auto next = input.find('\n', current);
-                if (next == std::string::npos)
-                    next = input.size();
-                auto path = input.substr(current + 10, next - current - 10);
-                auto file = fopen(path.c_str(), "r");
-                if (!file)
+                std::string path(res.line->content.begin() + 10, res.line->content.end());
+                std::ifstream file(path);
+                if (!file.is_open())
                 {
                     throw std::runtime_error("Could not open file: " + path);
                 }
-                std::string buffer;
-                fseek(file, 0, SEEK_END);
-                auto size = ftell(file);
-                fseek(file, 0, SEEK_SET);
-                buffer.resize(size);
-                fread(&buffer[0], size, 1, file);
-                fclose(file);
-                input.replace(current, next - current, buffer);
+                File includeFile(file);
+                inputFile.insertAfter(std::move(includeFile), res.line);
+                current = inputFile.removeLine(res.line);
             }
         }
+        //If the last character in a line is a \, merge it with the next line. Also removes empty lines.
+        for (auto line = inputFile.begin(); line != inputFile.end(); line++)
         {
-            auto newline = input.find("\\\n");
-            while (newline != std::string::npos)
+            if (line->content.empty())
             {
-                input.erase(newline, 2);
-                newline = input.find("\\\n");
+                line = inputFile.removeLine(line);
+                continue;
             }
-        }
-        {
-            std::regex commentMatcher("(^|\n)//.*?(\n|$)");
-            input = std::regex_replace(input, commentMatcher, "$1");
-        }
-        std::unordered_map<std::string, Macro> macros;
-
-        size_t currentMacroDefine = 0;
-        while (true)
-        {
-            currentMacroDefine = input.find("MACRO", currentMacroDefine);
-            if (currentMacroDefine == std::string::npos)
-                break;
-            if (currentMacroDefine != 0)
+            if (line->content.back() == '\\')
             {
-                if (input[currentMacroDefine - 1] != '\n')
+                auto next = line + 1;
+                if (next == inputFile.end())
                 {
-                    currentMacroDefine += 5;
                     continue;
                 }
+                line->content.pop_back();
+                line->content += next->content;
+                inputFile.removeLine(next);
             }
-
-            auto endMacro = currentMacroDefine + 5;
-
-            while (true)
-            {
-                endMacro = input.find("ENDMACRO", endMacro);
-                if (endMacro == std::string_view::npos)
-                {
-                    throw std::runtime_error("ENDMACRO not found");
-                }
-                if (input[endMacro - 1] == '\n')
-                {
-                    break;
-                }
-                endMacro += 8;
-            }
-
-            auto macroNextLine = input.find('\n', currentMacroDefine);
-            if (macroNextLine <= currentMacroDefine + 6)
-            {
-                throw std::runtime_error("Macro name not found");
-            }
-            std::string macroName(input.substr(currentMacroDefine + 6, macroNextLine - currentMacroDefine - 6));
-            macroName.erase(std::remove(macroName.begin(), macroName.end(), ' '), macroName.end());
-            auto macroBody = input.substr(macroNextLine + 1, endMacro - macroNextLine - 2);
-            macros[macroName] = Macro{.body = std::move(macroBody)};
-            auto nextNewLine = input.find('\n', endMacro);
-            if (nextNewLine == std::string::npos)
-                nextNewLine = input.length() - 1;
-            input.replace(currentMacroDefine, nextNewLine - currentMacroDefine + 1, "");
         }
-        for (auto currentMacro = input.find('#'); currentMacro != std::string::npos; currentMacro = input.find('#', currentMacro))
+
+        //All lines where starting with // are comments, this loop exists, too allow for multiline comments with escaped newlines
+        for (auto it = inputFile.begin(); it != inputFile.end(); it++)
         {
-            if (handleEscapeSequence(input, currentMacro))
+            if (it->content.length() >= 2)
+                if (it->content[0] == '/' && it->content[1] == '/')
+                {
+                    it = inputFile.removeLine(it);
+                }
+        }
+
+        std::unordered_map<std::string, File> macros;
+
+        auto current = inputFile.begin();
+        while (true)
+        {
+            auto res = inputFile.find("MACRO", current);
+            if (res.firstChar == std::string::npos)
+                break;
+            if (res.firstChar != 0)
             {
-                //TODO escape directives
-                currentMacro++;
+                current = res.line + 1;
                 continue;
             }
 
-            if (input[currentMacro + 1] == '#')
+            auto endMacro = res.line + 1;
+
+            while (true)
             {
-                //TODO: regex
-                auto macroNextLine = input.find('\n', currentMacro + 2);
-                if (macroNextLine == std::string::npos)
+                auto res2 = inputFile.find("ENDMACRO", endMacro);
+                if (res2.firstChar == std::string_view::npos)
                 {
-                    macroNextLine = input.length();
+                    throw std::runtime_error("ENDMACRO not found");
                 }
-                size_t macroNameEnd = input.find(' ', currentMacro + 2);
-                if (macroNameEnd == std::string::npos || macroNameEnd > macroNextLine)
+                if (!res2.firstChar)
                 {
-                    macroNameEnd = macroNextLine;
+                    endMacro = res2.line;
+                    break;
                 }
-                std::string macroName(input.substr(currentMacro + 2, macroNameEnd - currentMacro - 2));
+                endMacro = res2.line + 1;
+            }
 
+            if (res.line->content.size() < 7)
+                throw std::runtime_error("macro name not found");
+
+            auto space = res.line->content.find(' ');
+            std::string macroName = res.line->content.substr(6, space - 6);
+            auto body = inputFile.subFile(res.line + 1, endMacro);
+            macros[macroName] = std::move(body);
+            current = inputFile.removeLines(res.line, endMacro + 1);
+        }
+        for (auto currentMacro = inputFile.find('#'); currentMacro.firstChar != std::string::npos; currentMacro = inputFile.find('#', currentMacro.line, currentMacro.firstChar))
+        {
+            auto handleEscapeSequence = [](std::string &string, size_t &pos) -> bool
+            {
+                if (pos == 0)
+                    return 0;
+                if (string[pos - 1] == '\\')
+                {
+                    string.erase(pos - 1, 1);
+                    pos--;
+                    return true;
+                }
+                return false;
+            };
+            if (handleEscapeSequence(currentMacro.line->content, currentMacro.firstChar))
+            {
+                //TODO escape directives
+                currentMacro.firstChar++;
+                continue;
+            }
+
+            if (currentMacro.line->content[currentMacro.firstChar + 1] == '#')
+            {
+                size_t macroNameEnd = currentMacro.line->content.find(' ', currentMacro.firstChar + 2);
+                if (macroNameEnd == std::string::npos)
+                {
+                    macroNameEnd = currentMacro.line->content.length();
+                }
+                std::string macroName(currentMacro.line->content.substr(currentMacro.firstChar + 2, macroNameEnd - currentMacro.firstChar - 2));
                 size_t macroEnd = macroNameEnd;
-
-                auto deleteLine = [&]()
+                auto ifblock = [&](auto &&condition, const std::string &name) -> File::iterator
                 {
-                    input.erase(currentMacro, macroNextLine - currentMacro + 1);
-                };
-                auto ifblock = [&](auto &&condition, const std::string &name)
-                {
-                    size_t endIf = macroNextLine;
+                    auto endIf = currentMacro.line + 1;
+                    File::FilePos res;
                     if (name.empty())
                     {
-                        endIf = input.find("##endif", endIf);
-                        if (endIf == std::string::npos)
+                        res = inputFile.find("##endif", endIf);
+                        if (res.firstChar == std::string::npos)
                         {
                             throw std::runtime_error("ENDIF not found");
                         }
                     }
                     else
                     {
-                        endIf = input.find("##endif " + name, endIf);
-                        if (endIf == std::string::npos)
+                        res = inputFile.find("##endif " + name, endIf);
+                        if (res.firstChar == std::string::npos)
                         {
                             throw std::runtime_error("ENDIF not found " + name);
                         }
                     }
-                    auto endIfNextLine = input.find('\n', endIf);
-                    if (endIfNextLine == std::string::npos)
-                    {
-                        endIfNextLine = input.length() - 1;
-                    }
                     if (condition())
                     {
-                        input.erase(endIf, endIfNextLine - endIf + 1);
-                        deleteLine();
+                        inputFile.removeLine(res.line);
+                        return inputFile.removeLine(currentMacro.line);
                     }
                     else
                     {
-                        input.erase(currentMacro, endIfNextLine - currentMacro + 1);
+                        return inputFile.removeLines(currentMacro.line, res.line + 1);
                     }
                 };
                 auto evaluateArgument = [&](const std::string &arg, auto &&evaluateArgument) -> int
@@ -240,19 +213,19 @@ namespace VWA
                 };
                 auto getNextArg = [&]() -> std::string
                 {
-                    auto nextSpace = input.find(' ', macroEnd + 1);
-                    if (nextSpace == std::string::npos || nextSpace > macroNextLine)
+                    auto nextSpace = currentMacro.line->content.find(' ', macroEnd + 1);
+                    if (nextSpace == std::string::npos)
                     {
-                        if (macroEnd == macroNextLine)
+                        if (macroEnd == currentMacro.line->content.length())
                         {
                             return std::string();
                         }
                         else
                         {
-                            nextSpace = macroNextLine;
+                            nextSpace = currentMacro.line->content.length();
                         }
                     }
-                    auto arg = input.substr(macroEnd + 1, nextSpace - macroEnd - 1);
+                    auto arg = currentMacro.line->content.substr(macroEnd + 1, nextSpace - macroEnd - 1);
                     macroEnd = nextSpace;
                     return arg;
                 };
@@ -280,7 +253,8 @@ namespace VWA
                     std::string value;
                     value = getNextArg();
                     defines[what] = value;
-                    deleteLine();
+                    currentMacro.line = inputFile.removeLine(currentMacro.line);
+                    currentMacro.firstChar = 0;
                     continue;
                 }
                 if (macroName == "undef")
@@ -290,23 +264,26 @@ namespace VWA
                         throw std::runtime_error("No argument given to undef");
 
                     defines.erase(what);
-                    deleteLine();
+                    currentMacro.line = inputFile.removeLine(currentMacro.line);
+                    currentMacro.firstChar = 0;
                     continue;
                 }
                 if (macroName == "ifdef")
                 {
                     auto args = getArgs(1, 2);
-                    ifblock([&]()
-                            { return defines.contains(args[0]); },
-                            args.size() > 1 ? args[1] : "");
+                    currentMacro.line = ifblock([&]()
+                                                { return defines.contains(args[0]); },
+                                                args.size() > 1 ? args[1] : "");
+                    currentMacro.firstChar = 0;
                     continue;
                 }
                 if (macroName == "ifndef")
                 {
                     auto args = getArgs(1, 2);
-                    ifblock([&]()
-                            { return !defines.contains(args[0]); },
-                            args.size() > 1 ? args[1] : "");
+                    currentMacro.line = ifblock([&]()
+                                                { return !defines.contains(args[0]); },
+                                                args.size() > 1 ? args[1] : "");
+                    currentMacro.firstChar = 0;
                     continue;
                 }
                 if (macroName == "ifeq")
@@ -342,20 +319,14 @@ namespace VWA
                     }
                     if (auto it = defines.find(name); it != defines.end())
                     {
-                        input.replace(currentMacro, macroEnd - currentMacro + 1, it->second);
-                        currentMacro += it->second.length();
+                        currentMacro.line->content.replace(currentMacro.firstChar, macroEnd - currentMacro.firstChar + 1, it->second);
+                        currentMacro.firstChar += it->second.length();
                     }
                     else if (auto it2 = counters.find(name); it2 != counters.end())
                     {
                         auto asString = std::to_string(it2->second);
-                        input.replace(currentMacro, macroEnd - currentMacro + 1, asString);
-                        currentMacro += asString.length();
-                    }
-                    //Ignores args
-                    else if (auto it3 = macros.find(name); it3 != macros.end())
-                    {
-                        input.replace(currentMacro, macroEnd - currentMacro + 1, it3->second.body);
-                        currentMacro += it3->second.body.length();
+                        currentMacro.line->content.replace(currentMacro.firstChar, macroEnd - currentMacro.firstChar + 1, asString);
+                        currentMacro.firstChar += asString.length();
                     }
                     else
                     {
@@ -373,7 +344,8 @@ namespace VWA
                         throw std::runtime_error("Could not find: " + name);
                     }
                     it->second++;
-                    deleteLine();
+                    currentMacro.line = inputFile.removeLine(currentMacro.line);
+                    currentMacro.firstChar = 0;
                     continue;
                 }
                 if (macroName == "dec")
@@ -385,7 +357,8 @@ namespace VWA
                         throw std::runtime_error("Could not find: " + name);
                     }
                     it->second--;
-                    deleteLine();
+                    currentMacro.line = inputFile.removeLine(currentMacro.line);
+                    currentMacro.firstChar = 0;
                     continue;
                 }
                 if (macroName == "set")
@@ -397,7 +370,8 @@ namespace VWA
                     else
                         value = evaluateArgument(args[1], evaluateArgument);
                     counters[args[0]] = value;
-                    deleteLine();
+                    currentMacro.line = inputFile.removeLine(currentMacro.line);
+                    currentMacro.firstChar = 0;
                     continue;
                 }
                 if (macroName == "del")
@@ -411,7 +385,8 @@ namespace VWA
                         //TODO: debug message about alredy being deleted
                     }
                     counters.erase(it);
-                    deleteLine();
+                    currentMacro.line = inputFile.removeLine(currentMacro.line);
+                    currentMacro.firstChar = 0;
                     continue;
                 }
                 if (macroName == "mul")
@@ -438,123 +413,107 @@ namespace VWA
             }
 
             bool macroHasArgs = true;
-            auto macroNextLine = input.find('\n', currentMacro);
-            if (macroNextLine == std::string::npos)
-            {
-                macroNextLine = input.length();
-            }
-            size_t macroNameEnd = input.find('(', currentMacro);
-            if (macroNameEnd == std::string::npos || macroNameEnd > macroNextLine)
+            size_t macroNameEnd = currentMacro.line->content.find('(', currentMacro.firstChar);
+            if (macroNameEnd == std::string::npos)
             {
                 macroHasArgs = false;
-                macroNameEnd = input.find(' ');
+                macroNameEnd = currentMacro.line->content.find(' ', currentMacro.firstChar);
             }
-            if (macroNameEnd == std::string::npos || macroNameEnd > macroNextLine)
+            if (macroNameEnd == std::string::npos)
             {
-                macroNameEnd = macroNextLine;
+                macroNameEnd = currentMacro.line->content.length();
             }
-            std::string macroName(input.substr(currentMacro + 1, macroNameEnd - currentMacro - 1));
+            std::string macroName = currentMacro.line->content.substr(currentMacro.firstChar + 1, macroNameEnd - currentMacro.firstChar - 1);
             macroName.erase(std::remove(macroName.begin(), macroName.end(), ' '), macroName.end());
+
             if (!macroHasArgs)
             {
                 if (auto it = defines.find(macroName); it != defines.end())
                 {
-                    input.replace(currentMacro, macroNameEnd - currentMacro + 1, it->second);
+                    currentMacro.line->content.replace(currentMacro.firstChar, macroNameEnd - currentMacro.firstChar + 1, it->second);
                     continue;
                 }
                 if (auto it2 = counters.find(macroName); it2 != counters.end())
                 {
                     auto asString = std::to_string(it2->second);
-                    input.replace(currentMacro, macroNameEnd - currentMacro + 1, asString);
-                    continue;
-                }
-
-                if (auto macro = macros.find(macroName); macro == macros.end())
-                {
-                    throw std::runtime_error("Identifier not found " + macroName);
-                }
-                else
-                {
-                    input.replace(currentMacro, macroNameEnd - currentMacro + 1, macro->second.body);
+                    currentMacro.line->content.replace(currentMacro.firstChar, macroNameEnd - currentMacro.firstChar + 1, asString);
                     continue;
                 }
             }
-            else
+            std::vector<std::string> args;
+            if (macroHasArgs)
             {
-                auto macro = macros.find(macroName);
-                if (macro == macros.end())
-                {
-                    throw std::runtime_error("Identifier not found" + macroName);
-                }
-                size_t macroArgsLast;
-                size_t currentpos = 0;
+                size_t currentpos = macroNameEnd + 1;
 
                 while (true)
                 {
-                    currentpos = input.find(')', currentpos);
+                    currentpos = currentMacro.line->content.find(')', currentpos);
                     if (currentpos == std::string::npos)
                     {
-                        throw std::runtime_error("Macro arguments not found");
+                        throw std::runtime_error("Macro arguments not closed");
                     }
-                    if (handleEscapeSequence(input, currentpos))
+                    if (handleEscapeSequence(currentMacro.line->content, currentpos))
                     {
                         currentpos++;
                         continue;
                     }
                     break;
                 }
-
-                macroArgsLast = currentpos - 1;
-
-                if (macroArgsLast == std::string_view::npos)
-                {
-                    throw std::runtime_error("Macro arguments end not found");
-                }
-                std::vector<std::string> macroArgs;
+                auto macroArgsLast = currentpos - 1;
                 auto macroArgsStart = macroNameEnd + 1;
                 auto macroArgsCurrent = macroArgsStart - 1;
                 for (size_t i = macroArgsStart; i <= macroArgsLast; i++)
                 {
-                    if (input[i] == ',')
+                    if (currentMacro.line->content[i] == ',')
                     {
                         if (i > macroArgsStart)
                         {
-                            if (input[i - 1] != '\\')
+                            if (currentMacro.line->content[i - 1] != '\\')
                             {
-                                macroArgs.push_back(input.substr(macroArgsCurrent + 1, i - macroArgsCurrent - 1));
+                                args.push_back(currentMacro.line->content.substr(macroArgsCurrent + 1, i - macroArgsCurrent - 1));
                                 macroArgsCurrent = i + 1;
                             }
                             else
                             {
-                                input.erase(i - 1, 1);
+                                currentMacro.line->content.erase(i - 1, 1);
                                 i--;
                             }
                         }
                     }
                 }
-                macroArgs.push_back(input.substr(macroArgsCurrent + 1, macroArgsLast - macroArgsCurrent));
-                std::string macroBody = macro->second.body;
-                for (size_t i = 0; i < macroArgs.size(); i++)
-                {
-                    auto macroArg = macroBody.find("$" + std::to_string(i));
-                    while (macroArg != std::string_view::npos)
-                    {
-                        macroBody.replace(macroArg, 2, macroArgs[i]);
-                        macroArg = macroBody.find("$" + std::to_string(i));
-                    }
-                }
-                input.replace(currentMacro, macroArgsLast - currentMacro + 2, macroBody);
+                args.push_back(currentMacro.line->content.substr(macroArgsCurrent + 1, macroArgsLast - macroArgsCurrent));
             }
+            auto macro = macros.find(macroName);
+            if (macro == macros.end())
+            {
+                throw std::runtime_error("Identifier not found" + macroName);
+            }
+
+            File body(macro->second);
+            for (size_t i = 0; i < args.size(); i++)
+            {
+                File::FilePos arg{body.begin(), 0};
+                while (1)
+                {
+                    arg = body.find("$" + std::to_string(i), arg.line, arg.firstChar);
+                    if (arg.firstChar != std::string_view::npos)
+                        break;
+                    arg.line->content.replace(arg.firstChar, 2, args[i]);
+                }
+            }
+            inputFile.insertAfter(std::move(body), currentMacro.line);
+            currentMacro.line = inputFile.removeLine(currentMacro.line);
+            currentMacro.firstChar = 0;
         }
         {
-            auto space = input.find("\\ ");
-            while (space != std::string::npos)
+            auto space = inputFile.find("\\ ");
+            while (space.firstChar != std::string::npos)
             {
-                input.replace(space, 2, "");
-                space = input.find("\\ ", space);
+                space.line->content.replace(space.firstChar, 2, "");
+                space = inputFile.find("\\ ", space.line, space.firstChar);
             }
         }
-        return input;
+        return inputFile;
     }
 }
 
