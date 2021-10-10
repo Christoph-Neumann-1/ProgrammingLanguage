@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include <iterator>
+#include <fstream>
 
 //TODO: iterator over all characters in file.
 namespace VWA
@@ -28,6 +29,8 @@ namespace VWA
     class File
     {
         Line *const m_end, *m_first;
+
+    public:
         struct iterator
         {
             using iterator_category = std::bidirectional_iterator_tag;
@@ -122,7 +125,6 @@ namespace VWA
             friend class File;
         };
 
-    public:
         iterator begin()
         {
             return iterator(m_first);
@@ -133,6 +135,15 @@ namespace VWA
         }
 
         File() : m_end(new Line(nullptr, nullptr, -1, "")), m_first(m_end) {}
+
+        File(std::ifstream &file) : File()
+        {
+            std::string tmp;
+            while (std::getline(file, tmp))
+            {
+                append(tmp);
+            }
+        }
 
         ~File()
         {
@@ -289,6 +300,82 @@ namespace VWA
         {
             return find(str, begin());
         }
-    };
+        /**
+         * @brief Creates a copie of all lines in range [first, last)
+         * 
+         * @param start included
+         * @param end The end of the range is not included
+         * @return File 
+         */
+        File subFile(iterator start, iterator end)
+        {
+            File ret;
+            for (auto it = start; it != end; it++)
+            {
+                ret.append(it->content, it->lineNumber);
+            }
+            return ret;
+        }
 
+        void insertAfter(File &&other, iterator it)
+        {
+            if (other.m_first == other.m_end)
+                return;
+            if (it == end())
+                throw std::out_of_range("Tried inserting at end, not a valid iterator.");
+            if (it == --end())
+            {
+                append(std::move(other));
+                return;
+            }
+            auto next = it->next;
+            it->next = other.m_first;
+            other.m_first->prev = it.current;
+            next->prev = other.m_end->prev;
+            other.m_end->prev->next = next;
+            other.m_first = nullptr;
+            delete other.m_end;
+        }
+
+        void append(File &&other)
+        {
+            if (other.m_first == other.m_end)
+                return;
+            if (m_first == m_end)
+            {
+
+                m_first = other.m_first;
+                m_end->prev = other.m_end->prev;
+                other.m_first = nullptr;
+                delete other.m_end;
+            }
+            else
+            {
+                m_end->prev->next = other.m_first;
+                other.m_first->prev = m_end->prev;
+                m_end->prev = other.m_end->prev;
+                other.m_end->prev->next = m_end;
+                other.m_first = nullptr;
+                delete other.m_end;
+            }
+        }
+
+        void insertBefore(File &&other, iterator it)
+        {
+            if (other.m_first == other.m_end)
+                return;
+            if (it == end())
+            {
+                append(std::move(other));
+                return;
+            }
+
+            it->prev->next = other.m_first;
+            other.m_first->prev = it->prev;
+            it->prev = other.m_end->prev;
+            other.m_end->prev->next = it.current;
+            other.m_first = nullptr;
+            delete other.m_end;
+        }
+    };
 }
