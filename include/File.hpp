@@ -3,9 +3,6 @@
 #include <memory>
 #include <iterator>
 
-//TODO operator + and -
-//TODO make end work properly(temporary iterator for now)
-
 namespace VWA
 {
     struct Line
@@ -29,7 +26,7 @@ namespace VWA
 
     class File
     {
-        Line *m_first, *m_last;
+        Line *const m_end, *m_first;
         struct iterator
         {
             using iterator_category = std::bidirectional_iterator_tag;
@@ -40,22 +37,22 @@ namespace VWA
 
             Line &operator*() const
             {
-                if (!current)
-                    throw std::out_of_range("iterator invalid");
+                if (!current->next)
+                    throw std::out_of_range("Cannot dereference end");
                 return *current;
             }
             Line *operator->() const
             {
-                if (!current)
-                    throw std::out_of_range("iterator invalid");
+                if (!current->next)
+                    throw std::out_of_range("Cannot dereference end");
                 return current;
             }
             iterator &operator++()
             {
-                if (current)
+                if (current->next)
                     current = current->next;
                 else
-                    throw std::out_of_range("Tried incrementing File iterator end");
+                    throw std::out_of_range("Tried incrementing iterator end");
                 return *this;
             }
             iterator &operator--()
@@ -76,6 +73,32 @@ namespace VWA
                 iterator tmp = *this;
                 --*this;
                 return tmp;
+            }
+            iterator operator+(int n)
+            {
+                iterator tmp = *this;
+                for (int i = 0; i < n; i++)
+                    ++tmp;
+                return tmp;
+            }
+            iterator operator-(int n)
+            {
+                iterator tmp = *this;
+                for (int i = 0; i < n; i++)
+                    --tmp;
+                return tmp;
+            }
+            iterator &operator+=(int n)
+            {
+                for (int i = 0; i < n; i++)
+                    ++*this;
+                return *this;
+            }
+            iterator &operator-=(int n)
+            {
+                for (int i = 0; i < n; i++)
+                    --*this;
+                return *this;
             }
             bool operator==(const iterator &other) const
             {
@@ -103,16 +126,12 @@ namespace VWA
         {
             return iterator(m_first);
         }
-        iterator last()
-        {
-            return iterator(m_last);
-        }
         iterator end()
         {
-            return iterator(nullptr);
+            return iterator(m_end);
         }
 
-        File() : m_first(nullptr), m_last(nullptr) {}
+        File() : m_end(new Line(nullptr, nullptr, -1, "")), m_first(m_end) {}
 
         ~File()
         {
@@ -127,20 +146,24 @@ namespace VWA
          */
         void append(std::string_view content, int lineNumber = -1)
         {
-            if (m_last)
+            //Checks if there is a line to append to
+            if (m_first == m_end)
             {
-                m_last->next = new Line(nullptr, m_last, lineNumber == -1 ? m_last->lineNumber + 1 : lineNumber, content);
-                m_last = m_last->next;
+                m_first = new Line(m_end, nullptr, lineNumber == -1 ? 0 : lineNumber, content);
+                m_end->prev = m_first;
             }
             else
             {
-                m_first = new Line(nullptr, nullptr, lineNumber == -1 ? 0 : lineNumber, content);
-                m_last = m_first;
+                auto last = m_end->prev;
+                last->next = new Line(m_end, last, lineNumber == -1 ? last->lineNumber + 1 : lineNumber, content);
+                m_end->prev = last->next;
             }
         }
 
         /**
          * @brief Adds a new line before the iterator. The line number of the iterator is used.
+         * 
+         * The iterator stays valid.
          */
         void insertBefore(const iterator &it, std::string_view content)
         {
@@ -164,8 +187,8 @@ namespace VWA
         void insertAfter(const iterator &it, std::string_view content)
         {
             if (it == end())
-                throw std::out_of_range("Tried inserting at end, not a valid iterator. Use last instead");
-            if (it == last())
+                throw std::out_of_range("Tried inserting at end, not a valid iterator.");
+            if (it == --end())
             {
                 append(content);
                 return;
@@ -186,22 +209,15 @@ namespace VWA
         iterator removeLine(const iterator &it)
         {
             if (it == end())
-                throw std::out_of_range("Tried removing end, not a valid iterator. Use last instead");
-            if (it == last())
-            {
-                it->prev->next = nullptr;
-                m_last = it->prev;
-                it->detach();
-                delete it.current;
-                return end();
-            }
+                throw std::out_of_range("Tried removing end, not a valid iterator");
+            auto last = --end();
             if (it == begin())
             {
                 it->next->prev = nullptr;
                 m_first = it->next;
                 it->detach();
                 delete it.current;
-                return begin();
+                return m_first;
             }
             it->prev->next = it->next;
             it->next->prev = it->prev;
@@ -221,7 +237,7 @@ namespace VWA
             for (auto it = begin(); it != end(); ++it)
             {
                 ret += it->content;
-                if (it != last())
+                if (it != --end())
                     ret += '\n';
             }
             return ret;
