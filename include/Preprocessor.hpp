@@ -56,7 +56,7 @@ namespace VWA
                 {
                     throw std::runtime_error("Could not open file: " + path);
                 }
-                File includeFile(file);
+                File includeFile(file,std::make_shared<std::string>(path));
                 inputFile.insertAfter(std::move(includeFile), res.line);
                 current = inputFile.removeLine(res.line);
             }

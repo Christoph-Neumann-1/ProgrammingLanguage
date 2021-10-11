@@ -12,8 +12,9 @@ namespace VWA
         std::string content;
         Line *prev, *next;
         int lineNumber;
+        std::shared_ptr<std::string> fileName;
 
-        Line(Line *_next, Line *_prev, int line_number = 0, std::string_view content = "") : content(content), prev(_prev), next(_next), lineNumber(line_number) {}
+        Line(Line *_next, Line *_prev, const std::shared_ptr<std::string> &file_name = nullptr, int line_number = 1, std::string_view content = "") : content(content), prev(_prev), next(_next), lineNumber(line_number), fileName(file_name) {}
         ~Line()
         {
             if (next != this)
@@ -29,6 +30,7 @@ namespace VWA
 
     class File
     {
+        std::shared_ptr<std::string> m_fileName;
         Line *m_end, *m_first;
 
     public:
@@ -132,14 +134,14 @@ namespace VWA
             return iterator(m_end);
         }
 
-        File() : m_end(new Line(nullptr, nullptr, -1, "")), m_first(m_end)
+        File(const std::shared_ptr<std::string> &fileName = std::make_shared<std::string>("File not provided")) : m_fileName(fileName), m_end(new Line(nullptr, nullptr, m_fileName, -1, "")), m_first(m_end)
         {
             //To allow for easier iteration
             //Example: removeLine in loop
             m_end->next = m_end;
         }
 
-        File(std::ifstream &file) : File()
+        File(std::ifstream &file, const std::shared_ptr<std::string> &fileName) : File(fileName)
         {
             std::string tmp;
             while (std::getline(file, tmp))
@@ -148,14 +150,14 @@ namespace VWA
             }
         }
 
-        File(File &other) : File()
+        File(File &other) : File(other.m_fileName)
         {
             for (auto &line : other)
             {
                 append(line.content);
             }
         }
-        File(File &&other) : m_end(other.m_end), m_first(other.m_first)
+        File(File &&other) : m_fileName(other.m_fileName), m_end(other.m_end), m_first(other.m_first)
         {
             other.m_first = nullptr;
         }
@@ -163,7 +165,8 @@ namespace VWA
         File &operator=(File &other)
         {
             delete m_first;
-            m_end = new Line(nullptr, nullptr, -1, "");
+            m_fileName = other.m_fileName;
+            m_end = new Line(nullptr, nullptr, m_fileName, -1, "");
             m_first = m_end;
             m_end->next = m_end;
             for (auto &line : other)
@@ -175,6 +178,7 @@ namespace VWA
         File &operator=(File &&other)
         {
             delete m_first;
+            m_fileName = other.m_fileName;
             m_first = other.m_first;
             m_end = other.m_end;
             other.m_first = nullptr;
@@ -197,13 +201,13 @@ namespace VWA
             //Checks if there is a line to append to
             if (m_first == m_end)
             {
-                m_first = new Line(m_end, nullptr, lineNumber == -1 ? 0 : lineNumber, content);
+                m_first = new Line(m_end, nullptr, m_fileName, lineNumber == -1 ? 1 : lineNumber, content);
                 m_end->prev = m_first;
             }
             else
             {
                 auto last = m_end->prev;
-                last->next = new Line(m_end, last, lineNumber == -1 ? last->lineNumber + 1 : lineNumber, content);
+                last->next = new Line(m_end, last, m_fileName, lineNumber == -1 ? last->lineNumber + 1 : lineNumber, content);
                 m_end->prev = last->next;
             }
         }
@@ -221,7 +225,7 @@ namespace VWA
                 return;
             }
             auto prev = it->prev;
-            auto newLine = new Line(it.current, it->prev, it->lineNumber, content);
+            auto newLine = new Line(it.current, it->prev, it.current->fileName, it->lineNumber, content);
             it->prev = newLine;
             if (prev)
                 prev->next = newLine;
@@ -242,7 +246,7 @@ namespace VWA
                 return;
             }
             auto next = it->next;
-            auto newLine = new Line(next, it.current, it->lineNumber, content);
+            auto newLine = new Line(next, it.current, it.current->fileName, it->lineNumber, content);
             it->next = newLine;
             next->prev = newLine;
         }
@@ -309,6 +313,18 @@ namespace VWA
             return ret;
         }
 
+        std::string toStringWithDebug()
+        {
+            std::string ret;
+            for (auto it = begin(); it != end(); ++it)
+            {
+                ret+=*it->fileName+":"+std::to_string(it->lineNumber)+":\t"+it->content;
+                if (it != --end())
+                    ret += '\n';
+            }
+            return ret;
+        }
+
         struct FilePos
         {
             iterator line = nullptr;
@@ -363,7 +379,7 @@ namespace VWA
          */
         File subFile(iterator start, iterator end)
         {
-            File ret;
+            File ret(m_fileName);
             for (auto it = start; it != end; it++)
             {
                 ret.append(it->content, it->lineNumber);

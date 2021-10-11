@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
         std::cout << "File not found" << std::endl;
         return -1;
     }
-    VWA::File input(file);
+    VWA::File input(file,std::make_shared<std::string>(fileName));
     file.close();
 
     //Change working directory
