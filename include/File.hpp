@@ -33,6 +33,8 @@ namespace VWA
         std::shared_ptr<std::string> m_fileName;
         Line *m_end, *m_first;
 
+        File(){};
+
     public:
         struct iterator
         {
@@ -134,7 +136,7 @@ namespace VWA
             return iterator(m_end);
         }
 
-        File(const std::shared_ptr<std::string> &fileName = std::make_shared<std::string>("File not provided")) : m_fileName(fileName), m_end(new Line(nullptr, nullptr, m_fileName, -1, "")), m_first(m_end)
+        File(const std::shared_ptr<std::string> &fileName) : m_fileName(fileName), m_end(new Line(nullptr, nullptr, m_fileName, -1, "")), m_first(m_end)
         {
             //To allow for easier iteration
             //Example: removeLine in loop
@@ -318,7 +320,7 @@ namespace VWA
             std::string ret;
             for (auto it = begin(); it != end(); ++it)
             {
-                ret+=*it->fileName+":"+std::to_string(it->lineNumber)+":\t"+it->content;
+                ret += *it->fileName + ":" + std::to_string(it->lineNumber) + ":\t" + it->content;
                 if (it != --end())
                     ret += '\n';
             }
@@ -446,6 +448,32 @@ namespace VWA
             other.m_end->prev->next = it.current;
             other.m_first = nullptr;
             delete other.m_end;
+        }
+
+        File extractLines(iterator start, iterator end)
+        {
+            if (start == end)
+                return File(m_fileName);
+            if (start == this->end())
+                throw std::out_of_range("Tried extracting end, not a valid iterator");
+            File ret;
+            ret.m_first = start.current;
+            ret.m_end = new Line(nullptr, nullptr, nullptr, -1, "");
+            ret.m_end->next = ret.m_end;
+            ret.m_end->prev = (end - 1).current;
+            ret.m_end->prev->next = ret.m_end;
+            if (start == begin())
+            {
+                end->prev = nullptr;
+                m_first = end.current;
+            }
+            else
+            {
+                (start - 1)->next = end.current;
+                end->prev = (start - 1).current;
+                start->prev = nullptr;
+            }
+            return ret;
         }
     };
 }

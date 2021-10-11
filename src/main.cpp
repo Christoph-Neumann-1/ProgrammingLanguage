@@ -16,10 +16,9 @@ int main(int argc, char *argv[])
         std::cout << "File not found" << std::endl;
         return -1;
     }
-    VWA::File input(file,std::make_shared<std::string>(fileName));
+    VWA::File input(file, std::make_shared<std::string>(fileName));
     file.close();
 
     std::cout << VWA::preprocess(input).toString() << std::endl;
-
     return 0;
 }

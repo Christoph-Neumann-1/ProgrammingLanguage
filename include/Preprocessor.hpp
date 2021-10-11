@@ -53,7 +53,7 @@ namespace VWA
                 std::string path(res.line->content.begin() + 10, res.line->content.end());
                 auto relativeTo = std::filesystem::absolute(std::filesystem::path(*res.line->fileName).parent_path());
                 auto finalPath = relativeTo / path;
-                auto asString =finalPath.string();
+                auto asString = finalPath.string();
                 std::ifstream file(asString);
                 if (!file.is_open())
                 {
@@ -132,7 +132,12 @@ namespace VWA
             auto space = res.line->content.find(' ');
             std::string macroName = res.line->content.substr(6, space - 6);
             auto body = inputFile.subFile(res.line + 1, endMacro);
-            macros[macroName] = std::move(body);
+            auto macro = macros.find(macroName);
+            if (macro != macros.end())
+            {
+                throw std::runtime_error("Macro already defined: " + macroName);
+            }
+            macros.emplace(std::pair<std::string, File>{macroName, body});
             current = inputFile.removeLines(res.line, endMacro + 1);
         }
         for (auto currentMacro = inputFile.find('#'); currentMacro.firstChar != std::string::npos; currentMacro = inputFile.find('#', currentMacro.line, currentMacro.firstChar))
@@ -444,6 +449,7 @@ namespace VWA
                 }
             }
             std::vector<std::string> args;
+            auto macroEnd = macroNameEnd;
             if (macroHasArgs)
             {
                 size_t currentpos = macroNameEnd + 1;
@@ -484,7 +490,9 @@ namespace VWA
                         }
                     }
                 }
-                args.push_back(currentMacro.line->content.substr(macroArgsCurrent + 1, macroArgsLast - macroArgsCurrent));
+                if (macroArgsLast != macroArgsCurrent)
+                    args.push_back(currentMacro.line->content.substr(macroArgsCurrent + 1, macroArgsLast - macroArgsCurrent));
+                macroEnd = currentpos;
             }
             auto macro = macros.find(macroName);
             if (macro == macros.end())
@@ -499,14 +507,24 @@ namespace VWA
                 while (1)
                 {
                     arg = body.find("$" + std::to_string(i), arg.line, arg.firstChar);
-                    if (arg.firstChar != std::string_view::npos)
+                    if (arg.firstChar == std::string_view::npos)
                         break;
                     arg.line->content.replace(arg.firstChar, 2, args[i]);
                 }
             }
-            inputFile.insertAfter(std::move(body), currentMacro.line);
-            currentMacro.line = inputFile.removeLine(currentMacro.line);
-            currentMacro.firstChar = 0;
+            auto bodyCenter = body.begin() + 1 != body.end() ? body.extractLines(body.begin() + 1, body.end() - 1) : body.extractLines(body.end(), body.end());
+            //Remove macro and split string
+            currentMacro.line->content.erase(currentMacro.firstChar, macroEnd - currentMacro.firstChar + 1);
+            auto remaining = currentMacro.line->content.substr(currentMacro.firstChar);
+            currentMacro.line->content.erase(currentMacro.firstChar);
+            currentMacro.line->content += body.begin()->content;
+            //If there is a second line, insert it
+            if (body.begin() + 1 != body.end())
+            {
+                inputFile.insertAfter(currentMacro.line, (body.end() - 1)->content + remaining);
+            }
+
+            inputFile.insertAfter(std::move(bodyCenter), currentMacro.line);
         }
         {
             auto space = inputFile.find("\\ ");
