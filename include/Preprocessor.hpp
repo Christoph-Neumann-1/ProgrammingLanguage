@@ -51,12 +51,15 @@ namespace VWA
                 if (res.firstChar != 0 || res.firstChar == std::string::npos)
                     break;
                 std::string path(res.line->content.begin() + 10, res.line->content.end());
-                std::ifstream file(path);
+                auto relativeTo = std::filesystem::absolute(std::filesystem::path(*res.line->fileName).parent_path());
+                auto finalPath = relativeTo / path;
+                auto asString =finalPath.string();
+                std::ifstream file(asString);
                 if (!file.is_open())
                 {
-                    throw std::runtime_error("Could not open file: " + path);
+                    throw std::runtime_error("Could not open file: " + asString);
                 }
-                File includeFile(file,std::make_shared<std::string>(path));
+                File includeFile(file, std::make_shared<std::string>(asString));
                 inputFile.insertAfter(std::move(includeFile), res.line);
                 current = inputFile.removeLine(res.line);
             }

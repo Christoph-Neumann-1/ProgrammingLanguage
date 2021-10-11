@@ -19,9 +19,6 @@ int main(int argc, char *argv[])
     VWA::File input(file,std::make_shared<std::string>(fileName));
     file.close();
 
-    //Change working directory
-    std::filesystem::current_path(std::filesystem::path(fileName).parent_path());
-
     std::cout << VWA::preprocess(input).toString() << std::endl;
 
     return 0;
