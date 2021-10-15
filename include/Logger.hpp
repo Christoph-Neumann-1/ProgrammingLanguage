@@ -3,10 +3,13 @@
 #include <sstream>
 #include <iostream>
 
+//TODO: File Logger, direct certain Messages to other Logger, only print above LogLevel;
+
 namespace VWA
 {
     class ILogger
     {
+
     public:
         enum LogLevel
         {
@@ -36,6 +39,14 @@ namespace VWA
         virtual ILogger &operator<<(const Line &) = 0;
 
         virtual ILogger &AtPos(const Line &line) = 0;
+
+        virtual void SetMinimumLogLevel(const LogLevel level)
+        {
+            minimumLogLevel = level;
+        }
+
+    protected:
+        LogLevel minimumLogLevel = LogLevel::Debug;
     };
 
     class ConsoleLogger : public ILogger
@@ -46,7 +57,8 @@ namespace VWA
         template <typename T>
         void write(const T &value)
         {
-            m_stream << value;
+            if (m_level >= minimumLogLevel)
+                m_stream << value;
         }
 
         void Flush()
@@ -133,7 +145,8 @@ namespace VWA
         }
         ConsoleLogger &AtPos(const Line &line) override
         {
-            m_stream << '[' << *line.fileName << ':' << line.lineNumber << "] ";
+            if (m_level >= minimumLogLevel)
+                m_stream << '[' << *line.fileName << ':' << line.lineNumber << "] ";
             return *this;
         }
     };
