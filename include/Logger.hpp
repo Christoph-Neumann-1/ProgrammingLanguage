@@ -3,8 +3,10 @@
 #include <sstream>
 #include <iostream>
 #include <fstream>
+#include <memory>
 
 //TODO: File Logger, direct certain Messages to other Logger, only print above LogLevel;
+//TODO: consider rewriting with templates instead of polymorphism
 
 namespace VWA
 {
@@ -153,6 +155,8 @@ namespace VWA
             m_stream.str("");
             std::cout.flush();
         }
+
+    public:
         ~ConsoleLogger() { Flush(); }
     };
 
@@ -179,6 +183,68 @@ namespace VWA
             m_file.open(fileName.data());
         }
         ~FileLogger() { Flush(); }
+    };
+
+    class MultiOutputLogger : public BasicLogger
+    {
+        //Because more than one of them might point to the same Logger, I used a shared pointer. This also allows for multiple
+        //MultiOutputLoggers to share members without having to worry about their lifetime.
+        std::shared_ptr<ILogger> DebugOut, InfoOut, WarningOut, ErrorOut;
+
+        void Flush() override
+        {
+            auto output = m_stream.str();
+            if (output.empty())
+                return;
+
+            if (m_level == Debug)
+            {
+                if (!DebugOut)
+                    throw std::runtime_error("DebugOut not set!");
+                *DebugOut << output << LogLevel::Flush;
+            }
+            else if (m_level == Info)
+            {
+                if (!InfoOut)
+                    throw std::runtime_error("InfoOut not set!");
+                *InfoOut << output << LogLevel::Flush;
+            }
+            else if (m_level == Warning)
+            {
+                if (!WarningOut)
+                    throw std::runtime_error("WarningOut not set!");
+                *WarningOut << output << LogLevel::Flush;
+            }
+            else if (m_level == Error)
+            {
+                if (!ErrorOut)
+                    throw std::runtime_error("ErrorOut not set!");
+                *ErrorOut << output << LogLevel::Flush;
+            }
+        }
+
+    public:
+        MultiOutputLogger(const std::shared_ptr<ILogger> &debugOut, const std::shared_ptr<ILogger> &infoOut, const std::shared_ptr<ILogger> &warningOut, const std::shared_ptr<ILogger> &errorOut)
+            : DebugOut(debugOut), InfoOut(infoOut), WarningOut(warningOut), ErrorOut(errorOut)
+        {
+        }
+        MultiOutputLogger() = default;
+        void SetDebugOut(const std::shared_ptr<ILogger> &debugOut)
+        {
+            DebugOut = debugOut;
+        }
+        void SetInfoOut(const std::shared_ptr<ILogger> &infoOut)
+        {
+            InfoOut = infoOut;
+        }
+        void SetWarningOut(const std::shared_ptr<ILogger> &warningOut)
+        {
+            WarningOut = warningOut;
+        }
+        void SetErrorOut(const std::shared_ptr<ILogger> &errorOut)
+        {
+            ErrorOut = errorOut;
+        }
     };
 
 }
