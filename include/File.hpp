@@ -143,7 +143,7 @@ namespace VWA
             m_end->next = m_end;
         }
 
-        File(std::ifstream &file, const std::shared_ptr<std::string> &fileName) : File(fileName)
+        File(std::istream &file, const std::shared_ptr<std::string> &fileName) : File(fileName)
         {
             std::string tmp;
             while (std::getline(file, tmp))

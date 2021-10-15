@@ -1,83 +1,140 @@
 #pragma once
-#include <string_view>
 #include <File.hpp>
+#include <sstream>
 #include <iostream>
-#include <fstream>
 
 namespace VWA
 {
-    enum class LogLevel
-    {
-        Debug,
-        Info,
-        Warning,
-        Error,
-        Fatal
-    };
-    class Logger
-    {
-    protected:
-        LogLevel currentLogLevel = LogLevel::Info;
-
-    public:
-        virtual ~Logger() {}
-        virtual void log(std::string_view message, LogLevel level = LogLevel::Info) = 0;
-        virtual void log(const Line &line, std::string_view message, LogLevel level = LogLevel::Info) = 0;
-        void setLogLevel(LogLevel level)
-        {
-            currentLogLevel = level;
-        }
-        LogLevel getLogLevel()
-        {
-            return currentLogLevel;
-        }
-    };
-
-    class ConsoleLogger : public Logger
+    class ILogger
     {
     public:
-        void log(std::string_view message, LogLevel level = LogLevel::Info) override
+        enum LogLevel
         {
-            if (level >= currentLogLevel)
-            {
-                std::cout << message << '\n';
-            }
-        }
-        void log(const Line &line, std::string_view message, LogLevel level = LogLevel::Info) override
-        {
-            if (level >= currentLogLevel)
-            {
-                std::cout << "[" << *line.fileName << ":" << line.lineNumber << "] " << message << '\n';
-            }
-        }
+            Debug,
+            Info,
+            Warning,
+            Error,
+            Flush,
+        };
+
+        virtual ~ILogger() = default;
+
+        ILogger() {}
+        ILogger(const ILogger &) = delete;
+        ILogger &operator=(const ILogger &) = delete;
+
+        virtual ILogger &operator<<(const std::string &) = 0;
+        virtual ILogger &operator<<(const char *) = 0;
+        virtual ILogger &operator<<(const int) = 0;
+        virtual ILogger &operator<<(const unsigned int) = 0;
+        virtual ILogger &operator<<(const long) = 0;
+        virtual ILogger &operator<<(const unsigned long) = 0;
+        virtual ILogger &operator<<(const float) = 0;
+        virtual ILogger &operator<<(const double) = 0;
+        virtual ILogger &operator<<(const bool) = 0;
+        virtual ILogger &operator<<(const LogLevel) = 0;
+        virtual ILogger &operator<<(const Line &) = 0;
+
+        virtual ILogger &AtPos(const Line &line) = 0;
     };
 
-    class FileLogger : public Logger
+    class ConsoleLogger : public ILogger
     {
-        std::ofstream file;
+        std::stringstream m_stream;
+        LogLevel m_level = LogLevel::Info;
+
+        template <typename T>
+        void write(const T &value)
+        {
+            m_stream << value;
+        }
+
+        void Flush()
+        {
+            std::string output = m_stream.str();
+            if (output.empty())
+                return;
+            std::cout << '[' << static_cast<int>(m_level) << "]: " << output;
+            m_stream.str("");
+            std::cout.flush();
+        }
 
     public:
-        FileLogger(const std::string &fileName)
+        ~ConsoleLogger()
         {
-            file.open(fileName);
+            Flush();
         }
-        ~FileLogger()
+
+        ConsoleLogger &operator<<(const std::string &message) override
         {
-            file.close();
+            write(message);
+            return *this;
         }
-        void log(std::string_view message, LogLevel level = LogLevel::Info) override
+        ConsoleLogger &operator<<(const char *message) override
         {
-            if (level >= currentLogLevel)
+            write(message);
+            return *this;
+        }
+        ConsoleLogger &operator<<(const int val) override
+        {
+            write(val);
+            return *this;
+        }
+        ConsoleLogger &operator<<(const unsigned int val) override
+        {
+            write(val);
+            return *this;
+        }
+        ConsoleLogger &operator<<(const long val) override
+        {
+            write(val);
+            return *this;
+        }
+        ConsoleLogger &operator<<(const unsigned long val) override
+        {
+            write(val);
+            return *this;
+        }
+        ConsoleLogger &operator<<(const float val) override
+        {
+            write(val);
+            return *this;
+        }
+        ConsoleLogger &operator<<(const double val) override
+        {
+            write(val);
+            return *this;
+        }
+        ConsoleLogger &operator<<(const bool val) override
+        {
+            write(val);
+            return *this;
+        }
+        ConsoleLogger &operator<<(const LogLevel newLevel) override
+        {
+            if (m_level == newLevel)
+                return *this;
+
+            if (newLevel == LogLevel::Flush)
             {
-                file << message << '\n';
+                Flush();
+                return *this;
             }
+
+            Flush();
+            m_level = newLevel;
+            return *this;
         }
-        void log(const Line &line, std::string_view message, LogLevel level = LogLevel::Info) override
+        ConsoleLogger &operator<<(const Line &line) override
         {
-            if (level >= currentLogLevel)
-            {
-                file << "[" << *line.fileName << ":" << line.lineNumber << "] " << message << '\n';
-            }
+            AtPos(line);
+            write(line.content);
+            return *this;
+        }
+        ConsoleLogger &AtPos(const Line &line) override
+        {
+            m_stream << '[' << *line.fileName << ':' << line.lineNumber << "] ";
+            return *this;
         }
     };
 }

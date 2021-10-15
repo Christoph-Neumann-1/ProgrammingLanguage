@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <File.hpp>
 #include <Preprocessor.hpp>
+#include <Logger.hpp>
 
 //TODO proper interface
 int main(int argc, char *argv[])
