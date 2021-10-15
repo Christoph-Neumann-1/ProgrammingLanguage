@@ -2,6 +2,7 @@
 #include <File.hpp>
 #include <sstream>
 #include <iostream>
+#include <fstream>
 
 //TODO: File Logger, direct certain Messages to other Logger, only print above LogLevel;
 
@@ -148,11 +149,36 @@ namespace VWA
             std::string output = m_stream.str();
             if (output.empty())
                 return;
-            std::cout << '[' << static_cast<int>(m_level) << "]: " << output;
+            std::cout << output;
             m_stream.str("");
             std::cout.flush();
         }
         ~ConsoleLogger() { Flush(); }
+    };
+
+    class FileLogger : public BasicLogger
+    {
+        std::ofstream m_file;
+        void Flush() override
+        {
+            std::string output = m_stream.str();
+            if (output.empty())
+                return;
+            if (!m_file.is_open())
+            {
+                m_file.open("log.txt");
+                m_file << "ERROR: LogFile not open! Creating default file." << std::endl;
+            }
+            m_file << output;
+            m_stream.str("");
+        }
+
+    public:
+        FileLogger(std::string_view fileName = "log.txt")
+        {
+            m_file.open(fileName.data());
+        }
+        ~FileLogger() { Flush(); }
     };
 
 }

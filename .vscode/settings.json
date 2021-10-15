@@ -71,6 +71,7 @@
         "semaphore": "cpp",
         "complex": "cpp",
         "typeindex": "cpp",
-        "codecvt": "cpp"
+        "codecvt": "cpp",
+        "filesystem": "cpp"
     }
 }
