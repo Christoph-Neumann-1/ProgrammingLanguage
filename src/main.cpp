@@ -9,8 +9,12 @@
 int main(int argc, char *argv[])
 {
     //Load file to string
-    // auto fileName = argv[1];
-    std::string fileName = "/home/christoph/GitRepos/VWA-Project/testfile.src";
+    if(argc < 2)
+    {
+        std::cout << "No file specified" << std::endl;
+        return 1;
+    }
+    auto fileName = argv[1];
     std::ifstream file(fileName);
     if (!file.is_open())
     {

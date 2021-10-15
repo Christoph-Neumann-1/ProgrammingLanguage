@@ -49,8 +49,9 @@ namespace VWA
         LogLevel minimumLogLevel = LogLevel::Debug;
     };
 
-    class ConsoleLogger : public ILogger
+    class BasicLogger : public ILogger
     {
+    protected:
         std::stringstream m_stream;
         LogLevel m_level = LogLevel::Info;
 
@@ -61,68 +62,57 @@ namespace VWA
                 m_stream << value;
         }
 
-        void Flush()
-        {
-            std::string output = m_stream.str();
-            if (output.empty())
-                return;
-            std::cout << '[' << static_cast<int>(m_level) << "]: " << output;
-            m_stream.str("");
-            std::cout.flush();
-        }
+        virtual void Flush() = 0;
 
     public:
-        ~ConsoleLogger()
-        {
-            Flush();
-        }
+        virtual ~BasicLogger() = default;
 
-        ConsoleLogger &operator<<(const std::string &message) override
+        BasicLogger &operator<<(const std::string &message) override
         {
             write(message);
             return *this;
         }
-        ConsoleLogger &operator<<(const char *message) override
+        BasicLogger &operator<<(const char *message) override
         {
             write(message);
             return *this;
         }
-        ConsoleLogger &operator<<(const int val) override
+        BasicLogger &operator<<(const int val) override
         {
             write(val);
             return *this;
         }
-        ConsoleLogger &operator<<(const unsigned int val) override
+        BasicLogger &operator<<(const unsigned int val) override
         {
             write(val);
             return *this;
         }
-        ConsoleLogger &operator<<(const long val) override
+        BasicLogger &operator<<(const long val) override
         {
             write(val);
             return *this;
         }
-        ConsoleLogger &operator<<(const unsigned long val) override
+        BasicLogger &operator<<(const unsigned long val) override
         {
             write(val);
             return *this;
         }
-        ConsoleLogger &operator<<(const float val) override
+        BasicLogger &operator<<(const float val) override
         {
             write(val);
             return *this;
         }
-        ConsoleLogger &operator<<(const double val) override
+        BasicLogger &operator<<(const double val) override
         {
             write(val);
             return *this;
         }
-        ConsoleLogger &operator<<(const bool val) override
+        BasicLogger &operator<<(const bool val) override
         {
             write(val);
             return *this;
         }
-        ConsoleLogger &operator<<(const LogLevel newLevel) override
+        BasicLogger &operator<<(const LogLevel newLevel) override
         {
             if (m_level == newLevel)
                 return *this;
@@ -137,17 +127,32 @@ namespace VWA
             m_level = newLevel;
             return *this;
         }
-        ConsoleLogger &operator<<(const Line &line) override
+        BasicLogger &operator<<(const Line &line) override
         {
             AtPos(line);
             write(line.content);
             return *this;
         }
-        ConsoleLogger &AtPos(const Line &line) override
+        BasicLogger &AtPos(const Line &line) override
         {
             if (m_level >= minimumLogLevel)
                 m_stream << '[' << *line.fileName << ':' << line.lineNumber << "] ";
             return *this;
         }
     };
+
+    class ConsoleLogger : public BasicLogger
+    {
+        void Flush() override
+        {
+            std::string output = m_stream.str();
+            if (output.empty())
+                return;
+            std::cout << '[' << static_cast<int>(m_level) << "]: " << output;
+            m_stream.str("");
+            std::cout.flush();
+        }
+        ~ConsoleLogger() { Flush(); }
+    };
+
 }
