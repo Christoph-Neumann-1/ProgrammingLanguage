@@ -43,6 +43,64 @@ namespace VWA
 
     namespace
     {
+        void FindMacroDefinitions(File &inputFile, std::unordered_map<std::string, File> &macros)
+        {
+            auto current = inputFile.begin();
+            while (true)
+            {
+                auto res = inputFile.find("MACRO", current);
+                if (res.firstChar == std::string::npos)
+                    break;
+                if (res.firstChar != 0)
+                {
+                    current = res.line + 1;
+                    continue;
+                }
+
+                auto endMacro = res.line + 1;
+
+                while (true)
+                {
+                    auto res2 = inputFile.find("ENDMACRO", endMacro);
+                    if (res2.firstChar == std::string_view::npos)
+                    {
+                        throw std::runtime_error("ENDMACRO not found");
+                    }
+                    if (!res2.firstChar)
+                    {
+                        endMacro = res2.line;
+                        break;
+                    }
+                    endMacro = res2.line + 1;
+                }
+
+                if (res.line->content.size() < 7)
+                    throw std::runtime_error("macro name not found");
+
+                auto space = res.line->content.find(' ');
+                std::string macroName = res.line->content.substr(6, space - 6);
+                auto body = inputFile.subFile(res.line + 1, endMacro);
+                auto macro = macros.find(macroName);
+                if (macro != macros.end())
+                {
+                    throw std::runtime_error("Macro already defined: " + macroName);
+                }
+                macros.emplace(std::pair<std::string, File>{macroName, body});
+                current = inputFile.removeLines(res.line, endMacro + 1);
+            }
+        }
+
+        void RemoveCommentLines(File &inputFile)
+        {
+            for (auto it = inputFile.begin(); it != inputFile.end(); it++)
+            {
+                if (it->content.length() >= 2)
+                    if (it->content[0] == '/' && it->content[1] == '/')
+                    {
+                        it = inputFile.removeLine(it);
+                    }
+            }
+        }
     }
 
     File preprocess(File inputFile, std::unordered_map<std::string, std::string> defines = {}, std::unordered_map<std::string, int> counters = {})
@@ -68,61 +126,10 @@ namespace VWA
             }
         }
 
-        //All lines where starting with // are comments, this loop exists, too allow for multiline comments with escaped newlines
-        for (auto it = inputFile.begin(); it != inputFile.end(); it++)
-        {
-            if (it->content.length() >= 2)
-                if (it->content[0] == '/' && it->content[1] == '/')
-                {
-                    it = inputFile.removeLine(it);
-                }
-        }
-
+        RemoveCommentLines(inputFile);
         std::unordered_map<std::string, File> macros;
+        FindMacroDefinitions(inputFile, macros);
 
-        auto current = inputFile.begin();
-        while (true)
-        {
-            auto res = inputFile.find("MACRO", current);
-            if (res.firstChar == std::string::npos)
-                break;
-            if (res.firstChar != 0)
-            {
-                current = res.line + 1;
-                continue;
-            }
-
-            auto endMacro = res.line + 1;
-
-            while (true)
-            {
-                auto res2 = inputFile.find("ENDMACRO", endMacro);
-                if (res2.firstChar == std::string_view::npos)
-                {
-                    throw std::runtime_error("ENDMACRO not found");
-                }
-                if (!res2.firstChar)
-                {
-                    endMacro = res2.line;
-                    break;
-                }
-                endMacro = res2.line + 1;
-            }
-
-            if (res.line->content.size() < 7)
-                throw std::runtime_error("macro name not found");
-
-            auto space = res.line->content.find(' ');
-            std::string macroName = res.line->content.substr(6, space - 6);
-            auto body = inputFile.subFile(res.line + 1, endMacro);
-            auto macro = macros.find(macroName);
-            if (macro != macros.end())
-            {
-                throw std::runtime_error("Macro already defined: " + macroName);
-            }
-            macros.emplace(std::pair<std::string, File>{macroName, body});
-            current = inputFile.removeLines(res.line, endMacro + 1);
-        }
         for (auto currentMacro = inputFile.find('#'); currentMacro.firstChar != std::string::npos; currentMacro = inputFile.find('#', currentMacro.line, currentMacro.firstChar))
         {
             auto handleEscapeSequence = [](std::string &string, size_t &pos) -> bool
@@ -431,7 +438,7 @@ namespace VWA
                     }
                     else
                     {
-                        nextPos.firstChar=nextPos.line->content.length();
+                        nextPos.firstChar = nextPos.line->content.length();
                         currentMacro.line->content += remaining;
                     }
 
