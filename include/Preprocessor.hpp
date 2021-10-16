@@ -31,7 +31,7 @@
     continue;
 
 #define PREPROCESSOR_MATH_COMPARISON(op)                                                                                                \
-    auto args = getArgs(1, 2);                                                                                                          \
+    auto args = getArgs(2, 3);                                                                                                          \
     currentMacro.line = ifblock([&]()                                                                                                   \
                                 { return evaluateArgument(args[0], evaluateArgument) op evaluateArgument(args[1], evaluateArgument); }, \
                                 args.size() > 2 ? args[2] : "");                                                                        \
@@ -51,7 +51,7 @@ namespace VWA
                 auto res = inputFile.find("MACRO", current);
                 if (res.firstChar == std::string::npos)
                     break;
-                if (res.firstChar != 0)
+                if (res.firstChar)
                 {
                     current = res.line + 1;
                     continue;
@@ -151,6 +151,66 @@ namespace VWA
                 continue;
             }
 
+            auto evaluateIdentifier = [&](std::string name) -> std::string
+            {
+                auto getExpandedWithLength = [&](std::string identifer, size_t &length) -> std::string
+                {
+                    if (auto macro = macros.find(identifer); macro != macros.end())
+                    {
+                        if (macro->second.begin() != macro->second.end() - 1)
+                        {
+                            throw std::runtime_error("Macro " + identifer + " has more than one line");
+                        }
+                        else
+                        {
+                            length = macro->second.begin()->content.length();
+                            return macro->second.begin()->content;
+                        }
+                    }
+                    if (auto define = defines.find(identifer); define != defines.end())
+                    {
+                        length = define->second.length();
+                        return define->second;
+                    }
+                    if (auto counter = counters.find(identifer); counter != counters.end())
+                    {
+                        length = std::to_string(counter->second).length();
+                        return std::to_string(counter->second);
+                    }
+                    throw std::runtime_error("Identifier " + identifer + " not found");
+                };
+                auto findEnd = [&](size_t firstChar) -> size_t
+                {
+                    auto res = name.find('#', firstChar);
+                    if (res == std::string::npos)
+                        res = name.size();
+                    return res;
+                };
+                size_t current = 0;
+                while (1)
+                {
+                    current = name.find('#', current);
+                    if (current == name.npos)
+                        break;
+                    if (name[current + 1] == '!')
+                    {
+                        auto idend = findEnd(current + 2);
+                        auto identifier = name.substr(current + 2, idend - current - 2);
+                        size_t length;
+                        name.replace(current, idend - current + 1, getExpandedWithLength(identifier, length));
+                        current += length;
+                    }
+                    else
+                    {
+                        auto idend = findEnd(current + 1);
+                        auto identifier = name.substr(current + 1, idend - current - 1);
+                        size_t length;
+                        name.replace(current, idend - current + 1, getExpandedWithLength(identifier, length));
+                    }
+                }
+                return name;
+            };
+
             if (currentMacro.line->content[currentMacro.firstChar + 1] == '#' && currentMacro.firstChar == 0)
             {
                 size_t macroNameEnd = currentMacro.line->content.find(' ', currentMacro.firstChar + 2);
@@ -195,13 +255,14 @@ namespace VWA
                         return inputFile.removeLines(currentMacro.line, res.line + 1);
                     }
                 };
-                auto evaluateArgument = [&](const std::string &arg, auto &&evaluateArgument) -> int
+                auto evaluateArgument = [&](std::string arg, auto &&evaluateArgument) -> int
                 {
                     //If the argument is a number return it. It is considered a number if the first character is a digit.
                     if (std::isdigit(arg[0]))
                     {
                         return std::stoi(arg);
                     }
+                    arg=evaluateIdentifier(arg);
                     //Otherwise check if the argument is a counter
                     if (auto it = counters.find(arg); it != counters.end())
                     {
@@ -266,7 +327,7 @@ namespace VWA
                 }
                 if (macroName == "define")
                 {
-                    auto what = getNextArg();
+                    auto what = evaluateIdentifier(getNextArg());
                     std::string value;
                     value = getNextArg();
                     defines[what] = value;
@@ -275,7 +336,7 @@ namespace VWA
                 }
                 if (macroName == "undef")
                 {
-                    auto what = getNextArg();
+                    auto what = evaluateIdentifier(getNextArg());
                     if (what.empty())
                         throw std::runtime_error("No argument given to undef");
 
@@ -286,8 +347,9 @@ namespace VWA
                 if (macroName == "ifdef")
                 {
                     auto args = getArgs(1, 2);
+                    auto name = evaluateIdentifier(args[0]);
                     currentMacro.line = ifblock([&]()
-                                                { return defines.contains(args[0]); },
+                                                { return defines.contains(name); },
                                                 args.size() > 1 ? args[1] : "");
                     currentMacro.firstChar = 0;
                     continue;
@@ -295,8 +357,9 @@ namespace VWA
                 if (macroName == "ifndef")
                 {
                     auto args = getArgs(1, 2);
+                    auto name = evaluateIdentifier(args[0]);
                     currentMacro.line = ifblock([&]()
-                                                { return !defines.contains(args[0]); },
+                                                { return !defines.contains(name); },
                                                 args.size() > 1 ? args[1] : "");
                     currentMacro.firstChar = 0;
                     continue;
@@ -327,7 +390,7 @@ namespace VWA
                 }
                 if (macroName == "inc")
                 {
-                    auto name = getNextArg();
+                    auto name =  evaluateIdentifier(getNextArg());
                     auto it = counters.find(name);
                     if (it == counters.end())
                     {
@@ -339,7 +402,7 @@ namespace VWA
                 }
                 if (macroName == "dec")
                 {
-                    auto name = getNextArg();
+                    auto name = evaluateIdentifier(getNextArg());
                     auto it = counters.find(name);
                     if (it == counters.end())
                     {
@@ -351,18 +414,19 @@ namespace VWA
                 if (macroName == "set")
                 {
                     auto args = getArgs(1, 2);
+                    auto name = evaluateIdentifier(args[0]);
                     int value;
                     if (args.size() == 1)
                         value = 0;
                     else
                         value = evaluateArgument(args[1], evaluateArgument);
-                    counters[args[0]] = value;
+                    counters[name] = value;
                     advanceLine();
                     continue;
                 }
                 if (macroName == "del")
                 {
-                    auto name = getNextArg();
+                    auto name = evaluateIdentifier(getNextArg());
                     if (name.empty())
                         throw std::runtime_error("del: no name");
                     auto it = counters.find(name);
