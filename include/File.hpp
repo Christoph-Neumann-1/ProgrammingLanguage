@@ -5,6 +5,7 @@
 #include <fstream>
 
 //TODO: iterator over all characters in file.
+//TODO: equivalent to string view
 namespace VWA
 {
     struct Line

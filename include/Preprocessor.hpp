@@ -20,13 +20,14 @@
 //TODO includes relative to the file they are written in
 //TODO document
 //TODO debug logging
+//Do i need to erase withspaces after commands?
 
 #define PREPROCESSOR_BINARY_MATH_OP(op)                      \
     auto args = getArgs(2, 3);                               \
     auto val1 = evaluateArgument(args[0], evaluateArgument); \
     auto val2 = evaluateArgument(args[1], evaluateArgument); \
     counters[args[args.size() == 3 ? 2 : 0]] = val1 op val2; \
-    advanceLine();                                       \
+    advanceLine();                                           \
     continue;
 
 #define PREPROCESSOR_MATH_COMPARISON(op)                                                                                                \
@@ -389,6 +390,58 @@ namespace VWA
                 throw std::runtime_error("Unknown preprocessor command");
             }
 
+            //Paste the macro, but don't evaluate its contents
+            if (currentMacro.line->content[currentMacro.firstChar + 1] == '!')
+            {
+                size_t macroNameEnd = currentMacro.line->content.find(' ', currentMacro.firstChar + 2);
+                if (macroNameEnd == std::string::npos)
+                {
+                    macroNameEnd = currentMacro.line->content.length();
+                }
+                std::string macroName(currentMacro.line->content.substr(currentMacro.firstChar + 2, macroNameEnd - currentMacro.firstChar - 2));
+                if (auto it = defines.find(macroName); it != defines.end())
+                {
+                    currentMacro.line->content.replace(currentMacro.firstChar, macroNameEnd - currentMacro.firstChar + 1, it->second);
+                    currentMacro.firstChar += it->second.length();
+                    continue;
+                }
+                if (auto it2 = counters.find(macroName); it2 != counters.end())
+                {
+                    auto asString = std::to_string(it2->second);
+                    currentMacro.line->content.replace(currentMacro.firstChar, macroNameEnd - currentMacro.firstChar + 1, asString);
+                    currentMacro.firstChar += asString.length();
+                    continue;
+                }
+                if (auto macro = macros.find(macroName); macro != macros.end())
+                {
+                    File body(macro->second);
+                    auto bodyCenter = body.begin() + 1 != body.end() ? body.extractLines(body.begin() + 1, body.end() - 1) : body.extractLines(body.end(), body.end());
+                    //Remove macro and split string
+                    currentMacro.line->content.erase(currentMacro.firstChar, macroNameEnd - currentMacro.firstChar + 1);
+                    auto remaining = currentMacro.line->content.substr(currentMacro.firstChar);
+                    currentMacro.line->content.erase(currentMacro.firstChar);
+                    currentMacro.line->content += body.begin()->content;
+                    auto nextPos = currentMacro;
+                    //If there is a second line, insert it
+                    if (body.begin() + 1 != body.end())
+                    {
+                        inputFile.insertAfter(currentMacro.line, (body.end() - 1)->content + remaining);
+                        nextPos.line = currentMacro.line + 1;
+                        nextPos.firstChar = body.end()->content.length();
+                    }
+                    else
+                    {
+                        nextPos.firstChar=nextPos.line->content.length();
+                        currentMacro.line->content += remaining;
+                    }
+
+                    inputFile.insertAfter(std::move(bodyCenter), currentMacro.line);
+                    currentMacro = nextPos;
+                    continue;
+                }
+                throw std::runtime_error("Unknown Identifier: " + macroName);
+            }
+
             bool macroHasArgs = true;
             size_t macroNameEnd = currentMacro.line->content.find('(', currentMacro.firstChar);
             if (macroNameEnd == std::string::npos)
@@ -491,6 +544,10 @@ namespace VWA
             if (body.begin() + 1 != body.end())
             {
                 inputFile.insertAfter(currentMacro.line, (body.end() - 1)->content + remaining);
+            }
+            else
+            {
+                currentMacro.line->content += remaining;
             }
 
             inputFile.insertAfter(std::move(bodyCenter), currentMacro.line);
