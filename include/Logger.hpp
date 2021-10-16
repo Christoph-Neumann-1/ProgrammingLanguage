@@ -151,9 +151,10 @@ namespace VWA
             std::string output = m_stream.str();
             if (output.empty())
                 return;
-            std::cout << output;
+            auto &out=m_level==LogLevel::Error?std::cerr:std::cout;
+            out << output;
             m_stream.str("");
-            std::cout.flush();
+            out.flush();
         }
 
     public:
