@@ -1,0 +1,114 @@
+##define Width 32
+##define Iterations 32
+##sub Width 1 last
+##sub last 1 lastm1
+
+MACRO Loop
+##ifndef $0Exists
+##define $0Exists
+##set $0 $1
+##endif
+##ifneq $0 $2
+$3
+##inc $0
+#Loop($0,$1,$2,$3)
+##endif
+##ifdef $0Exists outer
+##ifeq $0 $2
+##del $0
+##undef $0Exists
+##endif
+##endif outer
+ENDMACRO
+
+MACRO initval
+##set a_$0 $1
+ENDMACRO
+
+##define initLoopContent #initval(#i,0)
+
+#Loop(i,0,Width,#initLoopContent)
+#initval(#last,1)
+
+#Loop(i,0,Width,##set b_#i)
+
+##set rval
+
+MACRO evalElement
+##ifeq $0 0 a
+##ifeq $1 0 b
+##ifeq $2 0 c
+##set rval 0
+##endif c
+##ifeq $2 1 c
+##set rval 1
+##endif c
+##endif b
+##ifeq $1 1 b
+##ifeq $2 0 c
+##set rval 1
+##endif c
+##ifeq $2 1 c
+##set rval 1
+##endif c
+##endif b
+##endif a
+##ifeq $0 1 a
+##ifeq $1 0 b
+##ifeq $2 0 c
+##set rval 0
+##endif c
+##ifeq $2 1 c
+##set rval 1
+##endif c
+##endif b
+##ifeq $1 1 b
+##ifeq $2 0 c
+##set rval 1
+##endif c
+##ifeq $2 1 c
+##set rval 0
+##endif c
+##endif b
+##endif a
+ENDMACRO
+
+MACRO r110loopaction
+##sub i 1 prev
+##add i 1 next
+#evalElement(a_#prev,a_#i,a_#next)
+##set b_#i rval
+ENDMACRO
+
+MACRO performPass
+#evalElement(a_#last,a_0,a_1)
+##set b_0 rval
+#Loop(i,1,last,#r110loopaction)
+#evalElement(a_#lastm1,a_#last,a_0)
+##set b_#last rval
+#Loop(i,0,Width,##set a_#i b_#i)
+ENDMACRO
+
+MACRO PrintAppend
+##define identifier a_#i
+##set val identifier
+##ifeq val 0
+##eval #Line#- Line
+##endif
+##ifeq val 1
+##eval #Line#+ Line
+##endif
+ENDMACRO
+
+MACRO PrintValues
+#Loop(i,0,Width,#PrintAppend)
+#Line
+ENDMACRO
+
+MACRO mLoop
+##define Line
+#PrintValues
+#performPass
+ENDMACRO
+
+#Loop(j,0,Iterations,#mLoop)

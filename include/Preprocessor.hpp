@@ -20,6 +20,9 @@
 //TODO includes relative to the file they are written in
 //TODO document
 //TODO debug logging
+//TODO write specification
+//TODO: check line numbers
+//TODO: Allow spaces in defines
 //Do i need to erase withspaces after commands?
 
 #define PREPROCESSOR_BINARY_MATH_OP(op)                      \
@@ -151,6 +154,7 @@ namespace VWA
                 continue;
             }
 
+            //TODO allow arguments for macros
             auto evaluateIdentifier = [&](std::string name) -> std::string
             {
                 auto getExpandedWithLength = [&](std::string identifer, size_t &length) -> std::string
@@ -258,11 +262,11 @@ namespace VWA
                 auto evaluateArgument = [&](std::string arg, auto &&evaluateArgument) -> int
                 {
                     //If the argument is a number return it. It is considered a number if the first character is a digit.
-                    if (std::isdigit(arg[0]))
+                    if (std::isdigit(arg[0]) || arg[0] == '-')
                     {
                         return std::stoi(arg);
                     }
-                    arg=evaluateIdentifier(arg);
+                    arg = evaluateIdentifier(arg);
                     //Otherwise check if the argument is a counter
                     if (auto it = counters.find(arg); it != counters.end())
                     {
@@ -322,6 +326,14 @@ namespace VWA
                     }
                     File includeFile(file, std::make_shared<std::string>(path));
                     inputFile.insertAfter(std::move(includeFile), currentMacro.line);
+                    advanceLine();
+                    continue;
+                }
+                if(macroName=="eval")
+                {
+                    auto args = getArgs(2, 2);
+                    auto arg = evaluateIdentifier(args[0]);
+                    defines[args[1]] = arg;
                     advanceLine();
                     continue;
                 }
@@ -390,7 +402,7 @@ namespace VWA
                 }
                 if (macroName == "inc")
                 {
-                    auto name =  evaluateIdentifier(getNextArg());
+                    auto name = evaluateIdentifier(getNextArg());
                     auto it = counters.find(name);
                     if (it == counters.end())
                     {
@@ -514,17 +526,18 @@ namespace VWA
             }
 
             bool macroHasArgs = true;
-            size_t macroNameEnd = currentMacro.line->content.find('(', currentMacro.firstChar);
-            if (macroNameEnd == std::string::npos)
+            auto nextSpace = currentMacro.line->content.find(' ', currentMacro.firstChar);
+            size_t macroNameEnd = std::min(currentMacro.line->content.find('(', currentMacro.firstChar), nextSpace);
+            if (macroNameEnd ==nextSpace)
             {
                 macroHasArgs = false;
-                macroNameEnd = currentMacro.line->content.find(' ', currentMacro.firstChar);
             }
             if (macroNameEnd == std::string::npos)
             {
                 macroNameEnd = currentMacro.line->content.length();
             }
             std::string macroName = currentMacro.line->content.substr(currentMacro.firstChar + 1, macroNameEnd - currentMacro.firstChar - 1);
+            macroName = evaluateIdentifier(macroName);
             macroName.erase(std::remove(macroName.begin(), macroName.end(), ' '), macroName.end());
 
             if (!macroHasArgs)
@@ -563,7 +576,7 @@ namespace VWA
                 }
                 auto macroArgsLast = currentpos - 1;
                 auto macroArgsStart = macroNameEnd + 1;
-                auto macroArgsCurrent = macroArgsStart - 1;
+                auto macroArgsCurrent = macroArgsStart;
                 for (size_t i = macroArgsStart; i <= macroArgsLast; i++)
                 {
                     if (currentMacro.line->content[i] == ',')
@@ -572,19 +585,19 @@ namespace VWA
                         {
                             if (currentMacro.line->content[i - 1] != '\\')
                             {
-                                args.push_back(currentMacro.line->content.substr(macroArgsCurrent + 1, i - macroArgsCurrent - 1));
+                                args.push_back(currentMacro.line->content.substr(macroArgsCurrent, i - macroArgsCurrent));
                                 macroArgsCurrent = i + 1;
                             }
                             else
                             {
                                 currentMacro.line->content.erase(i - 1, 1);
                                 i--;
+                                macroArgsLast--;
                             }
                         }
                     }
                 }
-                if (macroArgsLast != macroArgsCurrent)
-                    args.push_back(currentMacro.line->content.substr(macroArgsCurrent + 1, macroArgsLast - macroArgsCurrent));
+                args.push_back(currentMacro.line->content.substr(macroArgsCurrent, macroArgsLast - macroArgsCurrent + 1));
                 macroEnd = currentpos;
             }
             auto macro = macros.find(macroName);
