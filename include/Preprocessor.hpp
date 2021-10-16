@@ -21,13 +21,12 @@
 //TODO document
 //TODO debug logging
 
-#define PREPROCESSOR_BINARY_MATH_OP(op)                          \
-    auto args = getArgs(2, 3);                                   \
-    auto val1 = evaluateArgument(args[0], evaluateArgument);     \
-    auto val2 = evaluateArgument(args[1], evaluateArgument);     \
-    counters[args[args.size() == 3 ? 2 : 0]] = val1 op val2;     \
-    currentMacro.line = inputFile.removeLine(currentMacro.line); \
-    currentMacro.firstChar = 0;                                  \
+#define PREPROCESSOR_BINARY_MATH_OP(op)                      \
+    auto args = getArgs(2, 3);                               \
+    auto val1 = evaluateArgument(args[0], evaluateArgument); \
+    auto val2 = evaluateArgument(args[1], evaluateArgument); \
+    counters[args[args.size() == 3 ? 2 : 0]] = val1 op val2; \
+    advanceLine();                                       \
     continue;
 
 #define PREPROCESSOR_MATH_COMPARISON(op)                                                                                                \
@@ -40,30 +39,13 @@
 
 namespace VWA
 {
+
+    namespace
+    {
+    }
+
     File preprocess(File inputFile, std::unordered_map<std::string, std::string> defines = {}, std::unordered_map<std::string, int> counters = {})
     {
-        {
-            //TODO include directories
-            File::iterator current = inputFile.begin();
-            while (true)
-            {
-                auto res = inputFile.find("##include", current);
-                if (res.firstChar != 0 || res.firstChar == std::string::npos)
-                    break;
-                std::string path(res.line->content.begin() + 10, res.line->content.end());
-                auto relativeTo = std::filesystem::absolute(std::filesystem::path(*res.line->fileName).parent_path());
-                auto finalPath = relativeTo / path;
-                auto asString = finalPath.string();
-                std::ifstream file(asString);
-                if (!file.is_open())
-                {
-                    throw std::runtime_error("Could not open file: " + asString);
-                }
-                File includeFile(file, std::make_shared<std::string>(asString));
-                inputFile.insertAfter(std::move(includeFile), res.line);
-                current = inputFile.removeLine(res.line);
-            }
-        }
         //If the last character in a line is a \, merge it with the next line. Also removes empty lines.
         for (auto line = inputFile.begin(); line != inputFile.end(); line++)
         {
@@ -161,7 +143,7 @@ namespace VWA
                 continue;
             }
 
-            if (currentMacro.line->content[currentMacro.firstChar + 1] == '#')
+            if (currentMacro.line->content[currentMacro.firstChar + 1] == '#' && currentMacro.firstChar == 0)
             {
                 size_t macroNameEnd = currentMacro.line->content.find(' ', currentMacro.firstChar + 2);
                 if (macroNameEnd == std::string::npos)
@@ -170,6 +152,11 @@ namespace VWA
                 }
                 std::string macroName(currentMacro.line->content.substr(currentMacro.firstChar + 2, macroNameEnd - currentMacro.firstChar - 2));
                 size_t macroEnd = macroNameEnd;
+                auto advanceLine = [&]()
+                {
+                    currentMacro.line = inputFile.removeLine(currentMacro.line);
+                    currentMacro.firstChar = 0;
+                };
                 auto ifblock = [&](auto &&condition, const std::string &name) -> File::iterator
                 {
                     auto endIf = currentMacro.line + 1;
@@ -255,14 +242,27 @@ namespace VWA
                         throw std::runtime_error("Not enough arguments given to preprocessor directive");
                     return args;
                 };
+                if (macroName == "include")
+                {
+                    //TODO support include dirs
+                    auto path = (std::filesystem::absolute(std::filesystem::path(*currentMacro.line->fileName).parent_path()) / currentMacro.line->content.substr(currentMacro.firstChar + 10)).string();
+                    std::ifstream file(path);
+                    if (!file.is_open())
+                    {
+                        throw std::runtime_error("Could not open file: " + path);
+                    }
+                    File includeFile(file, std::make_shared<std::string>(path));
+                    inputFile.insertAfter(std::move(includeFile), currentMacro.line);
+                    advanceLine();
+                    continue;
+                }
                 if (macroName == "define")
                 {
                     auto what = getNextArg();
                     std::string value;
                     value = getNextArg();
                     defines[what] = value;
-                    currentMacro.line = inputFile.removeLine(currentMacro.line);
-                    currentMacro.firstChar = 0;
+                    advanceLine();
                     continue;
                 }
                 if (macroName == "undef")
@@ -272,8 +272,7 @@ namespace VWA
                         throw std::runtime_error("No argument given to undef");
 
                     defines.erase(what);
-                    currentMacro.line = inputFile.removeLine(currentMacro.line);
-                    currentMacro.firstChar = 0;
+                    advanceLine();
                     continue;
                 }
                 if (macroName == "ifdef")
@@ -318,31 +317,6 @@ namespace VWA
                 {
                     PREPROCESSOR_MATH_COMPARISON(<=)
                 }
-                if (macroName == "pureText")
-                {
-                    auto name = getNextArg();
-                    if (name.empty())
-                    {
-                        throw std::runtime_error("pureText: no name");
-                    }
-                    if (auto it = defines.find(name); it != defines.end())
-                    {
-                        currentMacro.line->content.replace(currentMacro.firstChar, macroEnd - currentMacro.firstChar + 1, it->second);
-                        currentMacro.firstChar += it->second.length();
-                    }
-                    else if (auto it2 = counters.find(name); it2 != counters.end())
-                    {
-                        auto asString = std::to_string(it2->second);
-                        currentMacro.line->content.replace(currentMacro.firstChar, macroEnd - currentMacro.firstChar + 1, asString);
-                        currentMacro.firstChar += asString.length();
-                    }
-                    else
-                    {
-                        throw std::runtime_error("Could not find: " + name);
-                    }
-
-                    continue;
-                }
                 if (macroName == "inc")
                 {
                     auto name = getNextArg();
@@ -352,8 +326,7 @@ namespace VWA
                         throw std::runtime_error("Could not find: " + name);
                     }
                     it->second++;
-                    currentMacro.line = inputFile.removeLine(currentMacro.line);
-                    currentMacro.firstChar = 0;
+                    advanceLine();
                     continue;
                 }
                 if (macroName == "dec")
@@ -364,9 +337,7 @@ namespace VWA
                     {
                         throw std::runtime_error("Could not find: " + name);
                     }
-                    it->second--;
-                    currentMacro.line = inputFile.removeLine(currentMacro.line);
-                    currentMacro.firstChar = 0;
+                    advanceLine();
                     continue;
                 }
                 if (macroName == "set")
@@ -378,8 +349,7 @@ namespace VWA
                     else
                         value = evaluateArgument(args[1], evaluateArgument);
                     counters[args[0]] = value;
-                    currentMacro.line = inputFile.removeLine(currentMacro.line);
-                    currentMacro.firstChar = 0;
+                    advanceLine();
                     continue;
                 }
                 if (macroName == "del")
@@ -393,8 +363,7 @@ namespace VWA
                         //TODO: debug message about alredy being deleted
                     }
                     counters.erase(it);
-                    currentMacro.line = inputFile.removeLine(currentMacro.line);
-                    currentMacro.firstChar = 0;
+                    advanceLine();
                     continue;
                 }
                 if (macroName == "mul")
