@@ -18,7 +18,76 @@
 
 namespace VWA
 {
-    File preprocess(File inputFile, ILogger &logger, std::unordered_map<std::string, std::string> defines , std::unordered_map<std::string, int> counters)
+    namespace
+    {
+        void FindMacroDefinitions(File &inputFile, std::unordered_map<std::string, File> &macros, ILogger &logger)
+        {
+            auto current = inputFile.begin();
+            while (true)
+            {
+                auto res = inputFile.find("MACRO", current);
+                if (res.firstChar == std::string::npos)
+                    break;
+                if (res.firstChar)
+                {
+                    current = res.line + 1;
+                    continue;
+                }
+
+                auto endMacro = res.line + 1;
+
+                while (true)
+                {
+                    auto res2 = inputFile.find("ENDMACRO", endMacro);
+                    if (res2.firstChar == std::string_view::npos)
+                    {
+                        logger << ILogger::Error;
+                        logger.AtPos(*res.line) << "Unterminated MACRO " << ILogger::FlushNewLine;
+                        throw PreprocessorException("Unterminated MACRO");
+                    }
+                    if (!res2.firstChar)
+                    {
+                        endMacro = res2.line;
+                        break;
+                    }
+                    endMacro = res2.line + 1;
+                }
+
+                if (res.line->content.size() < 7)
+                {
+                    logger << ILogger::Error;
+                    logger.AtPos(*res.line) << "Invalid MACRO definition. Missing identifier." << ILogger::FlushNewLine;
+                    throw PreprocessorException("No MACRO identifier");
+                }
+
+                auto space = res.line->content.find(' ');
+                std::string macroName = res.line->content.substr(6, space - 6);
+                auto body = inputFile.subFile(res.line + 1, endMacro);
+                auto macro = macros.find(macroName);
+                if (macro != macros.end())
+                {
+                    logger << ILogger::Error;
+                    logger.AtPos(*res.line) << "Duplicate MACRO definition for " << macroName << "Redefinition of multiline macros is not supported" << ILogger::FlushNewLine;
+                    throw PreprocessorException("MACRO redefinition");
+                }
+                macros.emplace(std::pair<std::string, File>{macroName, body});
+                current = inputFile.removeLines(res.line, endMacro + 1);
+            }
+        }
+
+        void RemoveCommentLines(File &inputFile)
+        {
+            for (auto it = inputFile.begin(); it != inputFile.end(); it++)
+            {
+                if (it->content.length() >= 2)
+                    if (it->content[0] == '/' && it->content[1] == '/')
+                    {
+                        it = inputFile.removeLine(it);
+                    }
+            }
+        }
+    }
+    File preprocess(File inputFile, ILogger &logger, std::unordered_map<std::string, std::string> defines, std::unordered_map<std::string, int> counters)
     {
         //If the last character in a line is a \, merge it with the next line. Also removes empty lines.
         for (auto line = inputFile.begin(); line != inputFile.end(); line++)

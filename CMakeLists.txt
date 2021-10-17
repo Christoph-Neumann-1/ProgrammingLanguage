@@ -13,9 +13,10 @@ add_compile_options(-Wall -Wno-unknown-pragmas -Wshadow)
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
-add_executable(${PROJECT_NAME} ${SOURCES})
-#link boost
-
+add_library(VWALanguageLib STATIC ${SOURCES})
+add_executable(VWALanguage main.cpp)
+target_link_libraries(VWALanguage VWALanguageLib)
+add_dependencies(VWALanguage VWALanguageLib)
 add_subdirectory(extern/googletest)
 add_subdirectory(tests)
 
