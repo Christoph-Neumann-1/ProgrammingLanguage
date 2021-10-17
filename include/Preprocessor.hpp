@@ -11,20 +11,13 @@
 
 //TODO reduce copies of strings. Use segments of data to reduce the amount of characters moved when replacing stuff
 //TODO integrate with math interpreter for full math support
-//TODO command to evaluate the value of a define and store it. Example: #define x #y #define y test ##eval x this should not support any directives, only try to look up the value,
-//until there is no more # at the beginning
-//TODO possible argument evaluation everywhere(like in include directives)
 //TODO DRY
-//TODO track lines
 //TODO more built in functions(file name, line number, error, assert, to uppercase ...)
-//TODO possible injection of functions for later
-//TODO includes relative to the file they are written in
 //TODO document
 //TODO debug logging
 //TODO write specification
-//TODO: check line numbers
 //TODO: Allow spaces in defines
-//Do i need to erase withspaces after commands?
+//Do i need to erase whitespaces after commands?
 
 #define PREPROCESSOR_BINARY_MATH_OP(op)                      \
     auto args = getArgs(2, 3);                               \
