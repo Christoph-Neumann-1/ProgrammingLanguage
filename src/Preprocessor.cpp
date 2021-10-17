@@ -1,4 +1,5 @@
 #include <Preprocessor.hpp>
+#include <functional>
 
 #define PREPROCESSOR_BINARY_MATH_OP(op)                      \
     auto args = getArgs(2, 3);                               \
@@ -18,6 +19,11 @@
 
 namespace VWA
 {
+    //For testing purposes
+    std::function<std::unique_ptr<std::istream>(const std::string &)> ReadFile = [](const std::string &path)
+    {
+        return std::make_unique<std::ifstream>(path);
+    };
     namespace
     {
         void FindMacroDefinitions(File &inputFile, std::unordered_map<std::string, File> &macros, ILogger &logger)
@@ -356,15 +362,19 @@ namespace VWA
                 if (macroName == "include")
                 {
                     //TODO support include dirs
-                    auto path = (std::filesystem::absolute(std::filesystem::path(*currentMacro.line->fileName).parent_path()) / currentMacro.line->content.substr(currentMacro.firstChar + 10)).string();
-                    std::ifstream file(path);
-                    if (!file.is_open())
+                    auto path = (std::filesystem::path(*currentMacro.line->fileName).parent_path() / currentMacro.line->content.substr(currentMacro.firstChar + 10)).string();
+                    std::unique_ptr<std::istream> file;
+                    try
+                    {
+                        file = ReadFile(path);
+                    }
+                    catch (const std::exception &e)
                     {
                         logger << ILogger::Error;
-                        logger.AtPos(*currentMacro.line) << "Could not include file " << path << ILogger::FlushNewLine;
-                        throw PreprocessorException("Include file not found");
+                        logger.AtPos(*currentMacro.line) << "Could not open file " << path << ILogger::FlushNewLine;
+                        throw e;
                     }
-                    File includeFile(file, std::make_shared<std::string>(path));
+                    File includeFile(*file, std::make_shared<std::string>(path));
                     inputFile.insertAfter(std::move(includeFile), currentMacro.line);
                     advanceLine();
                     continue;

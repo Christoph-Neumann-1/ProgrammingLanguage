@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
     VWA::File input(file, std::make_shared<std::string>(fileName));
     file.close();
     try
-    {std::cout << VWA::preprocess(input, logger).toString() << std::endl;}
+    {std::cout << VWA::preprocess(input, logger).toString() << std::flush;}
     catch (const VWA::PreprocessorException &e)
     {
         std::cout << "Preprocessor failed, see log for details" << std::endl;

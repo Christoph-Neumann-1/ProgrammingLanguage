@@ -258,4 +258,20 @@ namespace VWA
         }
     };
 
+    class VoidLogger : public ILogger
+    {
+        VoidLogger &operator<<(const std::string &) override { return *this; }
+        VoidLogger &operator<<(const char *) override { return *this; }
+        VoidLogger &operator<<(const int) override { return *this; }
+        VoidLogger &operator<<(const unsigned int) override { return *this; }
+        VoidLogger &operator<<(const long) override { return *this; }
+        VoidLogger &operator<<(const unsigned long) override { return *this; }
+        VoidLogger &operator<<(const float) override { return *this; }
+        VoidLogger &operator<<(const double) override { return *this; }
+        VoidLogger &operator<<(const bool) override { return *this; }
+        VoidLogger &operator<<(const LogLevel) override { return *this; }
+        VoidLogger &operator<<(const Line &) override { return *this; }
+
+        VoidLogger &AtPos(const Line &line) override { return *this; }
+    };
 }
