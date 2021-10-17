@@ -12,13 +12,15 @@
 //TODO reduce copies of strings. Use segments of data to reduce the amount of characters moved when replacing stuff
 //TODO integrate with math interpreter for full math support
 //TODO DRY
-//TODO more built in functions(file name, line number, error, assert, to uppercase ...)
 //TODO document
 //TODO debug logging
 //TODO write specification
 //TODO: Allow spaces in defines
+//TODO: extract to cpp file
+//TODO: extract lamdas
 //Do i need to erase whitespaces after commands?
 
+//For internal use only
 #define PREPROCESSOR_BINARY_MATH_OP(op)                      \
     auto args = getArgs(2, 3);                               \
     auto val1 = evaluateArgument(args[0], evaluateArgument); \
@@ -27,6 +29,7 @@
     advanceLine();                                           \
     continue;
 
+//For internal use only
 #define PREPROCESSOR_MATH_COMPARISON(op)                                                                                                \
     auto args = getArgs(2, 3);                                                                                                          \
     currentMacro.line = ifblock([&]()                                                                                                   \
@@ -112,6 +115,15 @@ namespace VWA
         }
     }
 
+    /**
+     * @brief Expands macros in the file
+     * 
+     * @param inputFile 
+     * @param logger output for error messages
+     * @param defines if you wish to pass defines, pass them as a map of string to string
+     * @param counters same for integers
+     * @return File with macros expanded
+     */
     File preprocess(File inputFile, ILogger &logger, std::unordered_map<std::string, std::string> defines = {}, std::unordered_map<std::string, int> counters = {})
     {
         //If the last character in a line is a \, merge it with the next line. Also removes empty lines.
@@ -160,12 +172,50 @@ namespace VWA
                 continue;
             }
 
-            //TODO allow arguments for macros
+            /**
+             * @brief This function expands the macro name, replacing all mentions of other define/macros with their values
+             * 
+             * @note Only single line macros are supported, because identifier may only span one line
+             * 
+             */
             auto evaluateIdentifier = [&](std::string name) -> std::string
             {
                 auto getExpandedWithLength = [&](std::string input, size_t &length) -> std::string
                 {
                     std::string identifer = input;
+                    std::vector<std::string> args;
+                    if (identifer.back() == ')')
+                    {
+                        auto open = identifer.find('(');
+                        if (open == std::string::npos)
+                        {
+                            logger << ILogger::Error;
+                            logger.AtPos(*currentMacro.line) << "Invalid macro call. Missing opening parenthesis" << ILogger::FlushNewLine;
+                            throw PreprocessorException("Invalid macro call");
+                        }
+                        std::string argsString = identifer.substr(open + 1);
+
+                        size_t begin = 0;
+                        for (size_t i = 0; i < argsString.size(); i++)
+                        {
+                            if (argsString[i] == ',' && i > 0)
+                            {
+                                if (argsString[i - 1] != '\\')
+                                {
+                                    args.push_back(argsString.substr(begin, i - begin));
+                                    begin = i + 1;
+                                }
+                                else
+                                {
+                                    argsString.erase(i - 1, 1);
+                                    i--;
+                                }
+                            }
+                        }
+                        args.push_back(argsString.substr(begin));
+
+                        identifer = identifer.substr(0, open);
+                    }
                     if (auto macro = macros.find(identifer); macro != macros.end())
                     {
                         if (macro->second.begin() != macro->second.end() - 1)
@@ -176,8 +226,12 @@ namespace VWA
                         }
                         else
                         {
-                            length = macro->second.begin()->content.length();
-                            return macro->second.begin()->content;
+                            std::string line= macro->second.begin()->content;
+                            for(int i=0;i<args.size();i++)
+                            {
+                                line = line.replace(line.find("$" + std::to_string(i)), 2, args[i]);
+                            }
+                            return line;
                         }
                     }
                     if (auto define = defines.find(identifer); define != defines.end())
