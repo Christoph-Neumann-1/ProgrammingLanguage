@@ -10,6 +10,7 @@
 //TODO proper interface
 int main(int argc, char *argv[])
 {
+    VWA::ConsoleLogger logger;
     //Load file to string
     if (argc < 2)
     {
@@ -25,7 +26,7 @@ int main(int argc, char *argv[])
     }
     VWA::File input(file, std::make_shared<std::string>(fileName));
     file.close();
-    std::cout << VWA::preprocess(input).toString() << std::endl;
+    std::cout << VWA::preprocess(input, logger).toString() << std::endl;
 
     return 0;
 }

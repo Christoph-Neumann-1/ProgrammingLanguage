@@ -1,4 +1,4 @@
 build
 testfile.src
 test2.src
-documentation/out
+**/out

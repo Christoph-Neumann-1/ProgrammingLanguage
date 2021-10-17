@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <filesystem>
 #include <File.hpp>
+#include <Logger.hpp>
 
 //TODO reduce copies of strings. Use segments of data to reduce the amount of characters moved when replacing stuff
 //TODO integrate with math interpreter for full math support
@@ -43,10 +44,14 @@
 
 namespace VWA
 {
+    struct PreprocessorException : std::runtime_error
+    {
+        PreprocessorException(const std::string &what) : std::runtime_error(what) {}
+    };
 
     namespace
     {
-        void FindMacroDefinitions(File &inputFile, std::unordered_map<std::string, File> &macros)
+        void FindMacroDefinitions(File &inputFile, std::unordered_map<std::string, File> &macros, ILogger &logger)
         {
             auto current = inputFile.begin();
             while (true)
@@ -67,7 +72,9 @@ namespace VWA
                     auto res2 = inputFile.find("ENDMACRO", endMacro);
                     if (res2.firstChar == std::string_view::npos)
                     {
-                        throw std::runtime_error("ENDMACRO not found");
+                        logger << ILogger::Error;
+                        logger.AtPos(*res.line) << "Unterminated MACRO " << ILogger::Flush;
+                        throw PreprocessorException("Unterminated MACRO");
                     }
                     if (!res2.firstChar)
                     {
@@ -78,7 +85,11 @@ namespace VWA
                 }
 
                 if (res.line->content.size() < 7)
-                    throw std::runtime_error("macro name not found");
+                {
+                    logger << ILogger::Error;
+                    logger.AtPos(*res.line) << "Invalid MACRO definition. Missing identifier." << ILogger::Flush;
+                    throw PreprocessorException("No MACRO identifier");
+                }
 
                 auto space = res.line->content.find(' ');
                 std::string macroName = res.line->content.substr(6, space - 6);
@@ -86,7 +97,9 @@ namespace VWA
                 auto macro = macros.find(macroName);
                 if (macro != macros.end())
                 {
-                    throw std::runtime_error("Macro already defined: " + macroName);
+                    logger << ILogger::Error;
+                    logger.AtPos(*res.line) << "Duplicate MACRO definition for " << macroName << "Redefinition of multiline macros is not supported" << ILogger::Flush;
+                    throw PreprocessorException("MACRO redefinition");
                 }
                 macros.emplace(std::pair<std::string, File>{macroName, body});
                 current = inputFile.removeLines(res.line, endMacro + 1);
@@ -106,7 +119,7 @@ namespace VWA
         }
     }
 
-    File preprocess(File inputFile, std::unordered_map<std::string, std::string> defines = {}, std::unordered_map<std::string, int> counters = {})
+    File preprocess(File inputFile, ILogger &logger, std::unordered_map<std::string, std::string> defines = {}, std::unordered_map<std::string, int> counters = {})
     {
         //If the last character in a line is a \, merge it with the next line. Also removes empty lines.
         for (auto line = inputFile.begin(); line != inputFile.end(); line++)
@@ -131,7 +144,7 @@ namespace VWA
 
         RemoveCommentLines(inputFile);
         std::unordered_map<std::string, File> macros;
-        FindMacroDefinitions(inputFile, macros);
+        FindMacroDefinitions(inputFile, macros, logger);
 
         for (auto currentMacro = inputFile.find('#'); currentMacro.firstChar != std::string::npos; currentMacro = inputFile.find('#', currentMacro.line, currentMacro.firstChar))
         {
@@ -157,13 +170,16 @@ namespace VWA
             //TODO allow arguments for macros
             auto evaluateIdentifier = [&](std::string name) -> std::string
             {
-                auto getExpandedWithLength = [&](std::string identifer, size_t &length) -> std::string
+                auto getExpandedWithLength = [&](std::string input, size_t &length) -> std::string
                 {
+                    std::string identifer = input;
                     if (auto macro = macros.find(identifer); macro != macros.end())
                     {
                         if (macro->second.begin() != macro->second.end() - 1)
                         {
-                            throw std::runtime_error("Macro " + identifer + " has more than one line");
+                            logger << ILogger::Error;
+                            logger.AtPos(*currentMacro.line) << "Macro " << identifer << " has more than one line and can't be used in identifiers" << ILogger::Flush;
+                            throw PreprocessorException("Multiline Macro in identifier");
                         }
                         else
                         {
@@ -181,7 +197,9 @@ namespace VWA
                         length = std::to_string(counter->second).length();
                         return std::to_string(counter->second);
                     }
-                    throw std::runtime_error("Identifier " + identifer + " not found");
+                    logger << ILogger::Error;
+                    logger.AtPos(*currentMacro.line) << "Unknown identifier " << identifer << (identifer != input ? ("Expanded from " + input) : "") << ILogger::Flush;
+                    throw PreprocessorException("Unknown identifier");
                 };
                 auto findEnd = [&](size_t firstChar) -> size_t
                 {
@@ -238,7 +256,9 @@ namespace VWA
                         res = inputFile.find("##endif", endIf);
                         if (res.firstChar == std::string::npos)
                         {
-                            throw std::runtime_error("ENDIF not found");
+                            logger << ILogger::Error;
+                            logger.AtPos(*currentMacro.line) << "No matching endif found for if" << ILogger::Flush;
+                            throw PreprocessorException("No matching endif found for if");
                         }
                     }
                     else
@@ -246,7 +266,9 @@ namespace VWA
                         res = inputFile.find("##endif " + name, endIf);
                         if (res.firstChar == std::string::npos)
                         {
-                            throw std::runtime_error("ENDIF not found " + name);
+                            logger << ILogger::Error;
+                            logger.AtPos(*currentMacro.line) << "No matching endif found for named if " << name << ILogger::Flush;
+                            throw PreprocessorException("ENDIF not found " + name);
                         }
                     }
                     if (condition())
@@ -277,7 +299,9 @@ namespace VWA
                     {
                         return evaluateArgument(it->second, evaluateArgument);
                     }
-                    throw std::runtime_error("Unknown argument: " + arg);
+                    logger << ILogger::Error;
+                    logger.AtPos(*currentMacro.line) << "Invalid argument " << arg << "Could not convert to a number" << ILogger::Flush;
+                    throw PreprocessorException("Invalid argument");
                 };
                 auto getNextArg = [&]() -> std::string
                 {
@@ -312,7 +336,9 @@ namespace VWA
                         args.push_back(arg);
                     }
                     if (args.size() < min)
-                        throw std::runtime_error("Not enough arguments given to preprocessor directive");
+                        logger << ILogger::Error;
+                    logger.AtPos(*currentMacro.line) << "Too few arguments for macro " << macroName << " expected at least " << min << " got " << args.size() << ILogger::Flush;
+                    throw PreprocessorException("Not enough arguments given to preprocessor directive");
                     return args;
                 };
                 if (macroName == "include")
@@ -322,14 +348,16 @@ namespace VWA
                     std::ifstream file(path);
                     if (!file.is_open())
                     {
-                        throw std::runtime_error("Could not open file: " + path);
+                        logger << ILogger::Error;
+                        logger.AtPos(*currentMacro.line) << "Could not include file " << path << ILogger::Flush;
+                        throw PreprocessorException("Include file not found");
                     }
                     File includeFile(file, std::make_shared<std::string>(path));
                     inputFile.insertAfter(std::move(includeFile), currentMacro.line);
                     advanceLine();
                     continue;
                 }
-                if(macroName=="eval")
+                if (macroName == "eval")
                 {
                     auto args = getArgs(2, 2);
                     auto arg = evaluateIdentifier(args[0]);
@@ -350,7 +378,11 @@ namespace VWA
                 {
                     auto what = evaluateIdentifier(getNextArg());
                     if (what.empty())
-                        throw std::runtime_error("No argument given to undef");
+                    {
+                        logger << ILogger::Error;
+                        logger.AtPos(*currentMacro.line) << "Missing argument for undef" << ILogger::Flush;
+                        throw PreprocessorException("Missing argument for undef");
+                    }
 
                     defines.erase(what);
                     advanceLine();
@@ -406,7 +438,9 @@ namespace VWA
                     auto it = counters.find(name);
                     if (it == counters.end())
                     {
-                        throw std::runtime_error("Could not find: " + name);
+                        logger << ILogger::Error;
+                        logger.AtPos(*currentMacro.line) << "Invalid counter " << name << " Could not increment" << ILogger::Flush;
+                        throw PreprocessorException("Identifier not found");
                     }
                     it->second++;
                     advanceLine();
@@ -418,7 +452,9 @@ namespace VWA
                     auto it = counters.find(name);
                     if (it == counters.end())
                     {
-                        throw std::runtime_error("Could not find: " + name);
+                        logger << ILogger::Error;
+                        logger.AtPos(*currentMacro.line) << "Invalid counter " << name << " Could not decrement" << ILogger::Flush;
+                        throw PreprocessorException("Identifier not found");
                     }
                     advanceLine();
                     continue;
@@ -440,7 +476,11 @@ namespace VWA
                 {
                     auto name = evaluateIdentifier(getNextArg());
                     if (name.empty())
-                        throw std::runtime_error("del: no name");
+                    {
+                        logger << ILogger::Error;
+                        logger.AtPos(*currentMacro.line) << "Missing argument for del" << ILogger::Flush;
+                        throw PreprocessorException("Missing argument for del");
+                    }
                     auto it = counters.find(name);
                     if (it == counters.end())
                     {
@@ -470,7 +510,10 @@ namespace VWA
                 {
                     PREPROCESSOR_BINARY_MATH_OP(-)
                 }
-                throw std::runtime_error("Unknown preprocessor command");
+
+                logger << ILogger::Error;
+                logger.AtPos(*currentMacro.line) << "Unknown preprocessor command " << macroName << ILogger::Flush;
+                throw PreprocessorException("Unknown preprocessor command");
             }
 
             //Paste the macro, but don't evaluate its contents
@@ -522,13 +565,15 @@ namespace VWA
                     currentMacro = nextPos;
                     continue;
                 }
-                throw std::runtime_error("Unknown Identifier: " + macroName);
+                logger << ILogger::Error;
+                logger.AtPos(*currentMacro.line) << "Unknown identifier " << macroName << ILogger::Flush;
+                throw PreprocessorException("Unknown Identifier");
             }
 
             bool macroHasArgs = true;
             auto nextSpace = currentMacro.line->content.find(' ', currentMacro.firstChar);
             size_t macroNameEnd = std::min(currentMacro.line->content.find('(', currentMacro.firstChar), nextSpace);
-            if (macroNameEnd ==nextSpace)
+            if (macroNameEnd == nextSpace)
             {
                 macroHasArgs = false;
             }
@@ -565,7 +610,9 @@ namespace VWA
                     currentpos = currentMacro.line->content.find(')', currentpos);
                     if (currentpos == std::string::npos)
                     {
-                        throw std::runtime_error("Macro arguments not closed");
+                        logger << ILogger::Error;
+                        logger.AtPos(*currentMacro.line) << "Unmatched parenthesis" << ILogger::Flush;
+                        throw PreprocessorException("Macro arguments not closed");
                     }
                     if (handleEscapeSequence(currentMacro.line->content, currentpos))
                     {
@@ -603,7 +650,9 @@ namespace VWA
             auto macro = macros.find(macroName);
             if (macro == macros.end())
             {
-                throw std::runtime_error("Identifier not found" + macroName);
+                logger << ILogger::Error;
+                logger.AtPos(*currentMacro.line) << "Unknown identifier " << macroName << ILogger::Flush;
+                throw PreprocessorException("Unknown Identifier");
             }
 
             File body(macro->second);
