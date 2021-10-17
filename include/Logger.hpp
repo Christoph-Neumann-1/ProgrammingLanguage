@@ -21,6 +21,7 @@ namespace VWA
             Warning,
             Error,
             Flush,
+            FlushNewLine,
         };
 
         virtual ~ILogger() = default;
@@ -65,7 +66,7 @@ namespace VWA
                 m_stream << value;
         }
 
-        virtual void Flush() = 0;
+        virtual void Flush(bool newline = false) = 0;
 
     public:
         virtual ~BasicLogger() = default;
@@ -120,9 +121,9 @@ namespace VWA
             if (m_level == newLevel)
                 return *this;
 
-            if (newLevel == LogLevel::Flush)
+            if (newLevel == LogLevel::Flush || newLevel == LogLevel::FlushNewLine)
             {
-                Flush();
+                Flush(LogLevel::FlushNewLine == newLevel);
                 return *this;
             }
 
@@ -146,26 +147,34 @@ namespace VWA
 
     class ConsoleLogger : public BasicLogger
     {
-        void Flush() override
+        void Flush(bool newline = false) override
         {
+            if (newline)
+            {
+                m_stream << '\n';
+            }
             std::string output = m_stream.str();
             if (output.empty())
                 return;
-            auto &out=m_level==LogLevel::Error?std::cerr:std::cout;
+            auto &out = m_level == LogLevel::Error ? std::cerr : std::cout;
             out << output;
             m_stream.str("");
             out.flush();
         }
 
     public:
-        ~ConsoleLogger() { Flush(); }
+        ~ConsoleLogger() { Flush(true); }
     };
 
     class FileLogger : public BasicLogger
     {
         std::ofstream m_file;
-        void Flush() override
+        void Flush(bool newline = false) override
         {
+            if (newline)
+            {
+                m_stream << '\n';
+            }
             std::string output = m_stream.str();
             if (output.empty())
                 return;
@@ -183,7 +192,7 @@ namespace VWA
         {
             m_file.open(fileName.data());
         }
-        ~FileLogger() { Flush(); }
+        ~FileLogger() { Flush(true); }
     };
 
     class MultiOutputLogger : public BasicLogger
@@ -192,35 +201,35 @@ namespace VWA
         //MultiOutputLoggers to share members without having to worry about their lifetime.
         std::shared_ptr<ILogger> DebugOut, InfoOut, WarningOut, ErrorOut;
 
-        void Flush() override
+        void Flush(bool newline = false) override
         {
             auto output = m_stream.str();
-            if (output.empty())
-                return;
+
+            auto flush = newline ? LogLevel::FlushNewLine : LogLevel::Flush;
 
             if (m_level == Debug)
             {
                 if (!DebugOut)
                     throw std::runtime_error("DebugOut not set!");
-                *DebugOut << output << LogLevel::Flush;
+                *DebugOut << output << flush;
             }
             else if (m_level == Info)
             {
                 if (!InfoOut)
                     throw std::runtime_error("InfoOut not set!");
-                *InfoOut << output << LogLevel::Flush;
+                *InfoOut << output << flush;
             }
             else if (m_level == Warning)
             {
                 if (!WarningOut)
                     throw std::runtime_error("WarningOut not set!");
-                *WarningOut << output << LogLevel::Flush;
+                *WarningOut << output << flush;
             }
             else if (m_level == Error)
             {
                 if (!ErrorOut)
                     throw std::runtime_error("ErrorOut not set!");
-                *ErrorOut << output << LogLevel::Flush;
+                *ErrorOut << output << flush;
             }
         }
 
@@ -230,6 +239,7 @@ namespace VWA
         {
         }
         MultiOutputLogger() = default;
+        ~MultiOutputLogger() { Flush(true); }
         void SetDebugOut(const std::shared_ptr<ILogger> &debugOut)
         {
             DebugOut = debugOut;

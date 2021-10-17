@@ -73,7 +73,7 @@ namespace VWA
                     if (res2.firstChar == std::string_view::npos)
                     {
                         logger << ILogger::Error;
-                        logger.AtPos(*res.line) << "Unterminated MACRO " << ILogger::Flush;
+                        logger.AtPos(*res.line) << "Unterminated MACRO " << ILogger::FlushNewLine;
                         throw PreprocessorException("Unterminated MACRO");
                     }
                     if (!res2.firstChar)
@@ -87,7 +87,7 @@ namespace VWA
                 if (res.line->content.size() < 7)
                 {
                     logger << ILogger::Error;
-                    logger.AtPos(*res.line) << "Invalid MACRO definition. Missing identifier." << ILogger::Flush;
+                    logger.AtPos(*res.line) << "Invalid MACRO definition. Missing identifier." << ILogger::FlushNewLine;
                     throw PreprocessorException("No MACRO identifier");
                 }
 
@@ -98,7 +98,7 @@ namespace VWA
                 if (macro != macros.end())
                 {
                     logger << ILogger::Error;
-                    logger.AtPos(*res.line) << "Duplicate MACRO definition for " << macroName << "Redefinition of multiline macros is not supported" << ILogger::Flush;
+                    logger.AtPos(*res.line) << "Duplicate MACRO definition for " << macroName << "Redefinition of multiline macros is not supported" << ILogger::FlushNewLine;
                     throw PreprocessorException("MACRO redefinition");
                 }
                 macros.emplace(std::pair<std::string, File>{macroName, body});
@@ -178,7 +178,7 @@ namespace VWA
                         if (macro->second.begin() != macro->second.end() - 1)
                         {
                             logger << ILogger::Error;
-                            logger.AtPos(*currentMacro.line) << "Macro " << identifer << " has more than one line and can't be used in identifiers" << ILogger::Flush;
+                            logger.AtPos(*currentMacro.line) << "Macro " << identifer << " has more than one line and can't be used in identifiers" << ILogger::FlushNewLine;
                             throw PreprocessorException("Multiline Macro in identifier");
                         }
                         else
@@ -198,7 +198,7 @@ namespace VWA
                         return std::to_string(counter->second);
                     }
                     logger << ILogger::Error;
-                    logger.AtPos(*currentMacro.line) << "Unknown identifier " << identifer << (identifer != input ? ("Expanded from " + input) : "") << ILogger::Flush;
+                    logger.AtPos(*currentMacro.line) << "Unknown identifier " << identifer << (identifer != input ? ("Expanded from " + input) : "") << ILogger::FlushNewLine;
                     throw PreprocessorException("Unknown identifier");
                 };
                 auto findEnd = [&](size_t firstChar) -> size_t
@@ -257,7 +257,7 @@ namespace VWA
                         if (res.firstChar == std::string::npos)
                         {
                             logger << ILogger::Error;
-                            logger.AtPos(*currentMacro.line) << "No matching endif found for if" << ILogger::Flush;
+                            logger.AtPos(*currentMacro.line) << "No matching endif found for if" << ILogger::FlushNewLine;
                             throw PreprocessorException("No matching endif found for if");
                         }
                     }
@@ -267,7 +267,7 @@ namespace VWA
                         if (res.firstChar == std::string::npos)
                         {
                             logger << ILogger::Error;
-                            logger.AtPos(*currentMacro.line) << "No matching endif found for named if " << name << ILogger::Flush;
+                            logger.AtPos(*currentMacro.line) << "No matching endif found for named if " << name << ILogger::FlushNewLine;
                             throw PreprocessorException("ENDIF not found " + name);
                         }
                     }
@@ -300,7 +300,7 @@ namespace VWA
                         return evaluateArgument(it->second, evaluateArgument);
                     }
                     logger << ILogger::Error;
-                    logger.AtPos(*currentMacro.line) << "Invalid argument " << arg << "Could not convert to a number" << ILogger::Flush;
+                    logger.AtPos(*currentMacro.line) << "Invalid argument " << arg << "Could not convert to a number" << ILogger::FlushNewLine;
                     throw PreprocessorException("Invalid argument");
                 };
                 auto getNextArg = [&]() -> std::string
@@ -337,7 +337,7 @@ namespace VWA
                     }
                     if (args.size() < min)
                         logger << ILogger::Error;
-                    logger.AtPos(*currentMacro.line) << "Too few arguments for macro " << macroName << " expected at least " << min << " got " << args.size() << ILogger::Flush;
+                    logger.AtPos(*currentMacro.line) << "Too few arguments for macro " << macroName << " expected at least " << min << " got " << args.size() << ILogger::FlushNewLine;
                     throw PreprocessorException("Not enough arguments given to preprocessor directive");
                     return args;
                 };
@@ -349,7 +349,7 @@ namespace VWA
                     if (!file.is_open())
                     {
                         logger << ILogger::Error;
-                        logger.AtPos(*currentMacro.line) << "Could not include file " << path << ILogger::Flush;
+                        logger.AtPos(*currentMacro.line) << "Could not include file " << path << ILogger::FlushNewLine;
                         throw PreprocessorException("Include file not found");
                     }
                     File includeFile(file, std::make_shared<std::string>(path));
@@ -380,7 +380,7 @@ namespace VWA
                     if (what.empty())
                     {
                         logger << ILogger::Error;
-                        logger.AtPos(*currentMacro.line) << "Missing argument for undef" << ILogger::Flush;
+                        logger.AtPos(*currentMacro.line) << "Missing argument for undef" << ILogger::FlushNewLine;
                         throw PreprocessorException("Missing argument for undef");
                     }
 
@@ -439,7 +439,7 @@ namespace VWA
                     if (it == counters.end())
                     {
                         logger << ILogger::Error;
-                        logger.AtPos(*currentMacro.line) << "Invalid counter " << name << " Could not increment" << ILogger::Flush;
+                        logger.AtPos(*currentMacro.line) << "Invalid counter " << name << " Could not increment" << ILogger::FlushNewLine;
                         throw PreprocessorException("Identifier not found");
                     }
                     it->second++;
@@ -453,7 +453,7 @@ namespace VWA
                     if (it == counters.end())
                     {
                         logger << ILogger::Error;
-                        logger.AtPos(*currentMacro.line) << "Invalid counter " << name << " Could not decrement" << ILogger::Flush;
+                        logger.AtPos(*currentMacro.line) << "Invalid counter " << name << " Could not decrement" << ILogger::FlushNewLine;
                         throw PreprocessorException("Identifier not found");
                     }
                     advanceLine();
@@ -478,7 +478,7 @@ namespace VWA
                     if (name.empty())
                     {
                         logger << ILogger::Error;
-                        logger.AtPos(*currentMacro.line) << "Missing argument for del" << ILogger::Flush;
+                        logger.AtPos(*currentMacro.line) << "Missing argument for del" << ILogger::FlushNewLine;
                         throw PreprocessorException("Missing argument for del");
                     }
                     auto it = counters.find(name);
@@ -512,7 +512,7 @@ namespace VWA
                 }
 
                 logger << ILogger::Error;
-                logger.AtPos(*currentMacro.line) << "Unknown preprocessor command " << macroName << ILogger::Flush;
+                logger.AtPos(*currentMacro.line) << "Unknown preprocessor command " << macroName << ILogger::FlushNewLine;
                 throw PreprocessorException("Unknown preprocessor command");
             }
 
@@ -566,7 +566,7 @@ namespace VWA
                     continue;
                 }
                 logger << ILogger::Error;
-                logger.AtPos(*currentMacro.line) << "Unknown identifier " << macroName << ILogger::Flush;
+                logger.AtPos(*currentMacro.line) << "Unknown identifier " << macroName << ILogger::FlushNewLine;
                 throw PreprocessorException("Unknown Identifier");
             }
 
@@ -611,7 +611,7 @@ namespace VWA
                     if (currentpos == std::string::npos)
                     {
                         logger << ILogger::Error;
-                        logger.AtPos(*currentMacro.line) << "Unmatched parenthesis" << ILogger::Flush;
+                        logger.AtPos(*currentMacro.line) << "Unmatched parenthesis" << ILogger::FlushNewLine;
                         throw PreprocessorException("Macro arguments not closed");
                     }
                     if (handleEscapeSequence(currentMacro.line->content, currentpos))
@@ -651,7 +651,7 @@ namespace VWA
             if (macro == macros.end())
             {
                 logger << ILogger::Error;
-                logger.AtPos(*currentMacro.line) << "Unknown identifier " << macroName << ILogger::Flush;
+                logger.AtPos(*currentMacro.line) << "Unknown identifier " << macroName << ILogger::FlushNewLine;
                 throw PreprocessorException("Unknown Identifier");
             }
 
