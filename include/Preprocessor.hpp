@@ -329,9 +329,11 @@ namespace VWA
                         args.push_back(arg);
                     }
                     if (args.size() < min)
+                    {
                         logger << ILogger::Error;
-                    logger.AtPos(*currentMacro.line) << "Too few arguments for macro " << macroName << " expected at least " << min << " got " << args.size() << ILogger::FlushNewLine;
-                    throw PreprocessorException("Not enough arguments given to preprocessor directive");
+                        logger.AtPos(*currentMacro.line) << "Too few arguments for macro " << macroName << " expected at least " << min << " got " << args.size() << ILogger::FlushNewLine;
+                        throw PreprocessorException("Not enough arguments given to preprocessor directive");
+                    }
                     return args;
                 };
                 if (macroName == "include")
