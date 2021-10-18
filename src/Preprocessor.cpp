@@ -371,7 +371,7 @@ namespace VWA
                         logger.AtPos(*currentMacro.line) << "Could not open file " << path << ILogger::FlushNewLine;
                         throw PreprocessorException("Could not open file");
                     }
-                    File includeFile(stream, std::make_shared<std::string>(path));
+                    File includeFile(stream, path);
                     inputFile.insertAfter(std::move(includeFile), currentMacro.line);
                     advanceLine();
                     continue;

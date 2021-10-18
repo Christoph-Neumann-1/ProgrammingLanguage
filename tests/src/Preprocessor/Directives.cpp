@@ -8,7 +8,7 @@ namespace VWA
         GIVEN("A file including two other files in the same directory")
         {
             std::ifstream stream("Preprocessor/include1");
-            File f(stream,std::make_shared<std::string>("Preprocessor/basefile"));
+            File f(stream,"Preprocessor/basefile");
             f.append("##include f1");
             f.append("##include f2");
             VoidLogger voidLogger;

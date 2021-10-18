@@ -4,6 +4,7 @@
 #include <File.hpp>
 #include <Preprocessor.hpp>
 #include <Logger.hpp>
+#include <CLI/CLI.hpp>
 //TODO: concepts for everything
 //TODO: Modernize code
 
@@ -11,24 +12,27 @@
 //TODO refactor everything
 int main(int argc, char *argv[])
 {
+    CLI::App app{"VWA Programming language"};
+
+    std::string fileName;
+
+    app.add_option("-f,--file, file", fileName, "Input file")->required();
+
+    CLI11_PARSE(app, argc, argv);
+
     VWA::ConsoleLogger logger;
-    //Load file to string
-    if (argc < 2)
-    {
-        std::cout << "No file specified" << std::endl;
-        return 1;
-    }
-    auto fileName = argv[1];
     std::ifstream file(fileName);
     if (!file.is_open())
     {
         std::cout << "File not found" << std::endl;
         return -1;
     }
-    VWA::File input(file, std::make_shared<std::string>(fileName));
+    VWA::File input(file, fileName);
     file.close();
     try
-    {std::cout << VWA::preprocess(input, logger).toString() << std::flush;}
+    {
+        std::cout << VWA::preprocess(input, logger).toString() << std::flush;
+    }
     catch (const VWA::PreprocessorException &e)
     {
         std::cout << "Preprocessor failed, see log for details" << std::endl;
