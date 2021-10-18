@@ -8,6 +8,7 @@
 //TODO: Modernize code
 
 //TODO proper interface
+//TODO refactor everything
 int main(int argc, char *argv[])
 {
     VWA::ConsoleLogger logger;

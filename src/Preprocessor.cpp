@@ -362,19 +362,16 @@ namespace VWA
                 if (macroName == "include")
                 {
                     //TODO support include dirs
+                    //TODO: allow macros
                     auto path = (std::filesystem::path(*currentMacro.line->fileName).parent_path() / currentMacro.line->content.substr(currentMacro.firstChar + 10)).string();
-                    std::unique_ptr<std::istream> file;
-                    try
-                    {
-                        file = ReadFile(path);
-                    }
-                    catch (const std::exception &e)
+                    std::ifstream stream(path);
+                    if (!stream.is_open())
                     {
                         logger << ILogger::Error;
                         logger.AtPos(*currentMacro.line) << "Could not open file " << path << ILogger::FlushNewLine;
-                        throw e;
+                        throw PreprocessorException("Could not open file");
                     }
-                    File includeFile(*file, std::make_shared<std::string>(path));
+                    File includeFile(stream, std::make_shared<std::string>(path));
                     inputFile.insertAfter(std::move(includeFile), currentMacro.line);
                     advanceLine();
                     continue;

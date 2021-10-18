@@ -1,31 +1,26 @@
 #include <Preprocessor.hpp>
-#include <gtest/gtest.h>
+#include <catch2/catch_test_macros.hpp>
 
 namespace VWA
 {
-
-    extern std::function<std::unique_ptr<std::istream>(const std::string &)> ReadFile;
-
-    TEST(Preprocessor, Include)
+    SCENARIO("Preprocessor include command", "[preprocessor]")
     {
-        ReadFile = [&](const std::string &filename) -> std::unique_ptr<std::istream>
+        GIVEN("A file including two other files in the same directory")
         {
-            if (filename == "f1")
+            std::ifstream stream("Preprocessor/include1");
+            File f(stream,std::make_shared<std::string>("Preprocessor/basefile"));
+            f.append("##include f1");
+            f.append("##include f2");
+            VoidLogger voidLogger;
+            WHEN("The other files are included")
             {
-                return std::make_unique<std::istringstream>("included 1");
+                auto res = preprocess(f, voidLogger);
+                auto string = res.toString();
+                THEN("The file should contain the content of the other files")
+                {
+                    REQUIRE(string == "included 1\nincluded 2");
+                }
             }
-            if (filename == "f2")
-            {
-                return std::make_unique<std::istringstream>("included 2");
-            }
-            throw std::runtime_error("Test tried accessing file " + filename);
-        };
-        File f(std::make_shared<std::string>("basefile"));
-        f.append("##include f1");
-        f.append("##include f2");
-        VoidLogger voidLogger;
-        auto res=preprocess(f,voidLogger);
-        auto string=res.toString();
-        EXPECT_EQ(string,"included 1\nincluded 2");
+        }
     }
 }

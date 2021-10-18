@@ -137,14 +137,16 @@ namespace VWA
             return iterator(m_end);
         }
 
-        File(const std::shared_ptr<std::string> &fileName) : m_fileName(fileName), m_end(new Line(nullptr, nullptr, m_fileName, -1, "")), m_first(m_end)
+        explicit File(const std::shared_ptr<std::string> &fileName) : m_fileName(fileName), m_end(new Line(nullptr, nullptr, m_fileName, -1, "")), m_first(m_end)
         {
             //To allow for easier iteration
             //Example: removeLine in loop
             m_end->next = m_end;
         }
 
-        File(std::istream &file, const std::shared_ptr<std::string> &fileName) : File(fileName)
+        explicit File(const std::string &filename) : File(std::make_shared<std::string>(filename)) {}
+
+        explicit File(std::istream &file, const std::shared_ptr<std::string> &fileName) : File(fileName)
         {
             std::string tmp;
             while (std::getline(file, tmp))
@@ -152,6 +154,8 @@ namespace VWA
                 append(tmp);
             }
         }
+
+        explicit File(std::istream &file, const std::string &filename) : File(file, std::make_shared<std::string>(filename)) {}
 
         File(File &other) : File(other.m_fileName)
         {
