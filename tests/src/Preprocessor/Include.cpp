@@ -36,4 +36,42 @@ SCENARIO("Preprocessor include command", "[preprocessor]")
         }
     }
 }
+SCENARIO("Includes in expanded macros", "[preprocessor]")
+{
+    GIVEN("A macro expanding to ##include f2")
+    {
+        File f("Preprocessor/basefile");
+        f.append("MACRO f2");
+        f.append("##include f2");
+        f.append("ENDMACRO");
+        f.append("#f2");
+        WHEN("The macro is expanded")
+        {
+            VoidLogger voidLogger;
+            auto res = preprocess(f, voidLogger);
 
+            THEN("The file should be included")
+            {
+                REQUIRE(res.toString() == "included 2");
+            }
+        }
+    }
+}
+SCENARIO("Include guards using ifdef", "[preprocessor]")
+{
+    GIVEN("A file including another file multiple times")
+    {
+        File f("Preprocessor/basefile");
+        f.append("##include f5");
+        f.append("##include f5");
+        WHEN("The second time the file is included")
+        {
+            VoidLogger voidLogger;
+            auto res = preprocess(f, voidLogger);
+            THEN("The file should be ignored")
+            {
+                REQUIRE(res.toString() == "included 5");
+            }
+        }
+    }
+}

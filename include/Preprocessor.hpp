@@ -18,6 +18,7 @@
 //TODO: Allow spaces in defines
 //TODO: extract to cpp file
 //TODO: extract lamdas
+//TODO: unified representation for single and multiline macros
 //Do i need to erase whitespaces after commands?
 
 

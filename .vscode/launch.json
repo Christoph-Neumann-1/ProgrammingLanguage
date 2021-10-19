@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
             "args": [
-                "testfile.src"
+                // "testfile.src"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
