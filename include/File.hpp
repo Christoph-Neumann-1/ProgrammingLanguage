@@ -8,6 +8,8 @@
 //TODO: equivalent to string view
 //TODO: line count
 //TODO: const iterator and const ref in copy constr
+//TODO: auto cast line to string and assignment operator for line
+
 namespace VWA
 {
     struct Line
@@ -17,7 +19,7 @@ namespace VWA
         int lineNumber;
         std::shared_ptr<const std::string> fileName;
 
-        Line(Line *_next, Line *_prev, const std::shared_ptr< const std::string> &file_name = nullptr, int line_number = 1, std::string_view content = "") : content(content), prev(_prev), next(_next), lineNumber(line_number), fileName(file_name) {}
+        Line(Line *_next, Line *_prev, const std::shared_ptr<const std::string> &file_name = nullptr, int line_number = 1, std::string_view content = "") : content(content), prev(_prev), next(_next), lineNumber(line_number), fileName(file_name) {}
         ~Line()
         {
             if (next != this)
@@ -38,8 +40,16 @@ namespace VWA
 
         File(){};
 
-    public:
-        struct iterator
+        struct iterator_base
+        {
+        };
+
+        template <typename T1, typename T2>
+        friend bool operator==(const T1 &, const T2 &) requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>;
+        template <typename T1, typename T2>
+        friend bool operator!=(const T1 &, const T2 &) requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>;
+
+    public : struct iterator : private iterator_base
         {
             using iterator_category = std::bidirectional_iterator_tag;
             using value_type = Line;
@@ -83,14 +93,14 @@ namespace VWA
                 --*this;
                 return tmp;
             }
-            iterator operator+(int n)
+            iterator operator+(int n) const
             {
                 iterator tmp = *this;
                 for (int i = 0; i < n; i++)
                     ++tmp;
                 return tmp;
             }
-            iterator operator-(int n)
+            iterator operator-(int n) const
             {
                 iterator tmp = *this;
                 for (int i = 0; i < n; i++)
@@ -109,34 +119,116 @@ namespace VWA
                     --*this;
                 return *this;
             }
-            bool operator==(const iterator &other) const
-            {
-                return current == other.current;
-            }
-            bool operator!=(const iterator &other) const
-            {
-                return current != other.current;
-            }
             iterator(Line *current) : current(current) {}
             iterator(const iterator &old) : current(old.current) {}
-            iterator &operator=(const iterator &old)
-            {
-                current = old.current;
-                return *this;
-            }
 
         private:
             Line *current;
             friend class File;
+            template <typename T1, typename T2>
+            friend bool operator==(const T1 &, const T2 &) requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>;
+            template <typename T1, typename T2>
+            friend bool operator!=(const T1 &, const T2 &) requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>;
+        };
+
+        struct const_iterator : private iterator_base
+        {
+            using iterator_category = std::bidirectional_iterator_tag;
+            using value_type = const Line;
+            using difference_type = std::ptrdiff_t;
+            using pointer = const Line *;
+            using reference = const Line &;
+
+            const Line &operator*() const
+            {
+                if (!current->next)
+                    throw std::out_of_range("Cannot dereference end");
+                return *current;
+            }
+            const Line *operator->() const
+            {
+                if (!current->next)
+                    throw std::out_of_range("Cannot dereference end");
+                return current;
+            }
+            const_iterator &operator++()
+            {
+                current = current->next;
+                return *this;
+            }
+            const_iterator &operator--()
+            {
+                current = current->prev;
+                if (current == nullptr)
+                    throw std::out_of_range("File iterator out of range: Tried accessing line before beginning of file");
+                return *this;
+            }
+            const_iterator operator++(int)
+            {
+                const_iterator tmp = *this;
+                ++*this;
+                return tmp;
+            }
+            const_iterator operator--(int)
+            {
+                const_iterator tmp = *this;
+                --*this;
+                return tmp;
+            }
+            const_iterator operator+(int n)
+            {
+                const_iterator tmp = *this;
+                for (int i = 0; i < n; i++)
+                    ++tmp;
+                return tmp;
+            }
+            const_iterator operator-(int n)
+            {
+                const_iterator tmp = *this;
+                for (int i = 0; i < n; i++)
+                    --tmp;
+                return tmp;
+            }
+            const_iterator &operator+=(int n)
+            {
+                for (int i = 0; i < n; i++)
+                    ++*this;
+                return *this;
+            }
+            const_iterator &operator-=(int n)
+            {
+                for (int i = 0; i < n; i++)
+                    --*this;
+                return *this;
+            }
+            const_iterator(const Line *current) : current(current) {}
+            const_iterator(const const_iterator &old) : current(old.current) {}
+            const_iterator(const iterator &old) : current(old.current) {}
+
+        private:
+            const Line *current;
+            friend class File;
+            template <typename T1, typename T2>
+            friend bool operator==(const T1 &, const T2 &) requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>;
+            template <typename T1, typename T2>
+            friend bool operator!=(const T1 &, const T2 &) requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>;
         };
 
         iterator begin()
         {
             return iterator(m_first);
         }
+        const_iterator begin() const
+        {
+            return const_iterator(m_first);
+        }
         iterator end()
         {
             return iterator(m_end);
+        }
+        const_iterator end() const
+        {
+            return const_iterator(m_end);
         }
 
         explicit File(const std::shared_ptr<const std::string> &fileName) : m_fileName(fileName), m_end(new Line(nullptr, nullptr, m_fileName, -1, "")), m_first(m_end)
@@ -159,7 +251,7 @@ namespace VWA
 
         explicit File(std::istream &file, const std::string &filename) : File(file, std::make_shared<const std::string>(filename)) {}
 
-        File(File &other) : File(other.m_fileName)
+        File(const File &other) : File(other.m_fileName)
         {
             if (!other.valid())
                 throw std::runtime_error("Cannot copy invalid file");
@@ -179,7 +271,7 @@ namespace VWA
 
         File &operator=(File &other)
         {
-            if(!other.valid())
+            if (!other.valid())
                 throw std::runtime_error("Cannot copy invalid file");
             delete m_first;
             m_fileName = other.m_fileName;
@@ -194,7 +286,7 @@ namespace VWA
         }
         File &operator=(File &&other)
         {
-            if(!other.valid())
+            if (!other.valid())
                 throw std::runtime_error("Cannot move invalid file");
             delete m_first;
             m_fileName = other.m_fileName;
@@ -361,6 +453,11 @@ namespace VWA
             iterator line = nullptr;
             size_t firstChar = -1;
         };
+        struct ConstFilePos
+        {
+            const_iterator line = nullptr;
+            size_t firstChar = -1;
+        };
         FilePos find(char c, iterator line, size_t character)
         {
             for (; line != end(); line++)
@@ -401,6 +498,46 @@ namespace VWA
         {
             return find(str, begin());
         }
+        ConstFilePos find(char c, const_iterator line, size_t character) const
+        {
+            for (; line != end(); line++)
+            {
+                if (auto res = line->content.find(c, character); res != line->content.npos)
+                {
+                    return {line, res};
+                }
+                character = 0;
+            }
+            return {end(), std::string::npos};
+        }
+        ConstFilePos find(char c, const_iterator line) const
+        {
+            return find(c, line, 0);
+        }
+        ConstFilePos find(char c) const
+        {
+            return find(c, m_first);
+        }
+        ConstFilePos find(const std::string_view str, const_iterator line, size_t character) const
+        {
+            for (; line != end(); line++)
+            {
+                if (auto res = line->content.find(str, character); res != line->content.npos)
+                {
+                    return {line, res};
+                }
+                character = 0;
+            }
+            return {end(), std::string::npos};
+        }
+        ConstFilePos find(const std::string_view str, const_iterator line) const
+        {
+            return find(str, line, 0);
+        }
+        ConstFilePos find(const std::string_view str) const
+        {
+            return find(str, begin());
+        }
         /**
          * @brief Creates a copie of all lines in range [first, last)
          * 
@@ -408,7 +545,7 @@ namespace VWA
          * @param end The end of the range is not included
          * @return File 
          */
-        File subFile(iterator start, iterator end)
+        File subFile(const_iterator start, const_iterator end) const
         {
             File ret(m_fileName);
             for (auto it = start; it != end; it++)
@@ -418,7 +555,7 @@ namespace VWA
             return ret;
         }
 
-        const std::string& getFileName() const
+        const std::string &getFileName() const
         {
             return *m_fileName;
         }
@@ -510,4 +647,16 @@ namespace VWA
             return ret;
         }
     };
+
+    template <typename T1, typename T2>
+    bool operator==(const T1 &arg1, const T2 &arg2) requires std::is_base_of_v<File::iterator_base, T1> && std::is_base_of_v<File::iterator_base, T2>
+    {
+        return arg1.current == arg2.current;
+    }
+
+    template <typename T1, typename T2>
+    bool operator!=(const T1 &arg1, const T2 &arg2) requires std::is_base_of_v<File::iterator_base, T1> && std::is_base_of_v<File::iterator_base, T2>
+    {
+        return arg1.current != arg2.current;
+    }
 }

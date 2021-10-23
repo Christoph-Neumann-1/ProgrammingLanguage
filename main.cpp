@@ -9,6 +9,7 @@
 
 //TODO proper interface
 //TODO refactor everything
+//TODO more const
 int main(int argc, char *argv[])
 {
     CLI::App app{"VWA Programming language"};
@@ -26,7 +27,7 @@ int main(int argc, char *argv[])
         std::cout << "File not found" << std::endl;
         return -1;
     }
-    VWA::File input(file, fileName);
+    const VWA::File input(file, fileName);
     file.close();
     try
     {
