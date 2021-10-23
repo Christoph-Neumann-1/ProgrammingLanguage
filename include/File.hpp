@@ -6,6 +6,8 @@
 
 //TODO: iterator over all characters in file.
 //TODO: equivalent to string view
+//TODO: line count
+//TODO: const iterator and const ref in copy constr
 namespace VWA
 {
     struct Line
@@ -13,9 +15,9 @@ namespace VWA
         std::string content;
         Line *prev, *next;
         int lineNumber;
-        std::shared_ptr<std::string> fileName;
+        std::shared_ptr<const std::string> fileName;
 
-        Line(Line *_next, Line *_prev, const std::shared_ptr<std::string> &file_name = nullptr, int line_number = 1, std::string_view content = "") : content(content), prev(_prev), next(_next), lineNumber(line_number), fileName(file_name) {}
+        Line(Line *_next, Line *_prev, const std::shared_ptr< const std::string> &file_name = nullptr, int line_number = 1, std::string_view content = "") : content(content), prev(_prev), next(_next), lineNumber(line_number), fileName(file_name) {}
         ~Line()
         {
             if (next != this)
@@ -31,7 +33,7 @@ namespace VWA
 
     class File
     {
-        std::shared_ptr<std::string> m_fileName;
+        std::shared_ptr<const std::string> m_fileName;
         Line *m_end, *m_first;
 
         File(){};
@@ -137,16 +139,16 @@ namespace VWA
             return iterator(m_end);
         }
 
-        explicit File(const std::shared_ptr<std::string> &fileName) : m_fileName(fileName), m_end(new Line(nullptr, nullptr, m_fileName, -1, "")), m_first(m_end)
+        explicit File(const std::shared_ptr<const std::string> &fileName) : m_fileName(fileName), m_end(new Line(nullptr, nullptr, m_fileName, -1, "")), m_first(m_end)
         {
             //To allow for easier iteration
             //Example: removeLine in loop
             m_end->next = m_end;
         }
 
-        explicit File(const std::string &filename) : File(std::make_shared<std::string>(filename)) {}
+        explicit File(const std::string &filename) : File(std::make_shared<const std::string>(filename)) {}
 
-        explicit File(std::istream &file, const std::shared_ptr<std::string> &fileName) : File(fileName)
+        explicit File(std::istream &file, const std::shared_ptr<const std::string> &fileName) : File(fileName)
         {
             std::string tmp;
             while (std::getline(file, tmp))
@@ -155,10 +157,12 @@ namespace VWA
             }
         }
 
-        explicit File(std::istream &file, const std::string &filename) : File(file, std::make_shared<std::string>(filename)) {}
+        explicit File(std::istream &file, const std::string &filename) : File(file, std::make_shared<const std::string>(filename)) {}
 
         File(File &other) : File(other.m_fileName)
         {
+            if (!other.valid())
+                throw std::runtime_error("Cannot copy invalid file");
             for (auto &line : other)
             {
                 append(line.content);
@@ -166,11 +170,17 @@ namespace VWA
         }
         File(File &&other) : m_fileName(other.m_fileName), m_end(other.m_end), m_first(other.m_first)
         {
+            if (!other.valid())
+                throw std::runtime_error("Cannot move invalid file");
             other.m_first = nullptr;
+            other.m_end = nullptr;
+            other.m_fileName = nullptr;
         }
 
         File &operator=(File &other)
         {
+            if(!other.valid())
+                throw std::runtime_error("Cannot copy invalid file");
             delete m_first;
             m_fileName = other.m_fileName;
             m_end = new Line(nullptr, nullptr, m_fileName, -1, "");
@@ -184,11 +194,15 @@ namespace VWA
         }
         File &operator=(File &&other)
         {
+            if(!other.valid())
+                throw std::runtime_error("Cannot move invalid file");
             delete m_first;
             m_fileName = other.m_fileName;
             m_first = other.m_first;
             m_end = other.m_end;
             other.m_first = nullptr;
+            other.m_end = nullptr;
+            other.m_fileName = nullptr;
             return *this;
         }
 
@@ -306,11 +320,19 @@ namespace VWA
 
         bool empty() const
         {
-            return m_first == nullptr;
+            return m_first == m_end;
         }
+
+        bool valid() const
+        {
+            return m_first != nullptr && m_end != nullptr && m_fileName != nullptr && m_first->prev == nullptr && m_end->next == m_end;
+        }
+
         std::string toString()
         {
             std::string ret;
+            if (!valid())
+                throw std::runtime_error("File is not valid");
             for (auto it = begin(); it != end(); ++it)
             {
                 ret += it->content;
@@ -320,9 +342,11 @@ namespace VWA
             return ret;
         }
 
-        std::string toStringWithDebug()
+        std::string toStringWithLineCount()
         {
             std::string ret;
+            if (!valid())
+                throw std::runtime_error("File is not valid");
             for (auto it = begin(); it != end(); ++it)
             {
                 ret += *it->fileName + ":" + std::to_string(it->lineNumber) + ":\t" + it->content;
@@ -394,7 +418,12 @@ namespace VWA
             return ret;
         }
 
-        void insertAfter(File &&other, iterator it)
+        const std::string& getFileName() const
+        {
+            return *m_fileName;
+        }
+
+        void insertAfter(File other, iterator it)
         {
             if (other.m_first == other.m_end)
                 return;
@@ -414,7 +443,7 @@ namespace VWA
             delete other.m_end;
         }
 
-        void append(File &&other)
+        void append(File other)
         {
             if (other.m_first == other.m_end)
                 return;
@@ -437,7 +466,7 @@ namespace VWA
             }
         }
 
-        void insertBefore(File &&other, iterator it)
+        void insertBefore(File other, iterator it)
         {
             if (other.m_first == other.m_end)
                 return;
