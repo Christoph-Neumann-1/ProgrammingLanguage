@@ -3,6 +3,7 @@
 //TODO: better way to define new keywords
 //TODO: assert that appending still works
 //TODO: line numbers in macros
+//TODO: handle // in strings either detect strings  in preprocessor or provide escape sequence
 
 #define PREPROCESSOR_BINARY_MATH_OP(op)    \
     auto args = getArgs(2, 3);             \
@@ -65,23 +66,6 @@ namespace VWA
             context.macros[identifier] = std::move(body);
             current = context.file.removeLines(current, end + 1);
         }
-        void FindMacroDefinitions(PreprocessorContext &context)
-        {
-            auto current = context.file.begin();
-            while (true)
-            {
-                auto res = context.file.find("##MACRO", current);
-                if (res.firstChar == std::string::npos)
-                    break;
-                if (res.firstChar)
-                {
-                    current = res.line + 1;
-                    continue;
-                }
-                current = res.line;
-                processMacro(current, context);
-            }
-        }
 
         void RemoveCommentLines(File &inputFile)
         {
@@ -95,6 +79,7 @@ namespace VWA
             }
         }
     }
+    //TODO: loop over line and not entire file
     File preprocess(PreprocessorContext context)
     {
 
@@ -127,8 +112,16 @@ namespace VWA
             }
         }
 
-        RemoveCommentLines(context.file);
-        // FindMacroDefinitions(context);
+        // RemoveCommentLines(context.file);
+
+        for (auto &line : context.file)
+        {
+            auto comment=line.content.find("//");
+            if (comment != line.content.npos)
+            {
+                line.content.erase(comment);
+            }
+        }
 
         for (auto currentMacro = context.file.find('#'); currentMacro.firstChar != std::string::npos; currentMacro = context.file.find('#', currentMacro.line, currentMacro.firstChar))
         {
@@ -309,8 +302,8 @@ namespace VWA
                 };
                 auto getNextArg = [&]() -> std::string
                 {
-                    auto nextLetter= currentMacro.line->content.find_first_not_of(' ', macroEnd+1);
-                    auto nextSpace = currentMacro.line->content.find(' ', nextLetter+1);
+                    auto nextLetter = currentMacro.line->content.find_first_not_of(' ', macroEnd + 1);
+                    auto nextSpace = currentMacro.line->content.find(' ', nextLetter + 1);
                     if (nextSpace == std::string::npos)
                     {
                         if (macroEnd == currentMacro.line->content.length())
