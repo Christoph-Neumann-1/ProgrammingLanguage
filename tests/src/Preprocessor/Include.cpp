@@ -12,7 +12,7 @@ SCENARIO("Preprocessor include command", "[preprocessor]")
         VoidLogger voidLogger;
         WHEN("The other files are included")
         {
-            auto res = preprocess(f, voidLogger);
+            auto res = preprocess({f, voidLogger});
             auto string = res.toString();
             THEN("The file should contain the content of the other files")
             {
@@ -27,7 +27,7 @@ SCENARIO("Preprocessor include command", "[preprocessor]")
         VoidLogger voidLogger;
         WHEN("f3 is included")
         {
-            auto res = preprocess(f, voidLogger);
+            auto res = preprocess({f, voidLogger});
             auto string = res.toString();
             THEN("The file should contain the content of f4")
             {
@@ -48,7 +48,7 @@ SCENARIO("Includes in expanded macros", "[preprocessor]")
         WHEN("The macro is expanded")
         {
             VoidLogger voidLogger;
-            auto res = preprocess(f, voidLogger);
+            auto res = preprocess({f, voidLogger});
 
             THEN("The file should be included")
             {
@@ -67,7 +67,7 @@ SCENARIO("Include guards using ifdef", "[preprocessor]")
         WHEN("The second time the file is included")
         {
             VoidLogger voidLogger;
-            auto res = preprocess(f, voidLogger);
+            auto res = preprocess({f, voidLogger});
             THEN("The file should be ignored")
             {
                 REQUIRE(res.toString() == "included 5");

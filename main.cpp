@@ -27,17 +27,16 @@ int main(int argc, char *argv[])
         std::cout << "File not found" << std::endl;
         return -1;
     }
-    const VWA::File input(file, fileName);
-    file.close();
     try
     {
-        std::cout << VWA::preprocess(input, logger).toString() << std::flush;
+        std::cout << VWA::preprocess({.file = VWA::File{file, fileName}, .logger = logger}).toString() << std::flush;
     }
     catch (const VWA::PreprocessorException &e)
     {
         std::cout << "Preprocessor failed, see log for details" << std::endl;
+        file.close();
         return -1;
     }
-
+    file.close();
     return 0;
 }

@@ -1,37 +1,76 @@
 #include <Preprocessor.hpp>
-#include <functional>
 
-#define PREPROCESSOR_BINARY_MATH_OP(op)                      \
-    auto args = getArgs(2, 3);                               \
-    auto val1 = evaluateArgument(args[0], evaluateArgument); \
-    auto val2 = evaluateArgument(args[1], evaluateArgument); \
-    counters[args[args.size() == 3 ? 2 : 0]] = val1 op val2; \
-    advanceLine();                                           \
-    continue;
+//TODO: better way to define new keywords
+//TODO: assert that appending still works
+//TODO: line numbers in macros
 
-#define PREPROCESSOR_MATH_COMPARISON(op)                                                                                                \
-    auto args = getArgs(2, 3);                                                                                                          \
-    currentMacro.line = ifblock([&]()                                                                                                   \
-                                { return evaluateArgument(args[0], evaluateArgument) op evaluateArgument(args[1], evaluateArgument); }, \
-                                args.size() > 2 ? args[2] : "");                                                                        \
-    currentMacro.firstChar = 0;                                                                                                         \
+#define PREPROCESSOR_BINARY_MATH_OP(op)    \
+    auto args = getArgs(2, 3);             \
+    auto val1 = evaluateArgument(args[0]); \
+    auto val2 = evaluateArgument(args[1]); \
+    context.counters[args[args.size() == 3 ? 2 : 0]] = val1 op val2;
+
+#define PREPROCESSOR_MATH_COMPARISON(op)                                                            \
+    auto args = getArgs(2, 3);                                                                      \
+    currentMacro.line = ifblock([&]()                                                               \
+                                { return evaluateArgument(args[0]) op evaluateArgument(args[1]); }, \
+                                args.size() > 2 ? args[2] : "");                                    \
+    currentMacro.firstChar = 0;                                                                     \
     continue;
 
 namespace VWA
 {
-    //For testing purposes
-    std::function<std::unique_ptr<std::istream>(const std::string &)> ReadFile = [](const std::string &path)
-    {
-        return std::make_unique<std::ifstream>(path);
-    };
     namespace
     {
-        void FindMacroDefinitions(File &inputFile, std::unordered_map<std::string, File> &macros, ILogger &logger)
+        void processMacro(File::iterator &current, PreprocessorContext &context)
         {
-            auto current = inputFile.begin();
+            auto end = current + 1;
             while (true)
             {
-                auto res = inputFile.find("MACRO", current);
+                auto res = context.file.find("##endmacro", end);
+                if (res.firstChar == std::string_view::npos)
+                {
+                    context.logger << ILogger::Error;
+                    context.logger.AtPos(*current) << "Unterminated MACRO" << ILogger::FlushNewLine;
+                    throw PreprocessorException("Unterminated MACRO");
+                }
+                if (!res.firstChar)
+                {
+                    end = res.line;
+                    break;
+                }
+                end = res.line + 1;
+            }
+            auto identifier = current->content.substr(8);
+            while (identifier.front() == ' ')
+                identifier.erase(identifier.begin());
+            while (identifier.back() == ' ')
+                identifier.pop_back();
+            if (identifier.empty())
+            {
+                context.logger.AtPos(*current) << "Invalid MACRO definition. Missing identifier." << ILogger::FlushNewLine;
+                throw PreprocessorException("Invalid MACRO definition.");
+            }
+            if (identifier.find(' ') != identifier.npos)
+            {
+                context.logger.AtPos(*current) << "Invalid MACRO definition. Identifier contains spaces." << ILogger::FlushNewLine;
+                throw PreprocessorException("Invalid MACRO definition. Identifier contains spaces.");
+            }
+            auto body = context.file.extractLines(current + 1, end);
+            if (body.empty())
+            {
+                context.logger.AtPos(*current) << "Invalid MACRO definition. Missing body." << ILogger::FlushNewLine;
+                throw PreprocessorException("Invalid MACRO definition.");
+            }
+            context.macros[identifier] = std::move(body);
+            current = context.file.removeLines(current, end + 1);
+        }
+        void FindMacroDefinitions(PreprocessorContext &context)
+        {
+            auto current = context.file.begin();
+            while (true)
+            {
+                auto res = context.file.find("##MACRO", current);
                 if (res.firstChar == std::string::npos)
                     break;
                 if (res.firstChar)
@@ -39,45 +78,8 @@ namespace VWA
                     current = res.line + 1;
                     continue;
                 }
-
-                auto endMacro = res.line + 1;
-
-                while (true)
-                {
-                    auto res2 = inputFile.find("ENDMACRO", endMacro);
-                    if (res2.firstChar == std::string_view::npos)
-                    {
-                        logger << ILogger::Error;
-                        logger.AtPos(*res.line) << "Unterminated MACRO " << ILogger::FlushNewLine;
-                        throw PreprocessorException("Unterminated MACRO");
-                    }
-                    if (!res2.firstChar)
-                    {
-                        endMacro = res2.line;
-                        break;
-                    }
-                    endMacro = res2.line + 1;
-                }
-
-                if (res.line->content.size() < 7)
-                {
-                    logger << ILogger::Error;
-                    logger.AtPos(*res.line) << "Invalid MACRO definition. Missing identifier." << ILogger::FlushNewLine;
-                    throw PreprocessorException("No MACRO identifier");
-                }
-
-                auto space = res.line->content.find(' ');
-                std::string macroName = res.line->content.substr(6, space - 6);
-                auto body = inputFile.subFile(res.line + 1, endMacro);
-                auto macro = macros.find(macroName);
-                if (macro != macros.end())
-                {
-                    logger << ILogger::Error;
-                    logger.AtPos(*res.line) << "Duplicate MACRO definition for " << macroName << "Redefinition of multiline macros is not supported" << ILogger::FlushNewLine;
-                    throw PreprocessorException("MACRO redefinition");
-                }
-                macros.emplace(std::pair<std::string, File>{macroName, body});
-                current = inputFile.removeLines(res.line, endMacro + 1);
+                current = res.line;
+                processMacro(current, context);
             }
         }
 
@@ -93,34 +95,42 @@ namespace VWA
             }
         }
     }
-    File preprocess(File inputFile, ILogger &logger, std::unordered_map<std::string, std::string> defines, std::unordered_map<std::string, int> counters)
+    File preprocess(PreprocessorContext context)
     {
+
+        auto requireSingleLine = [](File &file)
+        {
+            if (file.empty())
+                throw PreprocessorException("1 Line required, 0 found");
+            if (file.begin() != file.end() - 1)
+                throw PreprocessorException("1 Line required, more than 1 found");
+        };
+
         //If the last character in a line is a \, merge it with the next line. Also removes empty lines.
-        for (auto line = inputFile.begin(); line != inputFile.end(); line++)
+        for (auto line = context.file.begin(); line != context.file.end(); line++)
         {
             if (line->content.empty())
             {
-                line = inputFile.removeLine(line);
+                line = context.file.removeLine(line);
                 continue;
             }
             if (line->content.back() == '\\')
             {
                 auto next = line + 1;
-                if (next == inputFile.end())
+                if (next == context.file.end())
                 {
                     continue;
                 }
                 line->content.pop_back();
                 line->content += next->content;
-                inputFile.removeLine(next);
+                context.file.removeLine(next);
             }
         }
 
-        RemoveCommentLines(inputFile);
-        std::unordered_map<std::string, File> macros;
-        FindMacroDefinitions(inputFile, macros, logger);
+        RemoveCommentLines(context.file);
+        // FindMacroDefinitions(context);
 
-        for (auto currentMacro = inputFile.find('#'); currentMacro.firstChar != std::string::npos; currentMacro = inputFile.find('#', currentMacro.line, currentMacro.firstChar))
+        for (auto currentMacro = context.file.find('#'); currentMacro.firstChar != std::string::npos; currentMacro = context.file.find('#', currentMacro.line, currentMacro.firstChar))
         {
             auto handleEscapeSequence = [](std::string &string, size_t &pos) -> bool
             {
@@ -158,8 +168,8 @@ namespace VWA
                         auto open = identifer.find('(');
                         if (open == std::string::npos)
                         {
-                            logger << ILogger::Error;
-                            logger.AtPos(*currentMacro.line) << "Invalid macro call. Missing opening parenthesis" << ILogger::FlushNewLine;
+                            context.logger << ILogger::Error;
+                            context.logger.AtPos(*currentMacro.line) << "Invalid macro call. Missing opening parenthesis" << ILogger::FlushNewLine;
                             throw PreprocessorException("Invalid macro call");
                         }
                         std::string argsString = identifer.substr(open + 1);
@@ -185,36 +195,23 @@ namespace VWA
 
                         identifer = identifer.substr(0, open);
                     }
-                    if (auto macro = macros.find(identifer); macro != macros.end())
+                    if (auto macro = context.macros.find(identifer); macro != context.macros.end())
                     {
-                        if (macro->second.begin() != macro->second.end() - 1)
+                        requireSingleLine(macro->second);
+                        std::string line = macro->second.begin()->content;
+                        for (int i = 0; i < args.size(); i++)
                         {
-                            logger << ILogger::Error;
-                            logger.AtPos(*currentMacro.line) << "Macro " << identifer << " has more than one line and can't be used in identifiers" << ILogger::FlushNewLine;
-                            throw PreprocessorException("Multiline Macro in identifier");
+                            line = line.replace(line.find("$" + std::to_string(i)), 2, args[i]);
                         }
-                        else
-                        {
-                            std::string line = macro->second.begin()->content;
-                            for (int i = 0; i < args.size(); i++)
-                            {
-                                line = line.replace(line.find("$" + std::to_string(i)), 2, args[i]);
-                            }
-                            return line;
-                        }
+                        return line;
                     }
-                    if (auto define = defines.find(identifer); define != defines.end())
-                    {
-                        length = define->second.length();
-                        return define->second;
-                    }
-                    if (auto counter = counters.find(identifer); counter != counters.end())
+                    if (auto counter = context.counters.find(identifer); counter != context.counters.end())
                     {
                         length = std::to_string(counter->second).length();
                         return std::to_string(counter->second);
                     }
-                    logger << ILogger::Error;
-                    logger.AtPos(*currentMacro.line) << "Unknown identifier " << identifer << (identifer != input ? ("Expanded from " + input) : "") << ILogger::FlushNewLine;
+                    context.logger << ILogger::Error;
+                    context.logger.AtPos(*currentMacro.line) << "Unknown identifier " << identifer << (identifer != input ? ("Expanded from " + input) : "") << ILogger::FlushNewLine;
                     throw PreprocessorException("Unknown identifier");
                 };
                 auto findEnd = [&](size_t firstChar) -> size_t
@@ -251,6 +248,7 @@ namespace VWA
 
             if (currentMacro.line->content[currentMacro.firstChar + 1] == '#' && currentMacro.firstChar == 0)
             {
+#pragma region setup
                 size_t macroNameEnd = currentMacro.line->content.find(' ', currentMacro.firstChar + 2);
                 if (macroNameEnd == std::string::npos)
                 {
@@ -260,7 +258,7 @@ namespace VWA
                 size_t macroEnd = macroNameEnd;
                 auto advanceLine = [&]()
                 {
-                    currentMacro.line = inputFile.removeLine(currentMacro.line);
+                    currentMacro.line = context.file.removeLine(currentMacro.line);
                     currentMacro.firstChar = 0;
                 };
                 auto ifblock = [&](auto &&condition, const std::string &name) -> File::iterator
@@ -269,59 +267,50 @@ namespace VWA
                     File::FilePos res;
                     if (name.empty())
                     {
-                        res = inputFile.find("##endif", endIf);
+                        res = context.file.find("##endif", endIf);
                         if (res.firstChar == std::string::npos)
                         {
-                            logger << ILogger::Error;
-                            logger.AtPos(*currentMacro.line) << "No matching endif found for if" << ILogger::FlushNewLine;
+                            context.logger << ILogger::Error;
+                            context.logger.AtPos(*currentMacro.line) << "No matching endif found for if" << ILogger::FlushNewLine;
                             throw PreprocessorException("No matching endif found for if");
                         }
                     }
                     else
                     {
-                        res = inputFile.find("##endif " + name, endIf);
+                        res = context.file.find("##endif " + name, endIf);
                         if (res.firstChar == std::string::npos)
                         {
-                            logger << ILogger::Error;
-                            logger.AtPos(*currentMacro.line) << "No matching endif found for named if " << name << ILogger::FlushNewLine;
+                            context.logger << ILogger::Error;
+                            context.logger.AtPos(*currentMacro.line) << "No matching endif found for named if " << name << ILogger::FlushNewLine;
                             throw PreprocessorException("ENDIF not found " + name);
                         }
                     }
                     if (condition())
                     {
-                        inputFile.removeLine(res.line);
-                        return inputFile.removeLine(currentMacro.line);
+                        context.file.removeLine(res.line);
+                        return context.file.removeLine(currentMacro.line);
                     }
                     else
                     {
-                        return inputFile.removeLines(currentMacro.line, res.line + 1);
+                        return context.file.removeLines(currentMacro.line, res.line + 1);
                     }
                 };
-                auto evaluateArgument = [&](std::string arg, auto &&evaluateArgument) -> int
+                auto evaluateArgument = [&](std::string arg) -> int
                 {
                     //If the argument is a number return it. It is considered a number if the first character is a digit.
-                    if (std::isdigit(arg[0]) || arg[0] == '-')
+                    auto arg1 = evaluateIdentifier(arg);
+                    if (std::isdigit(arg1[0]) || arg1[0] == '-')
                     {
-                        return std::stoi(arg);
+                        return std::stoi(arg1);
                     }
-                    arg = evaluateIdentifier(arg);
-                    //Otherwise check if the argument is a counter
-                    if (auto it = counters.find(arg); it != counters.end())
-                    {
-                        return it->second;
-                    }
-                    //As a last option check if it is a define and convert said refine to a number. This is recursive, so a this will run until the argument is a number, or empty.
-                    if (auto it = defines.find(arg); it != defines.end())
-                    {
-                        return evaluateArgument(it->second, evaluateArgument);
-                    }
-                    logger << ILogger::Error;
-                    logger.AtPos(*currentMacro.line) << "Invalid argument " << arg << "Could not convert to a number" << ILogger::FlushNewLine;
+                    context.logger << ILogger::Error;
+                    context.logger.AtPos(*currentMacro.line) << "Invalid argument " << arg << "Could not convert to a number" << ILogger::FlushNewLine;
                     throw PreprocessorException("Invalid argument");
                 };
                 auto getNextArg = [&]() -> std::string
                 {
-                    auto nextSpace = currentMacro.line->content.find(' ', macroEnd + 1);
+                    auto nextLetter= currentMacro.line->content.find_first_not_of(' ', macroEnd+1);
+                    auto nextSpace = currentMacro.line->content.find(' ', nextLetter+1);
                     if (nextSpace == std::string::npos)
                     {
                         if (macroEnd == currentMacro.line->content.length())
@@ -333,7 +322,7 @@ namespace VWA
                             nextSpace = currentMacro.line->content.length();
                         }
                     }
-                    auto arg = currentMacro.line->content.substr(macroEnd + 1, nextSpace - macroEnd - 1);
+                    auto arg = currentMacro.line->content.substr(nextLetter, nextSpace - nextLetter);
                     macroEnd = nextSpace;
                     return arg;
                 };
@@ -353,12 +342,14 @@ namespace VWA
                     }
                     if (args.size() < min)
                     {
-                        logger << ILogger::Error;
-                        logger.AtPos(*currentMacro.line) << "Too few arguments for macro " << macroName << " expected at least " << min << " got " << args.size() << ILogger::FlushNewLine;
+                        context.logger << ILogger::Error;
+                        context.logger.AtPos(*currentMacro.line) << "Too few arguments for macro " << macroName << " expected at least " << min << " got " << args.size() << ILogger::FlushNewLine;
                         throw PreprocessorException("Not enough arguments given to preprocessor directive");
                     }
                     return args;
                 };
+#pragma endregion setup
+
                 if (macroName == "include")
                 {
                     //TODO support include dirs
@@ -367,118 +358,116 @@ namespace VWA
                     std::ifstream stream(path);
                     if (!stream.is_open())
                     {
-                        logger << ILogger::Error;
-                        logger.AtPos(*currentMacro.line) << "Could not open file " << path << ILogger::FlushNewLine;
+                        context.logger << ILogger::Error;
+                        context.logger.AtPos(*currentMacro.line) << "Could not open file " << path << ILogger::FlushNewLine;
                         throw PreprocessorException("Could not open file");
                     }
                     File includeFile(stream, path);
-                    inputFile.insertAfter(std::move(includeFile), currentMacro.line);
-                    advanceLine();
-                    continue;
+                    context.file.insertAfter(std::move(includeFile), currentMacro.line);
                 }
-                if (macroName == "eval")
+                else if (macroName == "eval")
                 {
                     auto args = getArgs(2, 2);
                     auto arg = evaluateIdentifier(args[0]);
-                    defines[args[1]] = arg;
-                    advanceLine();
-                    continue;
+                    auto stream = std::istringstream(arg);
+                    //TODO: support multiple lines
+                    context.macros[args[1]] = File(stream, currentMacro.line->fileName);
                 }
-                if (macroName == "define")
+                else if (macroName == "define")
                 {
                     auto what = evaluateIdentifier(getNextArg());
-                    std::string value;
-                    value = getNextArg();
-                    defines[what] = value;
-                    advanceLine();
+                    std::string value = currentMacro.line->content.substr(macroEnd + 1);
+                    auto stream = std::istringstream(value);
+                    context.macros[what] = File(stream, currentMacro.line->fileName);
+                }
+                else if (macroName == "macro")
+                {
+                    processMacro(currentMacro.line, context);
                     continue;
                 }
-                if (macroName == "undef")
+                else if (macroName == "undef")
                 {
                     auto what = evaluateIdentifier(getNextArg());
                     if (what.empty())
                     {
-                        logger << ILogger::Error;
-                        logger.AtPos(*currentMacro.line) << "Missing argument for undef" << ILogger::FlushNewLine;
+                        context.logger << ILogger::Error;
+                        context.logger.AtPos(*currentMacro.line) << "Missing argument for undef" << ILogger::FlushNewLine;
                         throw PreprocessorException("Missing argument for undef");
                     }
 
-                    defines.erase(what);
-                    advanceLine();
-                    continue;
+                    context.macros.erase(what);
                 }
-                if (macroName == "ifdef")
+#pragma region conditions
+                else if (macroName == "ifdef")
                 {
                     auto args = getArgs(1, 2);
                     auto name = evaluateIdentifier(args[0]);
                     currentMacro.line = ifblock([&]()
-                                                { return defines.contains(name); },
+                                                { return context.macros.contains(name); },
                                                 args.size() > 1 ? args[1] : "");
                     currentMacro.firstChar = 0;
                     continue;
                 }
-                if (macroName == "ifndef")
+                else if (macroName == "ifndef")
                 {
                     auto args = getArgs(1, 2);
                     auto name = evaluateIdentifier(args[0]);
                     currentMacro.line = ifblock([&]()
-                                                { return !defines.contains(name); },
+                                                { return !context.macros.contains(name); },
                                                 args.size() > 1 ? args[1] : "");
                     currentMacro.firstChar = 0;
                     continue;
                 }
-                if (macroName == "ifeq")
+                else if (macroName == "ifeq")
                 {
                     PREPROCESSOR_MATH_COMPARISON(==)
                 }
-                if (macroName == "ifneq")
+                else if (macroName == "ifneq")
                 {
                     PREPROCESSOR_MATH_COMPARISON(!=)
                 }
-                if (macroName == "ifgt")
+                else if (macroName == "ifgt")
                 {
                     PREPROCESSOR_MATH_COMPARISON(>)
                 }
-                if (macroName == "iflt")
+                else if (macroName == "iflt")
                 {
                     PREPROCESSOR_MATH_COMPARISON(<)
                 }
-                if (macroName == "ifgteq")
+                else if (macroName == "ifgteq")
                 {
                     PREPROCESSOR_MATH_COMPARISON(>=)
                 }
-                if (macroName == "iflteq")
+                else if (macroName == "iflteq")
                 {
                     PREPROCESSOR_MATH_COMPARISON(<=)
                 }
-                if (macroName == "inc")
+#pragma endregion conditions
+#pragma region mathops
+                else if (macroName == "inc")
                 {
                     auto name = evaluateIdentifier(getNextArg());
-                    auto it = counters.find(name);
-                    if (it == counters.end())
+                    auto it = context.counters.find(name);
+                    if (it == context.counters.end())
                     {
-                        logger << ILogger::Error;
-                        logger.AtPos(*currentMacro.line) << "Invalid counter " << name << " Could not increment" << ILogger::FlushNewLine;
+                        context.logger << ILogger::Error;
+                        context.logger.AtPos(*currentMacro.line) << "Invalid counter " << name << " Could not increment" << ILogger::FlushNewLine;
                         throw PreprocessorException("Identifier not found");
                     }
                     it->second++;
-                    advanceLine();
-                    continue;
                 }
-                if (macroName == "dec")
+                else if (macroName == "dec")
                 {
                     auto name = evaluateIdentifier(getNextArg());
-                    auto it = counters.find(name);
-                    if (it == counters.end())
+                    auto it = context.counters.find(name);
+                    if (it == context.counters.end())
                     {
-                        logger << ILogger::Error;
-                        logger.AtPos(*currentMacro.line) << "Invalid counter " << name << " Could not decrement" << ILogger::FlushNewLine;
+                        context.logger << ILogger::Error;
+                        context.logger.AtPos(*currentMacro.line) << "Invalid counter " << name << " Could not decrement" << ILogger::FlushNewLine;
                         throw PreprocessorException("Identifier not found");
                     }
-                    advanceLine();
-                    continue;
                 }
-                if (macroName == "set")
+                else if (macroName == "set")
                 {
                     auto args = getArgs(1, 2);
                     auto name = evaluateIdentifier(args[0]);
@@ -486,54 +475,55 @@ namespace VWA
                     if (args.size() == 1)
                         value = 0;
                     else
-                        value = evaluateArgument(args[1], evaluateArgument);
-                    counters[name] = value;
-                    advanceLine();
-                    continue;
+                        value = evaluateArgument(args[1]);
+                    context.counters[name] = value;
                 }
-                if (macroName == "del")
+                else if (macroName == "del")
                 {
                     auto name = evaluateIdentifier(getNextArg());
                     if (name.empty())
                     {
-                        logger << ILogger::Error;
-                        logger.AtPos(*currentMacro.line) << "Missing argument for del" << ILogger::FlushNewLine;
+                        context.logger << ILogger::Error;
+                        context.logger.AtPos(*currentMacro.line) << "Missing argument for del" << ILogger::FlushNewLine;
                         throw PreprocessorException("Missing argument for del");
                     }
-                    auto it = counters.find(name);
-                    if (it == counters.end())
+                    auto it = context.counters.find(name);
+                    if (it == context.counters.end())
                     {
-                        logger << ILogger::Warning;
-                        logger.AtPos(*currentMacro.line) << name << " does not exist, can't delete it." << ILogger::FlushNewLine;
+                        context.logger << ILogger::Warning;
+                        context.logger.AtPos(*currentMacro.line) << name << " does not exist, can't delete it." << ILogger::FlushNewLine;
                     }
-                    counters.erase(it);
-                    advanceLine();
-                    continue;
+                    context.counters.erase(it);
                 }
-                if (macroName == "mul")
+                else if (macroName == "mul")
                 {
                     PREPROCESSOR_BINARY_MATH_OP(*)
                 }
-                if (macroName == "div")
+                else if (macroName == "div")
                 {
                     PREPROCESSOR_BINARY_MATH_OP(/)
                 }
-                if (macroName == "mod")
+                else if (macroName == "mod")
                 {
                     PREPROCESSOR_BINARY_MATH_OP(%)
                 }
-                if (macroName == "add")
+                else if (macroName == "add")
                 {
                     PREPROCESSOR_BINARY_MATH_OP(+)
                 }
-                if (macroName == "sub")
+                else if (macroName == "sub")
                 {
                     PREPROCESSOR_BINARY_MATH_OP(-)
                 }
+#pragma endregion mathops
 
-                logger << ILogger::Error;
-                logger.AtPos(*currentMacro.line) << "Unknown preprocessor command " << macroName << ILogger::FlushNewLine;
-                throw PreprocessorException("Unknown preprocessor command");
+                else
+                {
+                    context.logger << ILogger::Error;
+                    context.logger.AtPos(*currentMacro.line) << "Unknown preprocessor command " << macroName << ILogger::FlushNewLine;
+                    throw PreprocessorException("Unknown preprocessor command");
+                }
+                advanceLine();
             }
 
             //Paste the macro, but don't evaluate its contents
@@ -545,20 +535,14 @@ namespace VWA
                     macroNameEnd = currentMacro.line->content.length();
                 }
                 std::string macroName(currentMacro.line->content.substr(currentMacro.firstChar + 2, macroNameEnd - currentMacro.firstChar - 2));
-                if (auto it = defines.find(macroName); it != defines.end())
-                {
-                    currentMacro.line->content.replace(currentMacro.firstChar, macroNameEnd - currentMacro.firstChar + 1, it->second);
-                    currentMacro.firstChar += it->second.length();
-                    continue;
-                }
-                if (auto it2 = counters.find(macroName); it2 != counters.end())
+                if (auto it2 = context.counters.find(macroName); it2 != context.counters.end())
                 {
                     auto asString = std::to_string(it2->second);
                     currentMacro.line->content.replace(currentMacro.firstChar, macroNameEnd - currentMacro.firstChar + 1, asString);
                     currentMacro.firstChar += asString.length();
                     continue;
                 }
-                if (auto macro = macros.find(macroName); macro != macros.end())
+                if (auto macro = context.macros.find(macroName); macro != context.macros.end())
                 {
                     File body(macro->second);
                     auto bodyCenter = body.begin() + 1 != body.end() ? body.extractLines(body.begin() + 1, body.end() - 1) : body.extractLines(body.end(), body.end());
@@ -571,7 +555,7 @@ namespace VWA
                     //If there is a second line, insert it
                     if (body.begin() + 1 != body.end())
                     {
-                        inputFile.insertAfter(currentMacro.line, (body.end() - 1)->content + remaining);
+                        context.file.insertAfter(currentMacro.line, (body.end() - 1)->content + remaining);
                         nextPos.line = currentMacro.line + 1;
                         nextPos.firstChar = body.end()->content.length();
                     }
@@ -581,12 +565,12 @@ namespace VWA
                         currentMacro.line->content += remaining;
                     }
 
-                    inputFile.insertAfter(std::move(bodyCenter), currentMacro.line);
+                    context.file.insertAfter(std::move(bodyCenter), currentMacro.line);
                     currentMacro = nextPos;
                     continue;
                 }
-                logger << ILogger::Error;
-                logger.AtPos(*currentMacro.line) << "Unknown identifier " << macroName << ILogger::FlushNewLine;
+                context.logger << ILogger::Error;
+                context.logger.AtPos(*currentMacro.line) << "Unknown identifier " << macroName << ILogger::FlushNewLine;
                 throw PreprocessorException("Unknown Identifier");
             }
 
@@ -607,12 +591,7 @@ namespace VWA
 
             if (!macroHasArgs)
             {
-                if (auto it = defines.find(macroName); it != defines.end())
-                {
-                    currentMacro.line->content.replace(currentMacro.firstChar, macroNameEnd - currentMacro.firstChar + 1, it->second);
-                    continue;
-                }
-                if (auto it2 = counters.find(macroName); it2 != counters.end())
+                if (auto it2 = context.counters.find(macroName); it2 != context.counters.end())
                 {
                     auto asString = std::to_string(it2->second);
                     currentMacro.line->content.replace(currentMacro.firstChar, macroNameEnd - currentMacro.firstChar + 1, asString);
@@ -630,8 +609,8 @@ namespace VWA
                     currentpos = currentMacro.line->content.find(')', currentpos);
                     if (currentpos == std::string::npos)
                     {
-                        logger << ILogger::Error;
-                        logger.AtPos(*currentMacro.line) << "Unmatched parenthesis" << ILogger::FlushNewLine;
+                        context.logger << ILogger::Error;
+                        context.logger.AtPos(*currentMacro.line) << "Unmatched parenthesis" << ILogger::FlushNewLine;
                         throw PreprocessorException("Macro arguments not closed");
                     }
                     if (handleEscapeSequence(currentMacro.line->content, currentpos))
@@ -667,11 +646,11 @@ namespace VWA
                 args.push_back(currentMacro.line->content.substr(macroArgsCurrent, macroArgsLast - macroArgsCurrent + 1));
                 macroEnd = currentpos;
             }
-            auto macro = macros.find(macroName);
-            if (macro == macros.end())
+            auto macro = context.macros.find(macroName);
+            if (macro == context.macros.end())
             {
-                logger << ILogger::Error;
-                logger.AtPos(*currentMacro.line) << "Unknown identifier " << macroName << ILogger::FlushNewLine;
+                context.logger << ILogger::Error;
+                context.logger.AtPos(*currentMacro.line) << "Unknown identifier " << macroName << ILogger::FlushNewLine;
                 throw PreprocessorException("Unknown Identifier");
             }
 
@@ -681,6 +660,7 @@ namespace VWA
                 File::FilePos arg{body.begin(), 0};
                 while (1)
                 {
+                    //TODO expand macros in arguments
                     arg = body.find("$" + std::to_string(i), arg.line, arg.firstChar);
                     if (arg.firstChar == std::string_view::npos)
                         break;
@@ -696,24 +676,24 @@ namespace VWA
             //If there is a second line, insert it
             if (body.begin() + 1 != body.end())
             {
-                inputFile.insertAfter(currentMacro.line, (body.end() - 1)->content + remaining);
+                context.file.insertAfter(currentMacro.line, (body.end() - 1)->content + remaining);
             }
             else
             {
                 currentMacro.line->content += remaining;
             }
 
-            inputFile.insertAfter(std::move(bodyCenter), currentMacro.line);
+            context.file.insertAfter(std::move(bodyCenter), currentMacro.line);
         }
         {
-            auto space = inputFile.find("\\ ");
+            auto space = context.file.find("\\ ");
             while (space.firstChar != std::string::npos)
             {
                 space.line->content.replace(space.firstChar, 2, "");
-                space = inputFile.find("\\ ", space.line, space.firstChar);
+                space = context.file.find("\\ ", space.line, space.firstChar);
             }
         }
-        return inputFile;
+        return context.file;
     }
 }
 

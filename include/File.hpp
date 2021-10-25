@@ -35,10 +35,9 @@ namespace VWA
 
     class File
     {
+        private:
         std::shared_ptr<const std::string> m_fileName;
         Line *m_end, *m_first;
-
-        File(){};
 
         struct iterator_base
         {
@@ -238,7 +237,7 @@ namespace VWA
             m_end->next = m_end;
         }
 
-        explicit File(const std::string &filename) : File(std::make_shared<const std::string>(filename)) {}
+        explicit File(const std::string &filename="") : File(std::make_shared<const std::string>(filename)) {}
 
         explicit File(std::istream &file, const std::shared_ptr<const std::string> &fileName) : File(fileName)
         {
@@ -628,6 +627,7 @@ namespace VWA
             if (start == this->end())
                 throw std::out_of_range("Tried extracting end, not a valid iterator");
             File ret;
+            delete ret.m_first;
             ret.m_first = start.current;
             ret.m_end = new Line(nullptr, nullptr, nullptr, -1, "");
             ret.m_end->next = ret.m_end;

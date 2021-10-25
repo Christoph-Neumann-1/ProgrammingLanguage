@@ -16,21 +16,21 @@ SCENARIO("Defining and later using a macro")
                 f.append("##ifdef macro");
                 f.append("true");
                 f.append("##endif");
-                REQUIRE(preprocess(f, logger).toString() == "true");
+                REQUIRE(preprocess({f,logger}).toString() == "true");
             }
             WHEN("The macro is expanded")
             {
                 THEN("The content of the macro should be pasted")
                 {
                     f.append("#macro");
-                    REQUIRE(preprocess(f, logger).toString() == "expanded");
+                    REQUIRE(preprocess({f, logger}).toString() == "expanded");
                 }
                 WHEN("There are other characters on the line")
                 {
                     f.append("before#macro after");
                     THEN("The everything preceding the macro should stay the same and everything after the space following the macro should stay the same")
                     {
-                        REQUIRE(preprocess(f, logger).toString() == "beforeexpandedafter");
+                        REQUIRE(preprocess({f, logger}).toString() == "beforeexpandedafter");
                     }
                 }
             }
@@ -40,7 +40,7 @@ SCENARIO("Defining and later using a macro")
                 f.append("#macro2");
                 THEN("The content of the macro should also be evaluated")
                 {
-                    REQUIRE(preprocess(f, logger).toString() == "expanded");
+                    REQUIRE(preprocess({f, logger}).toString() == "expanded");
                 }
             }
             WHEN("Trying to expand an undefined macro")
@@ -48,7 +48,7 @@ SCENARIO("Defining and later using a macro")
                 THEN("An exception should be thrown")
                 {
                     f.append("#undefinedmacro");
-                    REQUIRE_THROWS_AS(preprocess(f, logger), PreprocessorException);
+                    REQUIRE_THROWS_AS(preprocess({f, logger}), PreprocessorException);
                 }
             }
         }
