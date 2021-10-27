@@ -31,19 +31,41 @@ namespace VWA
         PreprocessorException(const std::string &what) : std::runtime_error(what) {}
     };
 
+    class PreprocessorCommand;
+
     struct PreprocessorContext
     {
         File file;
         ILogger &logger = defaultLogger;
         std::unordered_map<std::string, File> macros = {};
         std::unordered_map<std::string, int> counters = {};
-        struct BuiltIn
-        {
-        };
-        std::unordered_map<std::string,BuiltIn> builtins = {};
+        std::unordered_map<std::string, std::unique_ptr<PreprocessorCommand>> commands = {};
 
     private:
         static VoidLogger defaultLogger;
+    };
+
+    //TODO: name getters and a way to specify expected number of arguments and other constraints
+    class PreprocessorCommand
+    {
+    public:
+        virtual ~PreprocessorCommand() = default;
+        virtual File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) = 0;
+    };
+
+    class SetterCommon : public PreprocessorCommand
+    {
+    protected:
+        void RemoveOldDefinition(PreprocessorContext &context, const std::string &identifier);
+    };
+    class DefineCommand : public SetterCommon
+    {
+        File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
+    };
+
+    class EvalCommand : public SetterCommon
+    {
+        File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
     };
 
     /**
@@ -51,5 +73,6 @@ namespace VWA
      * 
      * @return File with macros expanded
      */
-    File preprocess(PreprocessorContext context);
+    File
+    preprocess(PreprocessorContext context);
 }

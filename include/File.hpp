@@ -35,7 +35,7 @@ namespace VWA
 
     class File
     {
-        private:
+    private:
         std::shared_ptr<const std::string> m_fileName;
         Line *m_end, *m_first;
 
@@ -230,6 +230,16 @@ namespace VWA
             return const_iterator(m_end);
         }
 
+        iterator back()
+        {
+            return --end();
+        }
+
+        const_iterator back() const
+        {
+            return --end();
+        }
+
         explicit File(const std::shared_ptr<const std::string> &fileName) : m_fileName(fileName), m_end(new Line(nullptr, nullptr, m_fileName, -1, "")), m_first(m_end)
         {
             //To allow for easier iteration
@@ -237,7 +247,7 @@ namespace VWA
             m_end->next = m_end;
         }
 
-        explicit File(const std::string &filename="") : File(std::make_shared<const std::string>(filename)) {}
+        explicit File(const std::string &filename = "") : File(std::make_shared<const std::string>(filename)) {}
 
         explicit File(std::istream &file, const std::shared_ptr<const std::string> &fileName) : File(fileName)
         {
@@ -558,7 +568,8 @@ namespace VWA
         {
             return *m_fileName;
         }
-
+        //TODO: swap argument order
+        //TODO: return next line
         void insertAfter(File other, iterator it)
         {
             if (other.m_first == other.m_end)

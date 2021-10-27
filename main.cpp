@@ -10,6 +10,7 @@
 //TODO proper interface
 //TODO refactor everything
 //TODO more const
+//TODO convert File to string without newline for tokenizer. ; should be the delimiter
 int main(int argc, char *argv[])
 {
     CLI::App app{"VWA Programming language"};
@@ -17,23 +18,23 @@ int main(int argc, char *argv[])
     std::string fileName;
 
     app.add_option("-f,--file, file", fileName, "Input file")->required()->check(CLI::ExistingFile);
-    std::string output="output.src";
-    auto outopt=app.add_option("-o,--output", output, "Output file");
-    bool toStdout=false;
-    app.add_flag("--stdout, !--nstdout",toStdout)->excludes(outopt);
+    std::string output = "output.src";
+    auto outopt = app.add_option("-o,--output", output, "Output file");
+    bool toStdout = false;
+    app.add_flag("--stdout, !--nstdout", toStdout)->excludes(outopt);
     //TODO: direct different loglevels to different outputs, use callbacks
     std::string logFile;
     app.add_option("-l,--log", logFile, "Log file");
     CLI11_PARSE(app, argc, argv);
 
     std::unique_ptr<VWA::ILogger> logger;
-    if(logFile.empty())
+    if (logFile.empty())
     {
-        logger=std::make_unique<VWA::ConsoleLogger>();
+        logger = std::make_unique<VWA::ConsoleLogger>();
     }
     else
     {
-        logger=std::make_unique<VWA::FileLogger>(logFile);
+        logger = std::make_unique<VWA::FileLogger>(logFile);
     }
     std::ifstream file(fileName);
     if (!file.is_open())
@@ -44,7 +45,11 @@ int main(int argc, char *argv[])
     VWA::File result;
     try
     {
-        result = VWA::preprocess({.file = VWA::File{file, fileName}, .logger = *logger});
+        std::unordered_map<std::string, std::unique_ptr<VWA::PreprocessorCommand>> commands;
+        commands["define"] = std::make_unique<VWA::DefineCommand>();
+        commands["eval"] = std::make_unique<VWA::EvalCommand>();
+
+        result = VWA::preprocess({.file = VWA::File{file, fileName}, .logger = *logger, .commands = std::move(commands)});
     }
     catch (const VWA::PreprocessorException &e)
     {
