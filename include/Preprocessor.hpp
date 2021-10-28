@@ -68,6 +68,15 @@ namespace VWA
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
     };
 
+    class MathCommand : public SetterCommon
+    {
+        int (*op)(int, int);
+        File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
+
+    public:
+        MathCommand(int (*op)(int, int)) : op(op) {}
+    };
+
     /**
      * @brief Expands macros in the file
      * 

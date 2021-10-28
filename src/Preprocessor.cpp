@@ -242,7 +242,7 @@ namespace VWA
                 *nextCharacter = position;
                 nextCharacter->firstChar += string.length();
             }
-            position.line->content.replace(position.firstChar, identifier.size(), string);
+            position.line->content.replace(position.firstChar, identifier.size() + 1, string);
             return;
         }
     }
@@ -298,6 +298,45 @@ namespace VWA
         std::istringstream stream(*value);
         context.macros[*expanded] = File(stream, current.line->fileName);
         //TODO: function that erases the identifier correctly to avoid repetititon and increase consistency
+        current.line->content.erase(current.firstChar, fullIdentifier.length() + 1);
+        return current;
+    }
+
+    File::FilePos MathCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
+    {
+        //TODO: if more args are given compute the sum/product/etc of them and store them in the first val
+        if (args.size() < 2)
+            throw PreprocessorException("Invalid number of arguments for eval");
+        auto destination = expandIdentifier(args[0], context);
+        if (!destination)
+            throw PreprocessorException("Invalid identifier for eval");
+
+        int operands[2];
+        //TODO: if given the name of a counter instead of a number, get the value, this would solve the problem when
+        //given 2 args and having to store the result in args[0]. It also would make it easier to write simple additions
+
+        for (int i = 0; i < 2; ++i)
+            if (auto res = expandIdentifier(*(args.end() - i - 1), context))
+            {
+                if (!std::isdigit(res->front()))
+                {
+                    res = expandIdentifier('#' + *res, context);
+                }
+                try
+                {
+                    operands[i] = std::stoi(*res);
+                }
+                catch (std::invalid_argument &e)
+                {
+                    throw PreprocessorException("Invalid argument for math op");
+                }
+            }
+            else
+            {
+                throw PreprocessorException("Invalid argument for math op");
+            }
+        RemoveOldDefinition(context, *destination);
+        context.counters[*destination] = op(operands[0], operands[1]);
         current.line->content.erase(current.firstChar, fullIdentifier.length() + 1);
         return current;
     }

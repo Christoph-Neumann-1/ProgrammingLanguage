@@ -48,6 +48,10 @@ int main(int argc, char *argv[])
         std::unordered_map<std::string, std::unique_ptr<VWA::PreprocessorCommand>> commands;
         commands["define"] = std::make_unique<VWA::DefineCommand>();
         commands["eval"] = std::make_unique<VWA::EvalCommand>();
+        commands["add"] = std::make_unique<VWA::MathCommand>([](int a, int b) { return a + b; });
+        commands["sub"] = std::make_unique<VWA::MathCommand>([](int a, int b) { return a - b; });
+        commands["mul"] = std::make_unique<VWA::MathCommand>([](int a, int b) { return a * b; });
+        commands["div"] = std::make_unique<VWA::MathCommand>([](int a, int b) { return a / b; });
 
         result = VWA::preprocess({.file = VWA::File{file, fileName}, .logger = *logger, .commands = std::move(commands)});
     }
