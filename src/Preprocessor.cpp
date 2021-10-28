@@ -1,5 +1,6 @@
 #include <Preprocessor.hpp>
 #include <variant>
+#include <optional>
 
 //TODO: better way to define new keywords
 //TODO: assert that appending still works
@@ -9,6 +10,7 @@
 //TODO: error trace for nested macros
 //TODO: delete counter upon defining macro with same name and vice versa
 //TODO: forbid redefining keywords
+//TODO: move keywords to other file
 
 #define PREPROCESSOR_BINARY_MATH_OP(op)    \
     auto args = getArgs(2, 3);             \
@@ -76,20 +78,19 @@ namespace VWA
         return end == line.npos ? line.size() : end;
     }
     //TODO Find better way to handle errors
-    std::variant<std::monostate, std::string, File, int> expandMacro(const std::string &identier, const PreprocessorContext &context, const std::variant<std::monostate, std::vector<std::string>> &args)
+    std::variant<std::monostate, std::string, File, int> expandMacro(const std::string &identier, const PreprocessorContext &context, const std::optional<std::vector<std::string>> &args)
     {
         auto macro = context.macros.find(identier);
         if (macro != context.macros.end())
         {
             File body(macro->second);
-            auto argvec = std::get_if<std::vector<std::string>>(&args);
-            if (argvec)
-                for (int i = 0; i < argvec->size(); ++i)
+            if (args)
+                for (int i = 0; i < args->size(); ++i)
                 {
                     auto name = "$" + std::to_string(i);
                     for (auto current = body.find(name); current.firstChar != std::string_view::npos; current = body.find(name))
                     {
-                        current.line->content.replace(current.firstChar, current.firstChar + name.size(), (*argvec)[i]);
+                        current.line->content.replace(current.firstChar, current.firstChar + name.size(), args->at(i));
                     }
                 }
             if (body.back() == body.begin())
@@ -102,7 +103,8 @@ namespace VWA
         return std::monostate{};
     }
 
-    std::variant<std::monostate, std::vector<std::string>> getMacroArgs(std::string &identifier)
+    //TODO: consider returning an empty vector instead of using optional
+    std::optional<std::vector<std::string>> getMacroArgs(std::string &identifier)
     {
         if (identifier.back() == ')')
         {
@@ -131,18 +133,17 @@ namespace VWA
             argList.push_back(args.substr(begin));
             return argList;
         }
-        return std::monostate{};
+        return std::nullopt;
     }
 
     //TODO: better errors. Pass the current line? Return error struct? Or just use exceptions?
-    std::variant<std::string, std::monostate> expandIdentifier(std::string identifier, PreprocessorContext &context)
+    std::optional<std::string> expandIdentifier(std::string identifier, PreprocessorContext &context)
     {
         auto original = identifier;
         for (auto i = identifier.find('#'); i != identifier.npos; i = identifier.find('#', i))
         {
             auto end = FindEndOfIdentifier(identifier, i, " \t#");
-            if(end==identifier.npos)
-                end=identifier.size();
+            end = end == identifier.npos ? identifier.size() : end;
             //TODO: extract to other function and generalize. Use visitor pattern
             if (identifier[i + 1] == '!')
             {
@@ -150,8 +151,8 @@ namespace VWA
                 auto expanded = expandMacro(name, context, getMacroArgs(identifier));
                 if (expanded.index() == 0 || expanded.index() == 2)
                 {
-                    context.logger << ILogger::Error << "Failed to expand " << name << " in " << original <<ILogger::FlushNewLine;
-                    return std::monostate{};
+                    context.logger << ILogger::Error << "Failed to expand " << name << " in " << original << ILogger::FlushNewLine;
+                    return std::nullopt;
                 }
                 std::string string;
                 if (auto integer = std::get_if<int>(&expanded))
@@ -171,7 +172,7 @@ namespace VWA
             if (expanded.index() == 0 || expanded.index() == 2)
             {
                 context.logger << ILogger::Error << "Failed to expand " << name << " in " << original << ILogger::FlushNewLine;
-                return std::monostate{};
+                return std::nullopt;
             }
             std::string string;
             if (auto integer = std::get_if<int>(&expanded))
@@ -189,7 +190,8 @@ namespace VWA
     }
     bool IsFirstNonSpace(const std::string_view &line, size_t pos)
     {
-        if(!pos) return true;
+        if (!pos)
+            return true;
         for (--pos; pos >= 0; --pos)
         {
             if (!isspace(line[pos]))
@@ -213,7 +215,7 @@ namespace VWA
                 *nextCharacter = position;
                 nextCharacter->firstChar += s->length();
             }
-            position.line->content.replace(position.firstChar, identifier.size()+1, *s);
+            position.line->content.replace(position.firstChar, identifier.size() + 1, *s);
             return;
         }
         if (auto file = std::get_if<File>(&expanded))
@@ -263,23 +265,22 @@ namespace VWA
             throw PreprocessorException("No arguments given to define");
         //TODO if more paramteters are passed, set all of them to the value
         auto expanded = expandIdentifier(args[0], context);
-        if (expanded.index())
+        if (!expanded)
         {
             throw PreprocessorException("Invalid identifier for define");
         }
-        auto identifier = std::get<0>(expanded);
-        RemoveOldDefinition(context, identifier);
+        RemoveOldDefinition(context, *expanded);
         if (args.size() > 1)
         {
             std::istringstream stream(args.back());
-            context.macros[identifier] = File(stream, current.line->fileName);
+            context.macros[*expanded] = File(stream, current.line->fileName);
         }
         else
         {
-            context.macros[identifier] = File(current.line->fileName);
+            context.macros[*expanded] = File(current.line->fileName);
         }
         //TODO: function that erases the identifier correctly to avoid repetititon and increase consistency
-        current.line->content.erase(current.firstChar, fullIdentifier.length()+1);
+        current.line->content.erase(current.firstChar, fullIdentifier.length() + 1);
         return current;
     }
     File::FilePos EvalCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
@@ -288,17 +289,16 @@ namespace VWA
             throw PreprocessorException("No arguments given to define");
         //TODO if more paramteters are passed, set all of them to the value
         auto expanded = expandIdentifier(args[0], context);
-        if (expanded.index())
+        if (!expanded)
         {
             throw PreprocessorException("Invalid identifier for define");
         }
-        auto identifier = std::get<0>(expanded);
-        auto value = expandIdentifier(args.back(), context);
-        RemoveOldDefinition(context, identifier);
-        std::istringstream stream(std::get<std::string>(value));
-        context.macros[identifier] = File(stream, current.line->fileName);
+        auto value = expandIdentifier(args.back(), context); //TODO: check for nullopt
+        RemoveOldDefinition(context, *expanded);
+        std::istringstream stream(*value);
+        context.macros[*expanded] = File(stream, current.line->fileName);
         //TODO: function that erases the identifier correctly to avoid repetititon and increase consistency
-        current.line->content.erase(current.firstChar, fullIdentifier.length()+1);
+        current.line->content.erase(current.firstChar, fullIdentifier.length() + 1);
         return current;
     }
 
@@ -359,11 +359,11 @@ namespace VWA
                     //TODO: consider removing identifier before function call
                     File::FilePos next;
                     auto name = expandIdentifier(line->content.substr(current + 2, nameEnd - current - 2), context);
-                    if (name.index() == 1)
+                    if (!name)
                     {
                         throw PreprocessorException("Macro expansion failed");
                     }
-                    identifier = std::get<std::string>(name);
+                    identifier = *name;
                     PasteMacro(identifier, File::FilePos{line, current}, context, &next);
                     //TODO: still remove comments in those lines
                     line = next.line;
@@ -381,11 +381,10 @@ namespace VWA
                     //TODO: consider moving the evaluation and substring part to the command class
                     auto copy = identifier;
                     auto args = getMacroArgs(copy);
-                    auto ptr = std::get_if<1>(&args);
-                    std::vector<std::string> argvec = ptr ? std::move(*ptr) : std::vector<std::string>{};
+                    args = args ? args : std::vector<std::string>{};
                     if (auto command = context.commands.find(copy); command != context.commands.end())
                     {
-                        auto [nextline, nextChar] = (*command->second)(context, {line, current}, identifier, argvec);
+                        auto [nextline, nextChar] = (*command->second)(context, {line, current}, identifier, *args);
                         line = nextline;
                         current = nextChar;
                         continue;
@@ -393,11 +392,11 @@ namespace VWA
                 }
                 {
                     auto name = expandIdentifier(identifier, context);
-                    if (name.index() == 1)
+                    if (!name)
                     {
                         throw PreprocessorException("Macro expansion failed");
                     }
-                    identifier = std::get<std::string>(name);
+                    identifier = *name;
                     PasteMacro(identifier, File::FilePos{line, current}, context);
                     continue;
                 }
