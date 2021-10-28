@@ -104,6 +104,7 @@ namespace VWA
     }
 
     //TODO: consider returning an empty vector instead of using optional
+    //TODO: handle spaces in brackets
     std::optional<std::vector<std::string>> getMacroArgs(std::string &identifier)
     {
         if (identifier.back() == ')')
@@ -389,7 +390,7 @@ namespace VWA
                         line->content.erase(current - 1, 1);
                         continue;
                     }
-                auto nameEnd = FindEndOfIdentifier(line->content, current + 2);
+                auto nameEnd = FindEndOfIdentifier(line->content, current+1);
                 auto identifier = line->content.substr(current + 1, nameEnd - current - 1);
 
                 //Paste the content, but don't expand it further

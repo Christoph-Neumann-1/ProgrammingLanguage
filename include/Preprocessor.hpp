@@ -22,6 +22,7 @@
 //TODO: better escape sequences
 //TODO: proper support for builtin functions
 //TODO: single # for commands
+//TODO: remove unneccessary empty lines
 //Do i need to erase whitespaces after commands?
 
 namespace VWA
