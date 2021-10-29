@@ -11,6 +11,7 @@
 //TODO: delete counter upon defining macro with same name and vice versa
 //TODO: forbid redefining keywords
 //TODO: move keywords to other file
+//TODO: express comments as macros: #//(comment)
 
 #define PREPROCESSOR_BINARY_MATH_OP(op)    \
     auto args = getArgs(2, 3);             \
@@ -115,6 +116,12 @@ namespace VWA
         if (identifier.back() == ')')
         {
             auto openParenthesis = identifier.find('(');
+            if(openParenthesis==identifier.size()-1)
+            {
+                identifier.pop_back();
+                identifier.pop_back();
+                return std::nullopt;
+            }
             std::string args = identifier.substr(openParenthesis + 1, identifier.size() - openParenthesis - 2);
             identifier.erase(openParenthesis);
             std::vector<std::string> argList;
@@ -143,6 +150,7 @@ namespace VWA
     }
 
     //TODO: better errors. Pass the current line? Return error struct? Or just use exceptions?
+    //TODO: don't require a space at  the end, or erase it. The former is prefered
     std::optional<std::string> expandIdentifier(std::string identifier, PreprocessorContext &context)
     {
         auto original = identifier;
@@ -358,7 +366,7 @@ namespace VWA
         auto body = context.file.extractLines(current.line + 1, end.line);
         RemoveOldDefinition(context, args[0]);
         context.macros[args[0]] = std::move(body);
-        auto next=end;
+        auto next = end;
         ++next.line;
         next.firstChar = 0;
         context.file.removeLines(current.line, end.line + 1);
@@ -369,13 +377,13 @@ namespace VWA
     File preprocess(PreprocessorContext context)
     {
 
-        auto requireSingleLine = [](File &file)
-        {
-            if (file.empty())
-                throw PreprocessorException("1 Line required, 0 found");
-            if (file.begin() != file.end() - 1)
-                throw PreprocessorException("1 Line required, more than 1 found");
-        };
+        // auto requireSingleLine = [](File &file)
+        // {
+        //     if (file.empty())
+        //         throw PreprocessorException("1 Line required, 0 found");
+        //     if (file.begin() != file.end() - 1)
+        //         throw PreprocessorException("1 Line required, more than 1 found");
+        // };
 
         //If the last character in a line is a \, merge it with the next line. Also removes empty lines.
         for (auto line = context.file.begin(); line != context.file.end(); ++line)
@@ -398,13 +406,17 @@ namespace VWA
             }
         }
 
+        // for (auto line = context.file.begin(); line != context.file.end();)
+        // {
+        //     if (auto comment = line->content.find("//"); comment != line->content.npos)
+        //     {
+        //         line->content.erase(comment);
+        //     }
+        //     line = line->content.empty() ? context.file.removeLine(line) : line + 1;
+        // }
+
         for (auto line = context.file.begin(); line != context.file.end(); ++line)
         {
-
-            if (auto comment = line->content.find("//"); comment != line->content.npos)
-            {
-                line->content.erase(comment);
-            }
             for (auto current = line->content.find("#"); current != line->content.npos; current = line->content.find("#", current))
             {
                 if (current)
@@ -428,19 +440,17 @@ namespace VWA
                     }
                     identifier = *name;
                     PasteMacro(identifier, File::FilePos{line, current}, context, &next, 2);
-                    //TODO: still remove comments in those lines
                     line = next.line;
                     current = next.firstChar;
                     continue;
                 }
 
-                //TODO: remove this constraint
+                //TODO: remove this constraint or make it optional
                 if (IsFirstNonSpace(line->content, current))
                 {
                     //TODO: functions to replace old lamdas
                     //TODO: more modular approach
                     //TODO: expand identifiers as well
-                    //TODO: handle comments in potentially skipped lines
                     //TODO: consider moving the evaluation and substring part to the command class
                     auto copy = identifier;
                     auto args = getMacroArgs(copy);
@@ -477,6 +487,7 @@ namespace VWA
                 ++it;
         }
 
+#pragma region deprecated
         //         for (auto currentMacro = context.file.find('#'); currentMacro.firstChar != std::string::npos; currentMacro = context.file.find('#', currentMacro.line, currentMacro.firstChar))
         //         {
         //             auto handleEscapeSequence = [](std::string &string, size_t &pos) -> bool
@@ -1032,6 +1043,8 @@ namespace VWA
 
         //             context.file.insertAfter(std::move(bodyCenter), currentMacro.line);
         //         }
+#pragma endregion deprecated
+
         {
             //TODO: remove
             auto space = context.file.find("\\ ");

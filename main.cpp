@@ -56,6 +56,7 @@ int main(int argc, char *argv[])
                                                          { return a / b; });
     commands["macro"] =std::make_unique<VWA::MacrodefinitionCommand>();
     commands["endmacro"]=std::make_unique<VWA::ReservedCommand>();
+    commands["/"]=std::make_unique<VWA::CommentCommand>();
     try
     {
 

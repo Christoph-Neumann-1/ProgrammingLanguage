@@ -32,7 +32,7 @@ namespace VWA
         PreprocessorException(const std::string &what) : std::runtime_error(what) {}
     };
 
-    class PreprocessorCommand;
+    class PreprocessorCommand;//TODO: autoregistration and stuff
 
     struct PreprocessorContext
     {
@@ -56,8 +56,22 @@ namespace VWA
 
     class ReservedCommand : public PreprocessorCommand
     {
-        File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override{
-            throw PreprocessorException("Keyword may not be used in preprocessor "+fullIdentifier);
+        File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override
+        {
+            throw PreprocessorException("Keyword may not be used in preprocessor " + fullIdentifier);
+        }
+    };
+
+    class CommentCommand : public PreprocessorCommand
+    {
+        File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override
+        {
+            if(args.empty())
+            current.line->content.erase(current.firstChar);
+            else{
+                current.line->content.erase(current.firstChar, fullIdentifier.length()+1);
+            }
+            return current;
         }
     };
 
