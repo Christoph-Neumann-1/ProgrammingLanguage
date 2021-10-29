@@ -57,6 +57,9 @@ int main(int argc, char *argv[])
     commands["macro"] =std::make_unique<VWA::MacrodefinitionCommand>();
     commands["endmacro"]=std::make_unique<VWA::ReservedCommand>();
     commands["/"]=std::make_unique<VWA::CommentCommand>();
+    commands["undef"]=std::make_unique<VWA::DeleteCommand>();
+    commands["del"]=std::make_unique<VWA::DeleteCommand>();
+    commands["set"]=std::make_unique<VWA::IntSetCommand>();
     try
     {
 

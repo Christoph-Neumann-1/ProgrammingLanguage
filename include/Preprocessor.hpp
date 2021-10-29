@@ -23,6 +23,7 @@
 //TODO: proper support for builtin functions
 //TODO: single # for commands
 //TODO: remove unneccessary empty lines
+//TODO: reuse vectors
 //Do i need to erase whitespaces after commands?
 
 namespace VWA
@@ -124,6 +125,34 @@ namespace VWA
         //erasesLine is false, because the macro command needs to erase more than one line and its more efficient to delete all lines at once
         MacrodefinitionCommand() : PreprocessorCommand(true, true, false, 1, 1) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
+    };
+
+    class IntSetCommand : public SetterCommon
+    {
+        public:
+        IntSetCommand() : PreprocessorCommand(true, true, true, 1) {}
+        File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
+    };
+
+    class DeleteCommand : public PreprocessorCommand
+    {
+    public:
+        DeleteCommand() : PreprocessorCommand(true, true, true, 1) {}
+        File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override
+        {
+            for (auto &arg : args)
+            {
+                if (auto it = context.macros.find(arg); it != context.macros.end())
+                {
+                    context.macros.erase(it);
+                }
+                else if (auto it2= context.counters.find(arg); it2 != context.counters.end())
+                {
+                    context.counters.erase(it2);
+                }
+            }
+            return current;
+        }
     };
 
     /**

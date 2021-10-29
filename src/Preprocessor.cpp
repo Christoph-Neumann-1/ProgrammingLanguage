@@ -116,7 +116,7 @@ namespace VWA
         if (identifier.back() == ')')
         {
             auto openParenthesis = identifier.find('(');
-            if(openParenthesis==identifier.size()-1)
+            if (openParenthesis == identifier.size() - 1)
             {
                 identifier.pop_back();
                 identifier.pop_back();
@@ -361,6 +361,39 @@ namespace VWA
         return next;
     }
 
+    File::FilePos IntSetCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
+    {
+        auto destination = expandIdentifier(args[0], context);
+        if (!destination)
+            throw PreprocessorException("Invalid identifier for intset");
+        int value = 0;
+        if (args.size()-1)
+        {
+            if (auto res = expandIdentifier(args[1], context))
+            {
+                if (!std::isdigit(res->front()))
+                {
+                    res = expandIdentifier('#' + *res, context);
+                }
+                try
+                {
+                    value = std::stoi(*res);
+                }
+                catch (std::invalid_argument &e)
+                {
+                    throw PreprocessorException("Invalid argument for set");
+                }
+            }
+            else
+            {
+                throw PreprocessorException("Invalid argument for set");
+            }
+        }
+        RemoveOldDefinition(context, *destination);
+        context.counters[*destination] = value;
+        return current;
+    }
+
     //TODO: loop over line and not entire file
     File preprocess(PreprocessorContext context)
     {
@@ -442,33 +475,37 @@ namespace VWA
                     args = args ? args : std::vector<std::string>{};
                     if (auto command = context.commands.find(copy); command != context.commands.end())
                     {
-                        if(command->second->requireStartOfLine)
+                        if (command->second->requireStartOfLine)
                         {
-                            if(!IsFirstNonSpace(line->content, current))
+                            if (!IsFirstNonSpace(line->content, current))
                             {
-                                throw PreprocessorException("Command "+copy+" must be at the start of a line");
+                                throw PreprocessorException("Command " + copy + " must be at the start of a line");
                             }
                         }
-                        if(command->second->requireEndOfLine)
+                        if (command->second->requireEndOfLine)
                         {
-                            if(auto pos=line->content.find_first_not_of(" \t", current+identifier.length()+1); pos==line->content.npos)
+                            auto idlenght = identifier.length();
+                            if (current + idlenght != line->content.length())
                             {
-                                throw PreprocessorException("Command "+copy+" must be at the end of a line");
+                                if (auto pos = line->content.find_first_not_of(" \t", current + identifier.length()); pos == line->content.npos)
+                                {
+                                    throw PreprocessorException("Command " + copy + " must be at the end of a line");
+                                }
                             }
                         }
-                        if(args->size()<command->second->minArguments)
+                        if (args->size() < command->second->minArguments)
                         {
-                            throw PreprocessorException("Command "+copy+" requires at least "+std::to_string(command->second->minArguments)+" arguments");
+                            throw PreprocessorException("Command " + copy + " requires at least " + std::to_string(command->second->minArguments) + " arguments");
                         }
-                        if(args->size()>command->second->maxArguments)
+                        if (args->size() > command->second->maxArguments)
                         {
-                            throw PreprocessorException("Command "+copy+" requires at most "+std::to_string(command->second->maxArguments)+" arguments");
+                            throw PreprocessorException("Command " + copy + " requires at most " + std::to_string(command->second->maxArguments) + " arguments");
                         }
                         auto [nextline, nextChar] = (*command->second)(context, {line, current}, identifier, *args);
-                        if(command->second->erasesLine)
+                        if (command->second->erasesLine)
                         {
-                            line=context.file.removeLine(line);
-                            current=0;
+                            line = context.file.removeLine(line);
+                            current = 0;
                         }
                         else
                         {
