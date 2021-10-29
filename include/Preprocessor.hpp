@@ -32,7 +32,7 @@ namespace VWA
         PreprocessorException(const std::string &what) : std::runtime_error(what) {}
     };
 
-    class PreprocessorCommand;//TODO: autoregistration and stuff
+    class PreprocessorCommand; //TODO: autoregistration and stuff
 
     struct PreprocessorContext
     {
@@ -50,12 +50,23 @@ namespace VWA
     class PreprocessorCommand
     {
     public:
+        const bool requireStartOfLine;
+        const bool requireEndOfLine;
+        const bool erasesLine;
+        const int minArguments;
+        const int maxArguments; //-1 for unlimited
+        //TODO: additional constraints for args
+
+        PreprocessorCommand(const bool _requireStartOfLine = true, const bool _requireEndOfLine = true, const bool _erasesLine = true, const int _minArgs = 0, const int _maxArgs = -1)
+            : requireStartOfLine(_requireStartOfLine), requireEndOfLine(_requireEndOfLine), erasesLine(_erasesLine), minArguments(_minArgs), maxArguments(_maxArgs) {}
         virtual ~PreprocessorCommand() = default;
         virtual File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) = 0;
     };
 
     class ReservedCommand : public PreprocessorCommand
     {
+    public:
+        ReservedCommand() : PreprocessorCommand(false, false, false) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override
         {
             throw PreprocessorException("Keyword may not be used in preprocessor " + fullIdentifier);
@@ -64,12 +75,15 @@ namespace VWA
 
     class CommentCommand : public PreprocessorCommand
     {
+    public:
+        CommentCommand() : PreprocessorCommand(false, false, false) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override
         {
-            if(args.empty())
-            current.line->content.erase(current.firstChar);
-            else{
-                current.line->content.erase(current.firstChar, fullIdentifier.length()+1);
+            if (args.empty())
+                current.line->content.erase(current.firstChar);
+            else
+            {
+                current.line->content.erase(current.firstChar, fullIdentifier.length() + 1);
             }
             return current;
         }
@@ -82,24 +96,33 @@ namespace VWA
     };
     class DefineCommand : public SetterCommon
     {
+    public:
+        DefineCommand() : PreprocessorCommand(true, true, true, 1) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
     };
 
     class EvalCommand : public SetterCommon
     {
+    public:
+        EvalCommand() : PreprocessorCommand(true, true, true, 1) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
     };
 
     class MathCommand : public SetterCommon
     {
         int (*op)(int, int);
+
+    public:
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
 
     public:
-        MathCommand(int (*op)(int, int)) : op(op) {}
+        MathCommand(int (*op)(int, int)) : PreprocessorCommand(true, true, true, 2), op(op) {}
     };
     class MacrodefinitionCommand : public SetterCommon
     {
+    public:
+        //erasesLine is false, because the macro command needs to erase more than one line and its more efficient to delete all lines at once
+        MacrodefinitionCommand() : PreprocessorCommand(true, true, false, 1, 1) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
     };
 

@@ -275,8 +275,6 @@ namespace VWA
 
     File::FilePos DefineCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
     {
-        if (args.empty())
-            throw PreprocessorException("No arguments given to define");
         //TODO if more paramteters are passed, set all of them to the value
         auto expanded = expandIdentifier(args[0], context);
         if (!expanded)
@@ -293,14 +291,10 @@ namespace VWA
         {
             context.macros[*expanded] = File(current.line->fileName);
         }
-        //TODO: function that erases the identifier correctly to avoid repetititon and increase consistency
-        current.line->content.erase(current.firstChar, fullIdentifier.length() + 1);
         return current;
     }
     File::FilePos EvalCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
     {
-        if (args.empty())
-            throw PreprocessorException("No arguments given to define");
         //TODO if more paramteters are passed, set all of them to the value
         auto expanded = expandIdentifier(args[0], context);
         if (!expanded)
@@ -312,16 +306,12 @@ namespace VWA
         RemoveOldDefinition(context, *expanded);
         std::istringstream stream(*value);
         context.macros[*expanded] = File(stream, current.line->fileName);
-        //TODO: function that erases the identifier correctly to avoid repetititon and increase consistency
-        current.line->content.erase(current.firstChar, fullIdentifier.length() + 1);
         return current;
     }
 
     File::FilePos MathCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
     {
         //TODO: if more args are given compute the sum/product/etc of them and store them in the first val
-        if (args.size() < 2)
-            throw PreprocessorException("Invalid number of arguments for eval");
         auto destination = expandIdentifier(args[0], context);
         if (!destination)
             throw PreprocessorException("Invalid identifier for eval");
@@ -352,13 +342,11 @@ namespace VWA
             }
         RemoveOldDefinition(context, *destination);
         context.counters[*destination] = op(operands[0], operands[1]);
-        current.line->content.erase(current.firstChar, fullIdentifier.length() + 1);
         return current;
     }
 
     File::FilePos MacrodefinitionCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
     {
-        throw_if(args.size() != 1, PreprocessorException("Invalid number of arguments for macro"));
         auto end = context.file.find("#endmacro(" + args[0] + ")", current.line + 1);
         //TODO: handle commented out lines
         if (end.firstChar == std::string::npos)
@@ -445,11 +433,8 @@ namespace VWA
                     continue;
                 }
 
-                //TODO: remove this constraint or make it optional
-                if (IsFirstNonSpace(line->content, current))
                 {
                     //TODO: functions to replace old lamdas
-                    //TODO: more modular approach
                     //TODO: expand identifiers as well
                     //TODO: consider moving the evaluation and substring part to the command class
                     auto copy = identifier;
@@ -457,9 +442,39 @@ namespace VWA
                     args = args ? args : std::vector<std::string>{};
                     if (auto command = context.commands.find(copy); command != context.commands.end())
                     {
+                        if(command->second->requireStartOfLine)
+                        {
+                            if(!IsFirstNonSpace(line->content, current))
+                            {
+                                throw PreprocessorException("Command "+copy+" must be at the start of a line");
+                            }
+                        }
+                        if(command->second->requireEndOfLine)
+                        {
+                            if(auto pos=line->content.find_first_not_of(" \t", current+identifier.length()+1); pos==line->content.npos)
+                            {
+                                throw PreprocessorException("Command "+copy+" must be at the end of a line");
+                            }
+                        }
+                        if(args->size()<command->second->minArguments)
+                        {
+                            throw PreprocessorException("Command "+copy+" requires at least "+std::to_string(command->second->minArguments)+" arguments");
+                        }
+                        if(args->size()>command->second->maxArguments)
+                        {
+                            throw PreprocessorException("Command "+copy+" requires at most "+std::to_string(command->second->maxArguments)+" arguments");
+                        }
                         auto [nextline, nextChar] = (*command->second)(context, {line, current}, identifier, *args);
-                        line = nextline;
-                        current = nextChar;
+                        if(command->second->erasesLine)
+                        {
+                            line=context.file.removeLine(line);
+                            current=0;
+                        }
+                        else
+                        {
+                            line = nextline;
+                            current = nextChar;
+                        }
                         continue;
                     }
                 }

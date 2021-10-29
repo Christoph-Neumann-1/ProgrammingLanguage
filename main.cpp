@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
     }
     catch (const VWA::PreprocessorException &e)
     {
-        std::cout << "Preprocessor failed, see log for details" << std::endl;
+        std::cout << "Preprocessor failed, see log for details. Reason: "<<e.what() << std::endl;
         file.close();
         return -1;
     }
