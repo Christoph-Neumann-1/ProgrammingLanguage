@@ -43,17 +43,23 @@ int main(int argc, char *argv[])
         return -1;
     }
     VWA::File result;
+    std::unordered_map<std::string, std::unique_ptr<VWA::PreprocessorCommand>> commands;
+    commands["define"] = std::make_unique<VWA::DefineCommand>();
+    commands["eval"] = std::make_unique<VWA::EvalCommand>();
+    commands["add"] = std::make_unique<VWA::MathCommand>([](int a, int b)
+                                                         { return a + b; });
+    commands["sub"] = std::make_unique<VWA::MathCommand>([](int a, int b)
+                                                         { return a - b; });
+    commands["mul"] = std::make_unique<VWA::MathCommand>([](int a, int b)
+                                                         { return a * b; });
+    commands["div"] = std::make_unique<VWA::MathCommand>([](int a, int b)
+                                                         { return a / b; });
+    commands["macro"] =std::make_unique<VWA::MacrodefinitionCommand>();
+    commands["endmacro"]=std::make_unique<VWA::ReservedCommand>();
     try
     {
-        std::unordered_map<std::string, std::unique_ptr<VWA::PreprocessorCommand>> commands;
-        commands["define"] = std::make_unique<VWA::DefineCommand>();
-        commands["eval"] = std::make_unique<VWA::EvalCommand>();
-        commands["add"] = std::make_unique<VWA::MathCommand>([](int a, int b) { return a + b; });
-        commands["sub"] = std::make_unique<VWA::MathCommand>([](int a, int b) { return a - b; });
-        commands["mul"] = std::make_unique<VWA::MathCommand>([](int a, int b) { return a * b; });
-        commands["div"] = std::make_unique<VWA::MathCommand>([](int a, int b) { return a / b; });
 
-        result = VWA::preprocess({.file = VWA::File{file, fileName}, .logger = *logger, .commands = std::move(commands)});
+        result = VWA::preprocess({.file = VWA::File{file, fileName}, .logger = *logger, .commands = commands});
     }
     catch (const VWA::PreprocessorException &e)
     {

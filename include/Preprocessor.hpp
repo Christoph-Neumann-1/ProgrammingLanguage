@@ -40,7 +40,7 @@ namespace VWA
         ILogger &logger = defaultLogger;
         std::unordered_map<std::string, File> macros = {};
         std::unordered_map<std::string, int> counters = {};
-        std::unordered_map<std::string, std::unique_ptr<PreprocessorCommand>> commands = {};
+        const std::unordered_map<std::string, std::unique_ptr<PreprocessorCommand>> &commands = {};
 
     private:
         static VoidLogger defaultLogger;
@@ -54,7 +54,14 @@ namespace VWA
         virtual File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) = 0;
     };
 
-    class SetterCommon : public PreprocessorCommand
+    class ReservedCommand : public PreprocessorCommand
+    {
+        File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override{
+            throw PreprocessorException("Keyword may not be used in preprocessor "+fullIdentifier);
+        }
+    };
+
+    class SetterCommon : virtual public PreprocessorCommand
     {
     protected:
         void RemoveOldDefinition(PreprocessorContext &context, const std::string &identifier);
@@ -76,6 +83,10 @@ namespace VWA
 
     public:
         MathCommand(int (*op)(int, int)) : op(op) {}
+    };
+    class MacrodefinitionCommand : public SetterCommon
+    {
+        File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
     };
 
     /**

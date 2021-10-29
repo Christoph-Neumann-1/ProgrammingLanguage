@@ -26,6 +26,11 @@
     currentMacro.firstChar = 0;                                                                     \
     continue;
 
+//TODO: remove
+#define throw_if(condition, exception) \
+    if (condition)                     \
+    throw exception
+
 namespace VWA
 {
     void processMacro(File::iterator &current, PreprocessorContext &context)
@@ -200,7 +205,7 @@ namespace VWA
         }
         return true;
     }
-    void PasteMacro(std::string identifier, File::FilePos position, PreprocessorContext &context, File::FilePos *nextCharacter = nullptr)
+    void PasteMacro(std::string identifier, File::FilePos position, PreprocessorContext &context, File::FilePos *nextCharacter = nullptr, size_t prefixLength = 1)
     {
         //TODO: check if whitespaces are handled correctly
         auto expanded = expandMacro(identifier, context, getMacroArgs(identifier));
@@ -216,15 +221,15 @@ namespace VWA
                 *nextCharacter = position;
                 nextCharacter->firstChar += s->length();
             }
-            position.line->content.replace(position.firstChar, identifier.size() + 1, *s);
+            position.line->content.replace(position.firstChar, identifier.size() + prefixLength, *s);
             return;
         }
         if (auto file = std::get_if<File>(&expanded))
         {
             std::string first = file->begin()->content;
             std::string last = file->back()->content;
-            auto Body = file->extractLines(file->begin() + 1, file->back() - 1);
-            std::string remainder = position.line->content.substr(position.firstChar + identifier.size());
+            auto Body = file->extractLines(file->begin() + 1, file->back());
+            std::string remainder = position.line->content.substr(position.firstChar + identifier.size() + prefixLength - 1);
             position.line->content.replace(position.firstChar, position.line->content.size() - position.firstChar, first);
             context.file.insertAfter(position.line, last + remainder);
             if (nextCharacter)
@@ -243,7 +248,7 @@ namespace VWA
                 *nextCharacter = position;
                 nextCharacter->firstChar += string.length();
             }
-            position.line->content.replace(position.firstChar, identifier.size() + 1, string);
+            position.line->content.replace(position.firstChar, identifier.size() + prefixLength, string);
             return;
         }
     }
@@ -294,7 +299,8 @@ namespace VWA
         {
             throw PreprocessorException("Invalid identifier for define");
         }
-        auto value = expandIdentifier(args.back(), context); //TODO: check for nullopt
+        auto what = args.size() == 1 ? '#' + args[0] : args.back();
+        auto value = expandIdentifier(what, context); //TODO: check for nullopt
         RemoveOldDefinition(context, *expanded);
         std::istringstream stream(*value);
         context.macros[*expanded] = File(stream, current.line->fileName);
@@ -340,6 +346,23 @@ namespace VWA
         context.counters[*destination] = op(operands[0], operands[1]);
         current.line->content.erase(current.firstChar, fullIdentifier.length() + 1);
         return current;
+    }
+
+    File::FilePos MacrodefinitionCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
+    {
+        throw_if(args.size() != 1, PreprocessorException("Invalid number of arguments for macro"));
+        auto end = context.file.find("#endmacro(" + args[0] + ")", current.line + 1);
+        //TODO: handle commented out lines
+        if (end.firstChar == std::string::npos)
+            throw PreprocessorException("No endmacro found for macro");
+        auto body = context.file.extractLines(current.line + 1, end.line);
+        RemoveOldDefinition(context, args[0]);
+        context.macros[args[0]] = std::move(body);
+        auto next=end;
+        ++next.line;
+        next.firstChar = 0;
+        context.file.removeLines(current.line, end.line + 1);
+        return next;
     }
 
     //TODO: loop over line and not entire file
@@ -390,7 +413,7 @@ namespace VWA
                         line->content.erase(current - 1, 1);
                         continue;
                     }
-                auto nameEnd = FindEndOfIdentifier(line->content, current+1);
+                auto nameEnd = FindEndOfIdentifier(line->content, current + 1);
                 auto identifier = line->content.substr(current + 1, nameEnd - current - 1);
 
                 //Paste the content, but don't expand it further
@@ -398,13 +421,13 @@ namespace VWA
                 {
                     //TODO: consider removing identifier before function call
                     File::FilePos next;
-                    auto name = expandIdentifier(line->content.substr(current + 2, nameEnd - current - 2), context);
+                    auto name = expandIdentifier(identifier.erase(0, 1), context);
                     if (!name)
                     {
                         throw PreprocessorException("Macro expansion failed");
                     }
                     identifier = *name;
-                    PasteMacro(identifier, File::FilePos{line, current}, context, &next);
+                    PasteMacro(identifier, File::FilePos{line, current}, context, &next, 2);
                     //TODO: still remove comments in those lines
                     line = next.line;
                     current = next.firstChar;
@@ -441,6 +464,17 @@ namespace VWA
                     continue;
                 }
             }
+        }
+
+        //Removes empty lines or lines consisting only of whitespaces
+        for (auto it = context.file.begin(); it != context.file.end();)
+        {
+            if (it->content.empty())
+                it = context.file.removeLine(it);
+            else if (it->content.find_first_not_of(" \t") == it->content.npos)
+                it = context.file.removeLine(it);
+            else
+                ++it;
         }
 
         //         for (auto currentMacro = context.file.find('#'); currentMacro.firstChar != std::string::npos; currentMacro = context.file.find('#', currentMacro.line, currentMacro.firstChar))
@@ -999,6 +1033,7 @@ namespace VWA
         //             context.file.insertAfter(std::move(bodyCenter), currentMacro.line);
         //         }
         {
+            //TODO: remove
             auto space = context.file.find("\\ ");
             while (space.firstChar != std::string::npos)
             {

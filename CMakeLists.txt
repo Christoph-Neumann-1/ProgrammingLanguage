@@ -14,6 +14,7 @@ add_compile_options(-Wall -Wno-unknown-pragmas -Wshadow)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
 add_library(VWALanguageLib STATIC ${SOURCES})
+target_link_libraries(VWALanguageLib dl)#For profiler
 add_subdirectory(extern/CLI11)
 add_executable(VWALanguage main.cpp)
 target_link_libraries(VWALanguage VWALanguageLib CLI11::CLI11)
