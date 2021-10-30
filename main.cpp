@@ -63,6 +63,7 @@ int main(int argc, char *argv[])
     commands["include"]=std::make_unique<VWA::IncludeCommand>();
     commands["import"]=std::make_unique<VWA::ReservedCommand>();
     commands["using"]=std::make_unique<VWA::ReservedCommand>();
+    commands["!"]=std::make_unique<VWA::NoEvalCommand>();
     try
     {
 

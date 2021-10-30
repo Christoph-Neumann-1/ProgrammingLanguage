@@ -394,17 +394,22 @@ namespace VWA
         return current;
     }
 
+    File::FilePos NoEvalCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
+    {
+      File::FilePos next;
+                    auto name = expandIdentifier(args[0], context);
+                    if (!name)
+                    {
+                        throw PreprocessorException("Macro expansion failed");
+                    }
+                    PasteMacro(*name, current, context, &next, 3);
+                    next.line->content.erase(next.firstChar);//removes the closing )
+                    return next;
+    }
+
     //TODO: loop over line and not entire file
     File preprocess(PreprocessorContext context)
     {
-
-        // auto requireSingleLine = [](File &file)
-        // {
-        //     if (file.empty())
-        //         throw PreprocessorException("1 Line required, 0 found");
-        //     if (file.begin() != file.end() - 1)
-        //         throw PreprocessorException("1 Line required, more than 1 found");
-        // };
 
         //If the last character in a line is a \, merge it with the next line. Also removes empty lines.
         for (auto line = context.file.begin(); line != context.file.end(); ++line)
@@ -427,15 +432,6 @@ namespace VWA
             }
         }
 
-        // for (auto line = context.file.begin(); line != context.file.end();)
-        // {
-        //     if (auto comment = line->content.find("//"); comment != line->content.npos)
-        //     {
-        //         line->content.erase(comment);
-        //     }
-        //     line = line->content.empty() ? context.file.removeLine(line) : line + 1;
-        // }
-
         for (auto line = context.file.begin(); line != context.file.end(); ++line)
         {
             for (auto current = line->content.find("#"); current != line->content.npos; current = line->content.find("#", current))
@@ -450,24 +446,23 @@ namespace VWA
                 auto identifier = line->content.substr(current + 1, nameEnd - current - 1);
 
                 //Paste the content, but don't expand it further
-                if (*identifier.begin() == '!')
-                {
-                    //TODO: consider removing identifier before function call
-                    File::FilePos next;
-                    auto name = expandIdentifier(identifier.erase(0, 1), context);
-                    if (!name)
-                    {
-                        throw PreprocessorException("Macro expansion failed");
-                    }
-                    identifier = *name;
-                    PasteMacro(identifier, File::FilePos{line, current}, context, &next, 2);
-                    line = next.line;
-                    current = next.firstChar;
-                    continue;
-                }
+                // if (*identifier.begin() == '!')
+                // {
+                //     //TODO: consider removing identifier before function call
+                //     File::FilePos next;
+                //     auto name = expandIdentifier(identifier.erase(0, 1), context);
+                //     if (!name)
+                //     {
+                //         throw PreprocessorException("Macro expansion failed");
+                //     }
+                //     identifier = *name;
+                //     PasteMacro(identifier, File::FilePos{line, current}, context, &next, 2);
+                //     line = next.line;
+                //     current = next.firstChar;
+                //     continue;
+                // }
 
                 {
-                    //TODO: functions to replace old lamdas
                     //TODO: expand identifiers as well
                     //TODO: consider moving the evaluation and substring part to the command class
                     auto copy = identifier;

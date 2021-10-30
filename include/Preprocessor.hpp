@@ -24,6 +24,7 @@
 //TODO: single # for commands
 //TODO: remove unneccessary empty lines
 //TODO: reuse vectors
+//TODO: try rewriting in rust
 //Do i need to erase whitespaces after commands?
 
 namespace VWA
@@ -156,6 +157,13 @@ namespace VWA
             }
             return current;
         }
+    };
+
+    class NoEvalCommand : public PreprocessorCommand
+    {
+        public:
+        NoEvalCommand() : PreprocessorCommand(false, false, false, true) {}
+        File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
     };
 
     class IncludeCommand : public PreprocessorCommand
