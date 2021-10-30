@@ -54,12 +54,15 @@ namespace VWA
         const bool requireStartOfLine;
         const bool requireEndOfLine;
         const bool erasesLine;
+        const bool requiresRawArguments; //Skip breaking up the string into arguments and pass the unprocessed string as args[0]
         const int minArguments;
         const int maxArguments; //-1 for unlimited
         //TODO: additional constraints for args
 
-        PreprocessorCommand(const bool _requireStartOfLine = true, const bool _requireEndOfLine = true, const bool _erasesLine = true, const int _minArgs = 0, const int _maxArgs = -1)
-            : requireStartOfLine(_requireStartOfLine), requireEndOfLine(_requireEndOfLine), erasesLine(_erasesLine), minArguments(_minArgs), maxArguments(_maxArgs) {}
+        explicit PreprocessorCommand(const bool _requireStartOfLine = true, const bool _requireEndOfLine = true, const bool _erasesLine = true,
+                                     const bool _requiresRawArguments = false, const int _minArgs = 0, const int _maxArgs = -1)
+            : requireStartOfLine(_requireStartOfLine), requireEndOfLine(_requireEndOfLine), erasesLine(_erasesLine),
+              requiresRawArguments(_requiresRawArguments), minArguments(_minArgs), maxArguments(_maxArgs) {}
         virtual ~PreprocessorCommand() = default;
         virtual File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) = 0;
     };
@@ -77,10 +80,10 @@ namespace VWA
     class CommentCommand : public PreprocessorCommand
     {
     public:
-        CommentCommand() : PreprocessorCommand(false, false, false) {}
+        CommentCommand() : PreprocessorCommand(false, false, false, true) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override
         {
-            if (args.empty())
+            if (args[0].empty())
                 current.line->content.erase(current.firstChar);
             else
             {
@@ -98,14 +101,14 @@ namespace VWA
     class DefineCommand : public SetterCommon
     {
     public:
-        DefineCommand() : PreprocessorCommand(true, true, true, 1) {}
+        DefineCommand() : PreprocessorCommand(true, true, true, false, 1) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
     };
 
     class EvalCommand : public SetterCommon
     {
     public:
-        EvalCommand() : PreprocessorCommand(true, true, true, 1) {}
+        EvalCommand() : PreprocessorCommand(true, true, true, false, 1) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
     };
 
@@ -117,27 +120,27 @@ namespace VWA
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
 
     public:
-        MathCommand(int (*op)(int, int)) : PreprocessorCommand(true, true, true, 2), op(op) {}
+        MathCommand(int (*op)(int, int)) : PreprocessorCommand(true, true, true, false, 2), op(op) {}
     };
     class MacrodefinitionCommand : public SetterCommon
     {
     public:
         //erasesLine is false, because the macro command needs to erase more than one line and its more efficient to delete all lines at once
-        MacrodefinitionCommand() : PreprocessorCommand(true, true, false, 1, 1) {}
+        MacrodefinitionCommand() : PreprocessorCommand(true, true, false, false, 1, 1) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
     };
 
     class IntSetCommand : public SetterCommon
     {
-        public:
-        IntSetCommand() : PreprocessorCommand(true, true, true, 1) {}
+    public:
+        IntSetCommand() : PreprocessorCommand(true, true, true, false, 1) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
     };
 
     class DeleteCommand : public PreprocessorCommand
     {
     public:
-        DeleteCommand() : PreprocessorCommand(true, true, true, 1) {}
+        DeleteCommand() : PreprocessorCommand(true, true, true, false, 1) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override
         {
             for (auto &arg : args)
@@ -146,11 +149,29 @@ namespace VWA
                 {
                     context.macros.erase(it);
                 }
-                else if (auto it2= context.counters.find(arg); it2 != context.counters.end())
+                else if (auto it2 = context.counters.find(arg); it2 != context.counters.end())
                 {
                     context.counters.erase(it2);
                 }
             }
+            return current;
+        }
+    };
+
+    class IncludeCommand : public PreprocessorCommand
+    {
+    public:
+        IncludeCommand() : PreprocessorCommand(true, true, false, true) {}
+        File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override
+        {
+            auto path=std::filesystem::path(*current.line->fileName).parent_path() / args[0];
+            std::ifstream file(path);
+            if (!file.is_open())
+                throw PreprocessorException("Could not open file " + path.string());
+            File filecontents(file, path.string());
+            context.file.insertAfter(filecontents, current.line);
+            current.line=context.file.removeLine(current.line);
+            current.firstChar=0;
             return current;
         }
     };

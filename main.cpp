@@ -60,6 +60,9 @@ int main(int argc, char *argv[])
     commands["undef"]=std::make_unique<VWA::DeleteCommand>();
     commands["del"]=std::make_unique<VWA::DeleteCommand>();
     commands["set"]=std::make_unique<VWA::IntSetCommand>();
+    commands["include"]=std::make_unique<VWA::IncludeCommand>();
+    commands["import"]=std::make_unique<VWA::ReservedCommand>();
+    commands["using"]=std::make_unique<VWA::ReservedCommand>();
     try
     {
 

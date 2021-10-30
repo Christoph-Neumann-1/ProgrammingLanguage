@@ -367,7 +367,7 @@ namespace VWA
         if (!destination)
             throw PreprocessorException("Invalid identifier for intset");
         int value = 0;
-        if (args.size()-1)
+        if (args.size() - 1)
         {
             if (auto res = expandIdentifier(args[1], context))
             {
@@ -472,9 +472,9 @@ namespace VWA
                     //TODO: consider moving the evaluation and substring part to the command class
                     auto copy = identifier;
                     auto args = getMacroArgs(copy);
-                    args = args ? args : std::vector<std::string>{};
                     if (auto command = context.commands.find(copy); command != context.commands.end())
                     {
+
                         if (command->second->requireStartOfLine)
                         {
                             if (!IsFirstNonSpace(line->content, current))
@@ -493,13 +493,23 @@ namespace VWA
                                 }
                             }
                         }
-                        if (args->size() < command->second->minArguments)
+                        //TODO: avoid unnecessary copy and call to getMacroArgs
+                        if (command->second->requiresRawArguments)
                         {
-                            throw PreprocessorException("Command " + copy + " requires at least " + std::to_string(command->second->minArguments) + " arguments");
+                            //If getMacroArgs returns nullopt it means there are no arguments, so an empty vector is returned
+                            args = std::vector<std::string>{args ? identifier.substr(identifier.find('(')+1, identifier.size() - identifier.find('(')-2) : std::string{}};
                         }
-                        if (args->size() > command->second->maxArguments)
+                        else
                         {
-                            throw PreprocessorException("Command " + copy + " requires at most " + std::to_string(command->second->maxArguments) + " arguments");
+                            args = args ? args : std::vector<std::string>{};
+                            if (args->size() < command->second->minArguments)
+                            {
+                                throw PreprocessorException("Command " + copy + " requires at least " + std::to_string(command->second->minArguments) + " arguments");
+                            }
+                            if (args->size() > command->second->maxArguments)
+                            {
+                                throw PreprocessorException("Command " + copy + " requires at most " + std::to_string(command->second->maxArguments) + " arguments");
+                            }
                         }
                         auto [nextline, nextChar] = (*command->second)(context, {line, current}, identifier, *args);
                         if (command->second->erasesLine)
