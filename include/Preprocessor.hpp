@@ -159,6 +159,13 @@ namespace VWA
         }
     };
 
+    class ExpandCommand : public PreprocessorCommand
+    {
+        public:
+        ExpandCommand() : PreprocessorCommand(false, false, false, true) {}
+        File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
+    };
+
     class NoEvalCommand : public PreprocessorCommand
     {
         public:

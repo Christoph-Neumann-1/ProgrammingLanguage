@@ -213,7 +213,7 @@ namespace VWA
         }
         return true;
     }
-    void PasteMacro(std::string identifier, File::FilePos position, PreprocessorContext &context, File::FilePos *nextCharacter = nullptr, size_t prefixLength = 1)
+    void PasteMacro(std::string identifier, File::FilePos position, PreprocessorContext &context, File::FilePos *nextCharacter = nullptr, size_t prefixLength = 1, size_t postfixLength = 0)
     {
         //TODO: check if whitespaces are handled correctly
         auto expanded = expandMacro(identifier, context, getMacroArgs(identifier));
@@ -229,7 +229,7 @@ namespace VWA
                 *nextCharacter = position;
                 nextCharacter->firstChar += s->length();
             }
-            position.line->content.replace(position.firstChar, identifier.size() + prefixLength, *s);
+            position.line->content.replace(position.firstChar, identifier.size() + prefixLength + postfixLength, *s);
             return;
         }
         if (auto file = std::get_if<File>(&expanded))
@@ -237,7 +237,7 @@ namespace VWA
             std::string first = file->begin()->content;
             std::string last = file->back()->content;
             auto Body = file->extractLines(file->begin() + 1, file->back());
-            std::string remainder = position.line->content.substr(position.firstChar + identifier.size() + prefixLength - 1);
+            std::string remainder = position.line->content.substr(position.firstChar + identifier.size() + prefixLength + postfixLength - 1);
             position.line->content.replace(position.firstChar, position.line->content.size() - position.firstChar, first);
             context.file.insertAfter(position.line, last + remainder);
             if (nextCharacter)
@@ -256,7 +256,7 @@ namespace VWA
                 *nextCharacter = position;
                 nextCharacter->firstChar += string.length();
             }
-            position.line->content.replace(position.firstChar, identifier.size() + prefixLength, string);
+            position.line->content.replace(position.firstChar, identifier.size() + prefixLength + postfixLength, string);
             return;
         }
     }
@@ -396,15 +396,25 @@ namespace VWA
 
     File::FilePos NoEvalCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
     {
-      File::FilePos next;
-                    auto name = expandIdentifier(args[0], context);
-                    if (!name)
-                    {
-                        throw PreprocessorException("Macro expansion failed");
-                    }
-                    PasteMacro(*name, current, context, &next, 3);
-                    next.line->content.erase(next.firstChar);//removes the closing )
-                    return next;
+        File::FilePos next;
+        auto name = expandIdentifier(args[0], context);
+        if (!name)
+        {
+            throw PreprocessorException("Macro expansion failed");
+        }
+        PasteMacro(*name, current, context, &next, 3,1);
+        return next;
+    }
+
+    File::FilePos ExpandCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
+    {
+        auto name = expandIdentifier(args[0], context);
+        if (!name)
+        {
+            throw PreprocessorException("Macro expansion failed");
+        }
+        PasteMacro(*name, current, context, nullptr, 2,1);
+        return current;
     }
 
     //TODO: loop over line and not entire file
@@ -444,24 +454,6 @@ namespace VWA
                     }
                 auto nameEnd = FindEndOfIdentifier(line->content, current + 1);
                 auto identifier = line->content.substr(current + 1, nameEnd - current - 1);
-
-                //Paste the content, but don't expand it further
-                // if (*identifier.begin() == '!')
-                // {
-                //     //TODO: consider removing identifier before function call
-                //     File::FilePos next;
-                //     auto name = expandIdentifier(identifier.erase(0, 1), context);
-                //     if (!name)
-                //     {
-                //         throw PreprocessorException("Macro expansion failed");
-                //     }
-                //     identifier = *name;
-                //     PasteMacro(identifier, File::FilePos{line, current}, context, &next, 2);
-                //     line = next.line;
-                //     current = next.firstChar;
-                //     continue;
-                // }
-
                 {
                     //TODO: expand identifiers as well
                     //TODO: consider moving the evaluation and substring part to the command class
@@ -492,7 +484,7 @@ namespace VWA
                         if (command->second->requiresRawArguments)
                         {
                             //If getMacroArgs returns nullopt it means there are no arguments, so an empty vector is returned
-                            args = std::vector<std::string>{args ? identifier.substr(identifier.find('(')+1, identifier.size() - identifier.find('(')-2) : std::string{}};
+                            args = std::vector<std::string>{args ? identifier.substr(identifier.find('(') + 1, identifier.size() - identifier.find('(') - 2) : std::string{}};
                         }
                         else
                         {
@@ -520,16 +512,16 @@ namespace VWA
                         continue;
                     }
                 }
-                {
-                    auto name = expandIdentifier(identifier, context);
-                    if (!name)
-                    {
-                        throw PreprocessorException("Macro expansion failed");
-                    }
-                    identifier = *name;
-                    PasteMacro(identifier, File::FilePos{line, current}, context);
-                    continue;
-                }
+                // {
+                //     auto name = expandIdentifier(identifier, context);
+                //     if (!name)
+                //     {
+                //         throw PreprocessorException("Macro expansion failed");
+                //     }
+                //     identifier = *name;
+                //     PasteMacro(identifier, File::FilePos{line, current}, context);
+                //     continue;
+                // }
             }
         }
 
