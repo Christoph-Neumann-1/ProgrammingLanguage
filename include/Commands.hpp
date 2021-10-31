@@ -107,9 +107,9 @@ namespace VWA
     {
     protected:
         virtual bool IsTrue(PreprocessorContext &context, const std::vector<std::string> &args) = 0;
-
+        int numArgs;
     public:
-        BranchCommand(int minIn = 2, int maxIn = 3) : PreprocessorCommand(true, true, false, false, minIn, maxIn) {}
+        BranchCommand(int nArgs=2) : PreprocessorCommand(true, true, false, false, nArgs, nArgs+1),numArgs(nArgs) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
     };
 
@@ -119,14 +119,14 @@ namespace VWA
         bool IsTrue(PreprocessorContext &context, const std::vector<std::string> &args) override;
 
     public:
-        IfdefCommand(bool _invert) : BranchCommand(1, 2), invert(_invert) {}
+        IfdefCommand(bool _invert) : BranchCommand(1), invert(_invert) {}
     };
 
     template <bool (*op)(int, int)>
     class MathComparisonCommand : public BranchCommand
     {
     public:
-        MathComparisonCommand() : BranchCommand(2, 3) {}
+        MathComparisonCommand() : BranchCommand(2) {}
         bool IsTrue(PreprocessorContext &context, const std::vector<std::string> &args) override
         {
             int operands[2];

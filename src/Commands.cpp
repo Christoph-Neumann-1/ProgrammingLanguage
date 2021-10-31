@@ -187,9 +187,9 @@ namespace VWA
     File::FilePos BranchCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
     {
         //TODO: best time to handle escaped endifs?
-        //TODO: fix if fewer args are given
-        auto end = context.file.find("#endif(" + args.back() + ")", current.line + 1);
-        for (; end.firstChar != std::string::npos; end = context.file.find("#endif(" + args.back() + ")", end.line + 1))
+        std::string endifName="#endif(" + (args.size()==numArgs?"":args.back()) + ")";
+        auto end = context.file.find(endifName, current.line + 1);
+        for (; end.firstChar != std::string::npos; end = context.file.find(endifName, end.line + 1))
         {
             if (IsFirstNonSpace(end.line->content, end.firstChar))
                 break;
