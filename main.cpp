@@ -54,19 +54,50 @@ int main(int argc, char *argv[])
                                                          { return a * b; });
     commands["div"] = std::make_unique<VWA::MathCommand>([](int a, int b)
                                                          { return a / b; });
-    commands["macro"] =std::make_unique<VWA::MacrodefinitionCommand>();
-    commands["endmacro"]=std::make_unique<VWA::ReservedCommand>();
-    commands["/"]=std::make_unique<VWA::CommentCommand>();
-    commands["undef"]=std::make_unique<VWA::DeleteCommand>();
-    commands["del"]=std::make_unique<VWA::DeleteCommand>();
-    commands["set"]=std::make_unique<VWA::IntSetCommand>();
-    commands["include"]=std::make_unique<VWA::IncludeCommand>();
-    commands["import"]=std::make_unique<VWA::ReservedCommand>();
-    commands["using"]=std::make_unique<VWA::ReservedCommand>();
-    commands["!"]=std::make_unique<VWA::NoEvalCommand>();
-    commands[""]=std::make_unique<VWA::ExpandCommand>();
-    commands["ifdef"]=std::make_unique<VWA::IfdefCommand<false>>();
-    commands["ifndef"]=std::make_unique<VWA::IfdefCommand<true>>();
+    commands["macro"] = std::make_unique<VWA::MacrodefinitionCommand>();
+    commands["endmacro"] = std::make_unique<VWA::ReservedCommand>();
+    commands["/"] = std::make_unique<VWA::CommentCommand>();
+    commands["undef"] = std::make_unique<VWA::DeleteCommand>();
+    commands["del"] = std::make_unique<VWA::DeleteCommand>();
+    commands["set"] = std::make_unique<VWA::IntSetCommand>();
+    commands["include"] = std::make_unique<VWA::IncludeCommand>();
+    commands["import"] = std::make_unique<VWA::ReservedCommand>();
+    commands["using"] = std::make_unique<VWA::ReservedCommand>();
+    commands["!"] = std::make_unique<VWA::NoEvalCommand>();
+    commands[""] = std::make_unique<VWA::ExpandCommand>();
+    commands["ifdef"] = std::make_unique<VWA::IfdefCommand<false>>();
+    commands["ifndef"] = std::make_unique<VWA::IfdefCommand<true>>();
+    {
+        auto tmp = [](int a, int b) constexpr -> bool
+        { return a == b; };
+        commands["ifeq"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
+    }
+    {
+        auto tmp = [](int a, int b) constexpr -> bool
+        { return a != b; };
+        commands["ifneq"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
+    }
+    {
+        auto tmp = [](int a, int b) constexpr -> bool
+        { return a > b; };
+        commands["ifgt"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
+    }
+    {
+        auto tmp = [](int a, int b) constexpr -> bool
+        { return a >= b; };
+        commands["ifge"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
+    }
+    {
+        auto tmp = [](int a, int b) constexpr -> bool
+        { return a < b; };
+        commands["iflt"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
+    }
+    {
+        auto tmp = [](int a, int b) constexpr -> bool
+        { return a <= b; };
+        commands["ifle"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
+    }
+
     try
     {
 
@@ -74,7 +105,7 @@ int main(int argc, char *argv[])
     }
     catch (const VWA::PreprocessorException &e)
     {
-        std::cout << "Preprocessor failed, see log for details. Reason: "<<e.what() << std::endl;
+        std::cout << "Preprocessor failed, see log for details. Reason: " << e.what() << std::endl;
         file.close();
         return -1;
     }

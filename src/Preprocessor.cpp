@@ -1,6 +1,5 @@
 #include <Preprocessor.hpp>
 #include <variant>
-#include <optional>
 
 //TODO: better way to define new keywords
 //TODO: assert that appending still works
@@ -420,6 +419,7 @@ namespace VWA
     //Do i need an escape sequence for endif?
     File::FilePos BranchCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
     {
+        //TODO: best time to handle escaped endifs?
         //TODO: fix if fewer args are given
         auto end = context.file.find("#endif(" + args.back() + ")", current.line + 1);
         for (; end.firstChar != std::string::npos; end = context.file.find("#endif(" + args.back() + ")", end.line + 1))
@@ -537,6 +537,9 @@ namespace VWA
                             current = nextChar;
                         }
                         continue;
+                    }
+                    else{
+                        throw PreprocessorException("Unknown command " + identifier);
                     }
                 }
             }

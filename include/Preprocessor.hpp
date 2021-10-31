@@ -9,6 +9,7 @@
 #include <File.hpp>
 #include <Logger.hpp>
 #include <functional>
+#include <optional>
 
 //TODO reduce copies of strings. Use segments of data to reduce the amount of characters moved when replacing stuff
 //TODO integrate with math interpreter for full math support
@@ -48,6 +49,8 @@ namespace VWA
     private:
         static VoidLogger defaultLogger;
     };
+
+    std::optional<std::string> expandIdentifier(std::string identifier, PreprocessorContext &context);
 
     //TODO: name getters and a way to specify expected number of arguments and other constraints
     class PreprocessorCommand
@@ -164,7 +167,7 @@ namespace VWA
     class BranchCommand : public PreprocessorCommand
     {
     protected:
-        virtual bool IsTrue(const PreprocessorContext &context, const std::vector<std::string> &args) = 0;
+        virtual bool IsTrue(PreprocessorContext &context, const std::vector<std::string> &args) = 0;
 
     public:
         BranchCommand(int minIn = 2, int maxIn = 3) : PreprocessorCommand(true, true, false, false, minIn, maxIn) {}
@@ -174,13 +177,45 @@ namespace VWA
     template <bool invert>
     class IfdefCommand : public BranchCommand
     {
-        bool IsTrue(const PreprocessorContext &context, const std::vector<std::string> &args) override
+        bool IsTrue(PreprocessorContext &context, const std::vector<std::string> &args) override
         {
             return invert ^ (context.macros.find(args[0]) != context.macros.end() ? true : context.counters.find(args[0]) != context.counters.end());
         }
 
     public:
         IfdefCommand() : BranchCommand(1, 2) {}
+    };
+
+    template <bool (*op)(int, int)>
+    class MathComparisonCommand : public BranchCommand
+    {
+    public:
+        MathComparisonCommand() : BranchCommand(2, 3) {}
+        bool IsTrue(PreprocessorContext &context, const std::vector<std::string> &args) override
+        {
+            int operands[2];
+            for (int i = 0; i < 2; ++i)
+                if (auto res = expandIdentifier(args[i], context))
+                {
+                    if (!std::isdigit(res->front()))
+                    {
+                        res = expandIdentifier('#' + *res, context);
+                    }
+                    try
+                    {
+                        operands[i] = std::stoi(*res);
+                    }
+                    catch (std::invalid_argument &e)
+                    {
+                        throw PreprocessorException("Invalid argument for math comp");
+                    }
+                }
+                else
+                {
+                    throw PreprocessorException("Invalid argument for math comp");
+                }
+            return op(operands[0], operands[1]);
+        }
     };
 
     class ExpandCommand : public PreprocessorCommand
