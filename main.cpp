@@ -5,7 +5,6 @@
 #include <Preprocessor.hpp>
 #include <Logger.hpp>
 #include <CLI/CLI.hpp>
-#include <Commands.hpp>
 //TODO: Modernize code
 
 //TODO proper interface

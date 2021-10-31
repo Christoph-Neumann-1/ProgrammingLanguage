@@ -10,7 +10,7 @@
 #include <functional>
 #include <optional>
 #include <variant>
-#include <PreprocessorException.hpp>
+#include <stdexcept>
 
 //TODO reduce copies of strings. Use segments of data to reduce the amount of characters moved when replacing stuff
 //TODO integrate with math interpreter for full math support
@@ -32,7 +32,22 @@
 
 namespace VWA
 {
-    struct PreprocessorContext;
+    struct PreprocessorException : std::runtime_error
+    {
+        PreprocessorException(const std::string &what) : std::runtime_error(what) {}
+    };
+    class PreprocessorCommand;
+    struct PreprocessorContext
+    {
+        File file;
+        ILogger &logger = defaultLogger;
+        std::unordered_map<std::string, File> macros = {};
+        std::unordered_map<std::string, int> counters = {};
+        const std::unordered_map<std::string, std::unique_ptr<PreprocessorCommand>> &commands = {};
+
+    private:
+        static VoidLogger defaultLogger;
+    };
     std::optional<std::string> expandIdentifier(std::string identifier, PreprocessorContext &context);
 
     bool isKeyword(const std::string &identifier, const PreprocessorContext &ctxt);
@@ -40,9 +55,8 @@ namespace VWA
     bool IsFirstNonSpace(const std::string_view &line, size_t pos);
 
     void PasteMacro(std::string identifier, File::FilePos position, PreprocessorContext &context, File::FilePos *nextCharacter = nullptr, size_t prefixLength = 1, size_t postfixLength = 0);
-    
-    std::optional<std::string> expandIdentifier(std::string identifier, PreprocessorContext &context);
 
+    std::optional<std::string> expandIdentifier(std::string identifier, PreprocessorContext &context);
 
     /**
      * @brief Expands macros in the file
@@ -52,5 +66,4 @@ namespace VWA
     File
     preprocess(PreprocessorContext context);
 }
-
-#include <PreprocessorContext.hpp>
+#include <Commands.hpp>
