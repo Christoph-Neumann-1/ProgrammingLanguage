@@ -7,8 +7,8 @@ SCENARIO("Preprocessor include command", "[preprocessor]")
     GIVEN("A file including two other files in the same directory")
     {
         File f("Preprocessor/basefile");
-        f.append("##include f1");
-        f.append("##include f2");
+        f.append("#include(f1)");
+        f.append("#include(f2)");
         VoidLogger voidLogger;
         WHEN("The other files are included")
         {
@@ -23,7 +23,7 @@ SCENARIO("Preprocessor include command", "[preprocessor]")
     GIVEN("A file including a file including a other file")
     {
         File f("Preprocessor/basefile");
-        f.append("##include f3");
+        f.append("#include(f3)");
         VoidLogger voidLogger;
         WHEN("f3 is included")
         {
@@ -41,10 +41,10 @@ SCENARIO("Includes in expanded macros", "[preprocessor]")
     GIVEN("A macro expanding to ##include f2")
     {
         File f("Preprocessor/basefile");
-        f.append("MACRO f2");
-        f.append("##include f2");
-        f.append("ENDMACRO");
-        f.append("#f2");
+        f.append("#macro(f2)");
+        f.append("#include(f2)");
+        f.append("#endmacro(f2)");
+        f.append("#(f2)");
         WHEN("The macro is expanded")
         {
             VoidLogger voidLogger;
@@ -62,8 +62,8 @@ SCENARIO("Include guards using ifdef", "[preprocessor]")
     GIVEN("A file including another file multiple times")
     {
         File f("Preprocessor/basefile");
-        f.append("##include f5");
-        f.append("##include f5");
+        f.append("#include(f5)");
+        f.append("#include(f5)");
         WHEN("The second time the file is included")
         {
             VoidLogger voidLogger;

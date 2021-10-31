@@ -14,21 +14,17 @@
 
 //TODO reduce copies of strings. Use segments of data to reduce the amount of characters moved when replacing stuff
 //TODO integrate with math interpreter for full math support
-//TODO DRY
 //TODO document
 //TODO debug logging
 //TODO write specification
-//TODO: Allow spaces in defines
 //TODO: extract to cpp file
-//TODO: extract lamdas
 //TODO: better escape sequences
 //TODO: proper support for builtin functions
 //TODO: single # for commands
 //TODO: remove unneccessary empty lines
 //TODO: reuse vectors
 //TODO: try rewriting in rust
-//TODO: try reducing number of classes by passing a lambda to the constructor
-//Do i need to erase whitespaces after commands?
+//TODO: check for npos and errors
 
 namespace VWA
 {
@@ -37,13 +33,14 @@ namespace VWA
         PreprocessorException(const std::string &what) : std::runtime_error(what) {}
     };
     class PreprocessorCommand;
+    std::unordered_map<std::string,std::unique_ptr<PreprocessorCommand>>& GetDefaultCommands();
     struct PreprocessorContext
     {
         File file;
         ILogger &logger = defaultLogger;
         std::unordered_map<std::string, File> macros = {};
         std::unordered_map<std::string, int> counters = {};
-        const std::unordered_map<std::string, std::unique_ptr<PreprocessorCommand>> &commands = {};
+        const std::unordered_map<std::string, std::unique_ptr<PreprocessorCommand>> &commands = GetDefaultCommands();
 
     private:
         static VoidLogger defaultLogger;

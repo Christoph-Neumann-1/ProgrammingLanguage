@@ -6,6 +6,8 @@ namespace VWA
 
     struct PreprocessorContext;
 
+    std::unordered_map<std::string, std::unique_ptr<PreprocessorCommand>> &GetDefaultCommands();
+
     class PreprocessorCommand
     {
     public:
@@ -108,8 +110,9 @@ namespace VWA
     protected:
         virtual bool IsTrue(PreprocessorContext &context, const std::vector<std::string> &args) = 0;
         int numArgs;
+
     public:
-        BranchCommand(int nArgs=2) : PreprocessorCommand(true, true, false, false, nArgs, nArgs+1),numArgs(nArgs) {}
+        BranchCommand(int nArgs = 2) : PreprocessorCommand(true, true, false, false, nArgs, nArgs + 1), numArgs(nArgs) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
     };
 
@@ -154,6 +157,7 @@ namespace VWA
         }
     };
 
+    //TODO: are raw args really needed?
     class ExpandCommand : public PreprocessorCommand
     {
     public:

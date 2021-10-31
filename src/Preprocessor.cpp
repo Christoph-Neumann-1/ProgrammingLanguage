@@ -57,27 +57,35 @@ namespace VWA
         current = context.file.removeLines(current, end + 1);
     }
     //TODO: handle functions with parameters, count brackets
-    size_t FindEndOfIdentifier(const std::string_view &line, size_t pos, const std::string &seperators = " \t")
+    size_t FindEndOfIdentifier(const std::string_view &line, size_t pos)
     {
-        auto end = line.find_first_of(seperators, pos + 1);
-        return end == line.npos ? line.size() : end;
+        uint counter{0};
+        for (pos = line.find('('); pos < line.size(); ++pos)
+        {
+            if (line[pos] == '(')
+                ++counter;
+            else if (line[pos] == ')')
+                --counter;
+            if (!counter)
+                return pos;
+        }
+        return std::string_view::npos;
     }
     //TODO Find better way to handle errors
-    std::variant<std::monostate, std::string, File, int> expandMacro(const std::string &identier, const PreprocessorContext &context, const std::optional<std::vector<std::string>> &args)
+    std::variant<std::monostate, std::string, File, int> expandMacro(const std::string &identier, const PreprocessorContext &context, const std::vector<std::string> &args)
     {
         auto macro = context.macros.find(identier);
         if (macro != context.macros.end())
         {
             File body(macro->second);
-            if (args)
-                for (int i = 0; i < args->size(); ++i)
+            for (int i = 0; i < args.size(); ++i)
+            {
+                auto name = "$" + std::to_string(i);
+                for (auto current = body.find(name); current.firstChar != std::string_view::npos; current = body.find(name))
                 {
-                    auto name = "$" + std::to_string(i);
-                    for (auto current = body.find(name); current.firstChar != std::string_view::npos; current = body.find(name))
-                    {
-                        current.line->content.replace(current.firstChar, current.firstChar + name.size(), args->at(i));
-                    }
+                    current.line->content.replace(current.firstChar, current.firstChar + name.size(), args.at(i));
                 }
+            }
             if (body.back() == body.begin())
                 return body.begin()->content;
             return body;
@@ -90,42 +98,39 @@ namespace VWA
 
     //TODO: consider returning an empty vector instead of using optional
     //TODO: handle spaces in brackets
-    std::optional<std::vector<std::string>> getMacroArgs(std::string &identifier)
+    std::vector<std::string> getMacroArgs(std::string &identifier)
     {
-        if (identifier.back() == ')')
+        if (identifier.back() != ')')
+            return {};
+        auto openParenthesis = identifier.find('(');
+        if (openParenthesis == identifier.size() - 1)
         {
-            auto openParenthesis = identifier.find('(');
-            if (openParenthesis == identifier.size() - 1)
-            {
-                identifier.pop_back();
-                identifier.pop_back();
-                return std::nullopt;
-            }
-            std::string args = identifier.substr(openParenthesis + 1, identifier.size() - openParenthesis - 2);
-            identifier.erase(openParenthesis);
-            std::vector<std::string> argList;
-            size_t begin = 0;
-            for (size_t i = 0; i < args.size(); ++i)
-            {
-                if (args[i] == ',')
-                {
-                    if (i)
-                    {
-                        if (args[i - 1] == '\\')
-                        {
-                            args.erase(i - 1, 1);
-                            --i;
-                            continue;
-                        }
-                    }
-                    argList.push_back(args.substr(begin, i - begin));
-                    begin = i + 1;
-                }
-            }
-            argList.push_back(args.substr(begin));
-            return argList;
+            identifier.erase(identifier.size() - 2);
+            return {};
         }
-        return std::nullopt;
+        std::string args = identifier.substr(openParenthesis + 1, identifier.size() - openParenthesis - 2);
+        identifier.erase(openParenthesis);
+        std::vector<std::string> argList;
+        size_t begin = 0;
+        for (size_t i = 0; i < args.size(); ++i)
+        {
+            if (args[i] == ',')
+            {
+                if (i)
+                {
+                    if (args[i - 1] == '\\')
+                    {
+                        args.erase(i - 1, 1);
+                        --i;
+                        continue;
+                    }
+                }
+                argList.push_back(args.substr(begin, i - begin));
+                begin = i + 1;
+            }
+        }
+        argList.push_back(args.substr(begin));
+        return argList;
     }
 
     //TODO: better errors. Pass the current line? Return error struct? Or just use exceptions?
@@ -135,8 +140,7 @@ namespace VWA
         auto original = identifier;
         for (auto i = identifier.find('#'); i != identifier.npos; i = identifier.find('#', i))
         {
-            auto end = FindEndOfIdentifier(identifier, i, " \t#");
-            end = end == identifier.npos ? identifier.size() : end;
+            auto end = FindEndOfIdentifier(identifier, i);
             //TODO: extract to other function and generalize. Use visitor pattern
             if (identifier[i + 1] == '!')
             {
@@ -160,7 +164,8 @@ namespace VWA
                 i += string.size();
                 continue;
             }
-            auto name = identifier.substr(i + 1, end - i - 1);
+            auto name = identifier.substr(i + 2, end - i - 2);
+            //TODO: same functions as main preprocessor
             auto expanded = expandMacro(name, context, getMacroArgs(identifier));
             if (expanded.index() == 0 || expanded.index() == 2)
             {
@@ -281,7 +286,7 @@ namespace VWA
                         continue;
                     }
                 auto nameEnd = FindEndOfIdentifier(line->content, current + 1);
-                auto identifier = line->content.substr(current + 1, nameEnd - current - 1);
+                auto identifier = line->content.substr(current + 1, nameEnd - current);
                 {
                     //TODO: consider moving the evaluation and substring part to the command class
                     auto copy = identifier;
@@ -311,21 +316,24 @@ namespace VWA
                         if (command->second->requiresRawArguments)
                         {
                             //If getMacroArgs returns nullopt it means there are no arguments, so an empty vector is returned
-                            args = std::vector<std::string>{args ? identifier.substr(identifier.find('(') + 1, identifier.size() - identifier.find('(') - 2) : std::string{}};
+                            if (!args.empty())
+                            {
+                                auto openBrace = identifier.find('(');
+                                args = {identifier.substr(openBrace + 1, identifier.size() - openBrace - 2)};
+                            }
                         }
                         else
                         {
-                            args = args ? args : std::vector<std::string>{};
-                            if (args->size() < command->second->minArguments)
+                            if (args.size() < command->second->minArguments)
                             {
                                 throw PreprocessorException("Command " + copy + " requires at least " + std::to_string(command->second->minArguments) + " arguments");
                             }
-                            if (args->size() > command->second->maxArguments)
+                            if (args.size() > command->second->maxArguments)
                             {
                                 throw PreprocessorException("Command " + copy + " requires at most " + std::to_string(command->second->maxArguments) + " arguments");
                             }
                         }
-                        auto [nextline, nextChar] = (*command->second)(context, {line, current}, identifier, *args);
+                        auto [nextline, nextChar] = (*command->second)(context, {line, current}, identifier, args);
                         if (command->second->erasesLine)
                         {
                             line = context.file.removeLine(line);

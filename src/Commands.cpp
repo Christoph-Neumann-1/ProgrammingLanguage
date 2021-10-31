@@ -3,6 +3,81 @@
 
 namespace VWA
 {
+    std::unordered_map<std::string, std::unique_ptr<PreprocessorCommand>> &GetDefaultCommands()
+    {
+        static std::unordered_map<std::string, std::unique_ptr<PreprocessorCommand>> commands;
+        static bool initialized = false;
+        if (!initialized)
+        {
+            commands["define"] = std::make_unique<VWA::DefineCommand>();
+            commands["eval"] = std::make_unique<VWA::EvalCommand>();
+            commands["add"] = std::make_unique<VWA::MathCommand>([](int a, int b)
+                                                                 { return a + b; });
+            commands["sub"] = std::make_unique<VWA::MathCommand>([](int a, int b)
+                                                                 { return a - b; });
+            commands["mul"] = std::make_unique<VWA::MathCommand>([](int a, int b)
+                                                                 { return a * b; });
+            commands["div"] = std::make_unique<VWA::MathCommand>([](int a, int b)
+                                                                 { return a / b; });
+            commands["macro"] = std::make_unique<VWA::MacrodefinitionCommand>();
+            commands["endmacro"] = std::make_unique<VWA::ReservedCommand>();
+            commands["/"] = std::make_unique<VWA::CommentCommand>();
+            commands["undef"] = std::make_unique<VWA::DeleteCommand>();
+            commands["del"] = std::make_unique<VWA::DeleteCommand>();
+            commands["set"] = std::make_unique<VWA::IntSetCommand>();
+            commands["include"] = std::make_unique<VWA::IncludeCommand>();
+            commands["import"] = std::make_unique<VWA::ReservedCommand>();
+            commands["using"] = std::make_unique<VWA::ReservedCommand>();
+            commands["!"] = std::make_unique<VWA::NoEvalCommand>();
+            commands[""] = std::make_unique<VWA::ExpandCommand>();
+            commands["ifdef"] = std::make_unique<VWA::IfdefCommand>(false);
+            commands["ifndef"] = std::make_unique<VWA::IfdefCommand>(true);
+            {
+                auto tmp = [](int a, int b) constexpr->bool
+                {
+                    return a == b;
+                };
+                commands["ifeq"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
+            }
+            {
+                auto tmp = [](int a, int b) constexpr->bool
+                {
+                    return a != b;
+                };
+                commands["ifneq"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
+            }
+            {
+                auto tmp = [](int a, int b) constexpr->bool
+                {
+                    return a > b;
+                };
+                commands["ifgt"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
+            }
+            {
+                auto tmp = [](int a, int b) constexpr->bool
+                {
+                    return a >= b;
+                };
+                commands["ifge"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
+            }
+            {
+                auto tmp = [](int a, int b) constexpr->bool
+                {
+                    return a < b;
+                };
+                commands["iflt"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
+            }
+            {
+                auto tmp = [](int a, int b) constexpr->bool
+                {
+                    return a <= b;
+                };
+                commands["ifle"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
+            }
+        }
+        return commands;
+    }
+
     void SetterCommon::RemoveOldDefinition(PreprocessorContext &context, const std::string &identifier)
     {
         if (auto macro = context.macros.find(identifier); macro != context.macros.end())
@@ -187,7 +262,7 @@ namespace VWA
     File::FilePos BranchCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
     {
         //TODO: best time to handle escaped endifs?
-        std::string endifName="#endif(" + (args.size()==numArgs?"":args.back()) + ")";
+        std::string endifName = "#endif(" + (args.size() == numArgs ? "" : args.back()) + ")";
         auto end = context.file.find(endifName, current.line + 1);
         for (; end.firstChar != std::string::npos; end = context.file.find(endifName, end.line + 1))
         {

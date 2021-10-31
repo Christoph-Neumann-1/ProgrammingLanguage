@@ -1,4 +1,4 @@
-##ifndef TESTS_F5_H TESTS_F5_H
-##define TESTS_F5_H
+#ifndef(TESTS_F5_H,TESTS_F5_H)
+#define(TESTS_F5_H)
 included 5
-##endif TESTS_F5_H
+#endif(TESTS_F5_H)

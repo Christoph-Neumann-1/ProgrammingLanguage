@@ -42,74 +42,18 @@ int main(int argc, char *argv[])
         return -1;
     }
     VWA::File result;
-    #pragma region CommandDefinition
-    std::unordered_map<std::string, std::unique_ptr<VWA::PreprocessorCommand>> commands;
-    commands["define"] = std::make_unique<VWA::DefineCommand>();
-    commands["eval"] = std::make_unique<VWA::EvalCommand>();
-    commands["add"] = std::make_unique<VWA::MathCommand>([](int a, int b)
-                                                         { return a + b; });
-    commands["sub"] = std::make_unique<VWA::MathCommand>([](int a, int b)
-                                                         { return a - b; });
-    commands["mul"] = std::make_unique<VWA::MathCommand>([](int a, int b)
-                                                         { return a * b; });
-    commands["div"] = std::make_unique<VWA::MathCommand>([](int a, int b)
-                                                         { return a / b; });
-    commands["macro"] = std::make_unique<VWA::MacrodefinitionCommand>();
-    commands["endmacro"] = std::make_unique<VWA::ReservedCommand>();
-    commands["/"] = std::make_unique<VWA::CommentCommand>();
-    commands["undef"] = std::make_unique<VWA::DeleteCommand>();
-    commands["del"] = std::make_unique<VWA::DeleteCommand>();
-    commands["set"] = std::make_unique<VWA::IntSetCommand>();
-    commands["include"] = std::make_unique<VWA::IncludeCommand>();
-    commands["import"] = std::make_unique<VWA::ReservedCommand>();
-    commands["using"] = std::make_unique<VWA::ReservedCommand>();
-    commands["!"] = std::make_unique<VWA::NoEvalCommand>();
-    commands[""] = std::make_unique<VWA::ExpandCommand>();
-    commands["ifdef"] = std::make_unique<VWA::IfdefCommand>(false);
-    commands["ifndef"] = std::make_unique<VWA::IfdefCommand>(true);
-    {
-        auto tmp = [](int a, int b) constexpr -> bool
-        { return a == b; };
-        commands["ifeq"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
-    }
-    {
-        auto tmp = [](int a, int b) constexpr -> bool
-        { return a != b; };
-        commands["ifneq"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
-    }
-    {
-        auto tmp = [](int a, int b) constexpr -> bool
-        { return a > b; };
-        commands["ifgt"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
-    }
-    {
-        auto tmp = [](int a, int b) constexpr -> bool
-        { return a >= b; };
-        commands["ifge"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
-    }
-    {
-        auto tmp = [](int a, int b) constexpr -> bool
-        { return a < b; };
-        commands["iflt"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
-    }
-    {
-        auto tmp = [](int a, int b) constexpr -> bool
-        { return a <= b; };
-        commands["ifle"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
-    }
-    #pragma endregion CommandDefinition
 
-    try
+    // try
     {
 
-        result = VWA::preprocess({.file = VWA::File{file, fileName}, .logger = *logger, .commands = commands});
+        result = VWA::preprocess({.file = VWA::File{file, fileName}, .logger = *logger});
     }
-    catch (const VWA::PreprocessorException &e)
-    {
-        std::cout << "Preprocessor failed, see log for details. Reason: " << e.what() << std::endl;
-        file.close();
-        return -1;
-    }
+    // catch (const VWA::PreprocessorException &e)
+    // {
+    //     std::cout << "Preprocessor failed, see log for details. Reason: " << e.what() << std::endl;
+    //     file.close();
+    //     return -1;
+    // }
     if (toStdout)
     {
         std::cout << result.toString() << std::endl;

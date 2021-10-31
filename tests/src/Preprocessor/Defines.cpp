@@ -8,26 +8,26 @@ SCENARIO("Defining and later using a macro")
     {
         File f("mfile");
         VoidLogger logger;
-        WHEN("A macro is created using ##define")
+        WHEN("A macro is created using #define")
         {
-            f.append("##define macro expanded");
+            f.append("#define(test,expanded)");
             THEN("Using ifdef should be true")
             {
-                f.append("##ifdef macro");
+                f.append("#ifdef(test)");
                 f.append("true");
-                f.append("##endif");
+                f.append("#endif()");
                 REQUIRE(preprocess({f,logger}).toString() == "true");
             }
             WHEN("The macro is expanded")
             {
                 THEN("The content of the macro should be pasted")
                 {
-                    f.append("#macro");
+                    f.append("#(test)");
                     REQUIRE(preprocess({f, logger}).toString() == "expanded");
                 }
                 WHEN("There are other characters on the line")
                 {
-                    f.append("before#macro after");
+                    f.append("before#(test)after");
                     THEN("The everything preceding the macro should stay the same and everything after the space following the macro should stay the same")
                     {
                         REQUIRE(preprocess({f, logger}).toString() == "beforeexpandedafter");
@@ -36,8 +36,8 @@ SCENARIO("Defining and later using a macro")
             }
             WHEN("Using nested macros")
             {
-                f.append("##define macro2 #macro");
-                f.append("#macro2");
+                f.append("#define(macro2,#(test))");
+                f.append("#(macro2)");
                 THEN("The content of the macro should also be evaluated")
                 {
                     REQUIRE(preprocess({f, logger}).toString() == "expanded");
@@ -47,7 +47,7 @@ SCENARIO("Defining and later using a macro")
             {
                 THEN("An exception should be thrown")
                 {
-                    f.append("#undefinedmacro");
+                    f.append("#(undefinedmacro)");
                     REQUIRE_THROWS_AS(preprocess({f, logger}), PreprocessorException);
                 }
             }
