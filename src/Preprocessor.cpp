@@ -10,7 +10,6 @@
 //TODO: delete counter upon defining macro with same name and vice versa
 //TODO: forbid redefining keywords
 //TODO: move keywords to other file
-//TODO: express comments as macros: #//(comment)
 
 namespace VWA
 {
@@ -261,6 +260,11 @@ namespace VWA
         {
             throw PreprocessorException("Invalid identifier for define");
         }
+        if (isKeyword(*expanded, context))
+        {
+            context.logger.AtPos(*current.line) << ILogger::Error << "Cannot define keyword " << *expanded << ILogger::FlushNewLine;
+            throw PreprocessorException("Cannot define keyword");
+        }
         RemoveOldDefinition(context, *expanded);
         if (args.size() > 1)
         {
@@ -281,6 +285,11 @@ namespace VWA
         {
             throw PreprocessorException("Invalid identifier for define");
         }
+        if (isKeyword(*expanded, context))
+        {
+            context.logger.AtPos(*current.line) << ILogger::Error << "Cannot define keyword " << *expanded << ILogger::FlushNewLine;
+            throw PreprocessorException("Cannot define keyword");
+        }
         auto what = args.size() == 1 ? '#' + args[0] : args.back();
         auto value = expandIdentifier(what, context); //TODO: check for nullopt
         RemoveOldDefinition(context, *expanded);
@@ -295,7 +304,11 @@ namespace VWA
         auto destination = expandIdentifier(args[0], context);
         if (!destination)
             throw PreprocessorException("Invalid identifier for eval");
-
+        if (isKeyword(*destination, context))
+        {
+            context.logger.AtPos(*current.line) << ILogger::Error << "Cannot define keyword " << *destination << ILogger::FlushNewLine;
+            throw PreprocessorException("Cannot define keyword");
+        }
         int operands[2];
         //TODO: if given the name of a counter instead of a number, get the value, this would solve the problem when
         //given 2 args and having to store the result in args[0]. It also would make it easier to write simple additions
@@ -327,6 +340,11 @@ namespace VWA
 
     File::FilePos MacrodefinitionCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
     {
+        if (isKeyword(args[0], context))
+        {
+            context.logger.AtPos(*current.line) << ILogger::Error << "Cannot define keyword " << args[0] << ILogger::FlushNewLine;
+            throw PreprocessorException("Cannot define keyword");
+        }
         auto end = context.file.find("#endmacro(" + args[0] + ")", current.line + 1);
         //TODO: handle commented out lines
         if (end.firstChar == std::string::npos)
@@ -346,6 +364,11 @@ namespace VWA
         auto destination = expandIdentifier(args[0], context);
         if (!destination)
             throw PreprocessorException("Invalid identifier for intset");
+        if (isKeyword(*destination, context))
+        {
+            context.logger.AtPos(*current.line) << ILogger::Error << "Cannot define keyword " << *destination << ILogger::FlushNewLine;
+            throw PreprocessorException("Cannot define keyword");
+        }
         int value = 0;
         if (args.size() - 1)
         {
@@ -414,7 +437,7 @@ namespace VWA
         {
             current.line = context.file.removeLine(current.line);
             current.firstChar = 0;
-            current.line=current.line==end.line?end.line+1:current.line;
+            current.line = current.line == end.line ? end.line + 1 : current.line;
             context.file.removeLine(end.line);
             return current;
         }
@@ -424,6 +447,11 @@ namespace VWA
             current.firstChar = 0;
             return current;
         }
+    }
+
+    bool isKeyword(const std::string &identifier, const PreprocessorContext &ctxt)
+    {
+        return ctxt.commands.find(identifier) != ctxt.commands.end();
     }
 
     //TODO: loop over line and not entire file
@@ -453,7 +481,7 @@ namespace VWA
 
         for (auto line = context.file.begin(); line != context.file.end(); ++line)
         {
-            for (auto current = line->content.find("#"); current != line->content.npos&&line!=context.file.end(); current = line->content.find("#", current))
+            for (auto current = line->content.find("#"); current != line->content.npos && line != context.file.end(); current = line->content.find("#", current))
             {
                 if (current)
                     if (line->content[current - 1] == '\\')
@@ -519,7 +547,8 @@ namespace VWA
                         }
                         continue;
                     }
-                    else{
+                    else
+                    {
                         throw PreprocessorException("Unknown command " + identifier);
                     }
                 }

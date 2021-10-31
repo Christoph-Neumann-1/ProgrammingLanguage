@@ -52,6 +52,8 @@ namespace VWA
 
     std::optional<std::string> expandIdentifier(std::string identifier, PreprocessorContext &context);
 
+    bool isKeyword(const std::string &identifier, const PreprocessorContext& ctxt);
+
     //TODO: name getters and a way to specify expected number of arguments and other constraints
     class PreprocessorCommand
     {
@@ -148,6 +150,8 @@ namespace VWA
         DeleteCommand() : PreprocessorCommand(true, true, true, false, 1) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override
         {
+            if(isKeyword(args[0], context))
+                throw PreprocessorException("Keyword may not be deleted " + args[0]);
             for (auto &arg : args)
             {
                 if (auto it = context.macros.find(arg); it != context.macros.end())
