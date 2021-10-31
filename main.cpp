@@ -5,12 +5,12 @@
 #include <Preprocessor.hpp>
 #include <Logger.hpp>
 #include <CLI/CLI.hpp>
+#include <Commands.hpp>
 //TODO: Modernize code
 
 //TODO proper interface
 //TODO refactor everything
 //TODO more const
-//TODO convert File to string without newline for tokenizer. ; should be the delimiter
 int main(int argc, char *argv[])
 {
     CLI::App app{"VWA Programming language"};
@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
         return -1;
     }
     VWA::File result;
+    #pragma region CommandDefinition
     std::unordered_map<std::string, std::unique_ptr<VWA::PreprocessorCommand>> commands;
     commands["define"] = std::make_unique<VWA::DefineCommand>();
     commands["eval"] = std::make_unique<VWA::EvalCommand>();
@@ -65,8 +66,8 @@ int main(int argc, char *argv[])
     commands["using"] = std::make_unique<VWA::ReservedCommand>();
     commands["!"] = std::make_unique<VWA::NoEvalCommand>();
     commands[""] = std::make_unique<VWA::ExpandCommand>();
-    commands["ifdef"] = std::make_unique<VWA::IfdefCommand<false>>();
-    commands["ifndef"] = std::make_unique<VWA::IfdefCommand<true>>();
+    commands["ifdef"] = std::make_unique<VWA::IfdefCommand>(false);
+    commands["ifndef"] = std::make_unique<VWA::IfdefCommand>(true);
     {
         auto tmp = [](int a, int b) constexpr -> bool
         { return a == b; };
@@ -97,6 +98,7 @@ int main(int argc, char *argv[])
         { return a <= b; };
         commands["ifle"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
     }
+    #pragma endregion CommandDefinition
 
     try
     {
