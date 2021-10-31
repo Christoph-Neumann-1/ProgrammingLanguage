@@ -402,7 +402,7 @@ namespace VWA
         {
             throw PreprocessorException("Macro expansion failed");
         }
-        PasteMacro(*name, current, context, &next, 3,1);
+        PasteMacro(*name, current, context, &next, 3, 1);
         return next;
     }
 
@@ -413,8 +413,36 @@ namespace VWA
         {
             throw PreprocessorException("Macro expansion failed");
         }
-        PasteMacro(*name, current, context, nullptr, 2,1);
+        PasteMacro(*name, current, context, nullptr, 2, 1);
         return current;
+    }
+
+    //Do i need an escape sequence for endif?
+    File::FilePos BranchCommand::operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args)
+    {
+        //TODO: fix if fewer args are given
+        auto end = context.file.find("#endif(" + args.back() + ")", current.line + 1);
+        for (; end.firstChar != std::string::npos; end = context.file.find("#endif(" + args.back() + ")", end.line + 1))
+        {
+            if (IsFirstNonSpace(end.line->content, end.firstChar))
+                break;
+        }
+        if (end.firstChar == std::string::npos)
+            throw PreprocessorException("No endif found for branch");
+        if (IsTrue(context, args))
+        {
+            current.line = context.file.removeLine(current.line);
+            current.firstChar = 0;
+            current.line=current.line==end.line?end.line+1:current.line;
+            context.file.removeLine(end.line);
+            return current;
+        }
+        else
+        {
+            current.line = context.file.removeLines(current.line, end.line + 1);
+            current.firstChar = 0;
+            return current;
+        }
     }
 
     //TODO: loop over line and not entire file
@@ -444,7 +472,7 @@ namespace VWA
 
         for (auto line = context.file.begin(); line != context.file.end(); ++line)
         {
-            for (auto current = line->content.find("#"); current != line->content.npos; current = line->content.find("#", current))
+            for (auto current = line->content.find("#"); current != line->content.npos&&line!=context.file.end(); current = line->content.find("#", current))
             {
                 if (current)
                     if (line->content[current - 1] == '\\')
@@ -455,7 +483,6 @@ namespace VWA
                 auto nameEnd = FindEndOfIdentifier(line->content, current + 1);
                 auto identifier = line->content.substr(current + 1, nameEnd - current - 1);
                 {
-                    //TODO: expand identifiers as well
                     //TODO: consider moving the evaluation and substring part to the command class
                     auto copy = identifier;
                     auto args = getMacroArgs(copy);
@@ -512,16 +539,6 @@ namespace VWA
                         continue;
                     }
                 }
-                // {
-                //     auto name = expandIdentifier(identifier, context);
-                //     if (!name)
-                //     {
-                //         throw PreprocessorException("Macro expansion failed");
-                //     }
-                //     identifier = *name;
-                //     PasteMacro(identifier, File::FilePos{line, current}, context);
-                //     continue;
-                // }
             }
         }
 

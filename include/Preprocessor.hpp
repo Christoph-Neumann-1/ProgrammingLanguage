@@ -25,6 +25,7 @@
 //TODO: remove unneccessary empty lines
 //TODO: reuse vectors
 //TODO: try rewriting in rust
+//TODO: try reducing number of classes by passing a lambda to the constructor
 //Do i need to erase whitespaces after commands?
 
 namespace VWA
@@ -159,16 +160,39 @@ namespace VWA
         }
     };
 
+    //TODO: crtp
+    class BranchCommand : public PreprocessorCommand
+    {
+    protected:
+        virtual bool IsTrue(const PreprocessorContext &context, const std::vector<std::string> &args) = 0;
+
+    public:
+        BranchCommand(int minIn = 2, int maxIn = 3) : PreprocessorCommand(true, true, false, false, minIn, maxIn) {}
+        File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
+    };
+
+    template <bool invert>
+    class IfdefCommand : public BranchCommand
+    {
+        bool IsTrue(const PreprocessorContext &context, const std::vector<std::string> &args) override
+        {
+            return invert ^ (context.macros.find(args[0]) != context.macros.end() ? true : context.counters.find(args[0]) != context.counters.end());
+        }
+
+    public:
+        IfdefCommand() : BranchCommand(1, 2) {}
+    };
+
     class ExpandCommand : public PreprocessorCommand
     {
-        public:
+    public:
         ExpandCommand() : PreprocessorCommand(false, false, false, true) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
     };
 
     class NoEvalCommand : public PreprocessorCommand
     {
-        public:
+    public:
         NoEvalCommand() : PreprocessorCommand(false, false, false, true) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
     };
@@ -179,14 +203,14 @@ namespace VWA
         IncludeCommand() : PreprocessorCommand(true, true, false, true) {}
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override
         {
-            auto path=std::filesystem::path(*current.line->fileName).parent_path() / args[0];
+            auto path = std::filesystem::path(*current.line->fileName).parent_path() / args[0];
             std::ifstream file(path);
             if (!file.is_open())
                 throw PreprocessorException("Could not open file " + path.string());
             File filecontents(file, path.string());
             context.file.insertAfter(filecontents, current.line);
-            current.line=context.file.removeLine(current.line);
-            current.firstChar=0;
+            current.line = context.file.removeLine(current.line);
+            current.firstChar = 0;
             return current;
         }
     };

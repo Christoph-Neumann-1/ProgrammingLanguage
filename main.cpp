@@ -65,6 +65,8 @@ int main(int argc, char *argv[])
     commands["using"]=std::make_unique<VWA::ReservedCommand>();
     commands["!"]=std::make_unique<VWA::NoEvalCommand>();
     commands[""]=std::make_unique<VWA::ExpandCommand>();
+    commands["ifdef"]=std::make_unique<VWA::IfdefCommand<false>>();
+    commands["ifndef"]=std::make_unique<VWA::IfdefCommand<true>>();
     try
     {
 
