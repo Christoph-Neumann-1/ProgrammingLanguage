@@ -5,6 +5,7 @@
 #include <Preprocessor.hpp>
 #include <Logger.hpp>
 #include <CLI/CLI.hpp>
+#include <Tokenizer.hpp>
 //TODO: Modernize code
 
 //TODO proper interface
@@ -15,12 +16,14 @@ int main(int argc, char *argv[])
     CLI::App app{"VWA Programming language"};
 
     std::string fileName;
-
+    //TODO: allow piping using stdin
     app.add_option("-f,--file, file", fileName, "Input file")->required()->check(CLI::ExistingFile);
     std::string output = "output.src";
     auto outopt = app.add_option("-o,--output", output, "Output file");
     bool toStdout = false;
     app.add_flag("--stdout, !--nstdout", toStdout)->excludes(outopt);
+    bool pponly;
+    app.add_flag("-P", pponly);
     //TODO: direct different loglevels to different outputs, use callbacks
     std::string logFile;
     app.add_option("-l,--log", logFile, "Log file");
@@ -41,29 +44,27 @@ int main(int argc, char *argv[])
         std::cout << "File not found" << std::endl;
         return -1;
     }
-    VWA::File result;
-
-    // try
-    {
-
-        result = VWA::preprocess({.file = VWA::File{file, fileName}, .logger = *logger});
-    }
-    // catch (const VWA::PreprocessorException &e)
-    // {
-    //     std::cout << "Preprocessor failed, see log for details. Reason: " << e.what() << std::endl;
-    //     file.close();
-    //     return -1;
-    // }
-    if (toStdout)
-    {
-        std::cout << result.toString() << std::endl;
-    }
-    else
-    {
-        std::ofstream out(output);
-        out << result.toString();
-        out.close();
-    }
+    VWA::File result = VWA::preprocess({.file = VWA::File{file, fileName}, .logger = *logger});
     file.close();
+
+    if (pponly)
+    {
+        if (toStdout)
+        {
+            std::cout << result.toString() << std::endl;
+        }
+        else
+        {
+            std::ofstream out(output);
+            out << result.toString();
+            out.close();
+        }
+        return 0;
+    }
+    auto tokens = VWA::Tokenizer(std::move(result));
+    for(auto &token: tokens)
+    {
+        std::cout << token.toString() <<'\n';
+    }
     return 0;
 }

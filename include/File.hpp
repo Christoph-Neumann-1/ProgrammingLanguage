@@ -33,6 +33,7 @@ namespace VWA
         }
     };
 
+    //is this really faster than a vector?
     class File
     {
     private:
