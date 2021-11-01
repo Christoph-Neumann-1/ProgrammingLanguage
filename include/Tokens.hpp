@@ -23,6 +23,7 @@ namespace VWA
         double_colon,
         comma,
         dot,
+        range_operator,
 
         //arithmetic
         plus,

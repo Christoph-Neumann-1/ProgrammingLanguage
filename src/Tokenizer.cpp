@@ -16,28 +16,31 @@ namespace VWA
             DOUBLE
         };
         uint nDots = 0;
-        size_t end = str.size();
-        for (size_t i = pos; i < str.size(); i++)
+        size_t end;
+        //TODO: consider removing feature: if the last char is a dot, it is equal to .0
+        for (end = pos; end < str.size(); ++end)
         {
-            if (str[i] == '.')
+            if (str[end] == '.')
             {
+                if (end != str.size() - 1)
+                {
+                    if (str[end + 1] == '.')
+                    {
+                        break;
+                    }
+                }
                 nDots++;
                 if (nDots > 1)
                 {
                     throw std::runtime_error("Invalid number");
                 }
             }
-            else if (!isdigit(str[i]))
+            else if (!isdigit(str[end]))
             {
-                end = i;
                 break;
             }
         }
         char endChar = end == str.size() ? '\0' : str[end];
-        if (endChar == '.')
-        {
-            throw std::runtime_error("Invalid number");
-        }
         NumType type;
         if (nDots)
         {
@@ -190,12 +193,6 @@ namespace VWA
                     tokens.back().line = line.lineNumber;
                     tokens.back().file = line.fileName;
                     continue;
-                case '.':
-                    if (!isdigit(line.content[pos + 1]))
-                    {
-                        tokens.push_back(Token{.type = TokenType::dot, .file = line.fileName, .line = line.lineNumber});
-                        continue;
-                    }
                 case '(':
                     tokens.push_back(Token{.type = TokenType::lparen, .file = line.fileName, .line = line.lineNumber});
                     continue;
@@ -327,6 +324,21 @@ namespace VWA
                     }
                     tokens.push_back(Token{.type = TokenType::gt, .file = line.fileName, .line = line.lineNumber});
                     continue;
+                case '.':
+                    if (!isdigit(line.content[pos + 1]))
+                    {
+                        if (line.content.size() > pos + 1)
+                        {
+                            if (line.content[pos + 1] == '.')
+                            {
+                                tokens.push_back(Token{.type = TokenType::range_operator, .file = line.fileName, .line = line.lineNumber});
+                                ++pos;
+                                continue;
+                            }
+                        }
+                        tokens.push_back(Token{.type = TokenType::dot, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    }
                 case '0':
                 case '1':
                 case '2':

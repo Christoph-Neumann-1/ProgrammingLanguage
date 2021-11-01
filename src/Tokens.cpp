@@ -22,6 +22,8 @@ namespace VWA
             return ",";
         case TokenType::dot:
             return ".";
+        case TokenType::range_operator:
+            return "..";
         case TokenType::semicolon:
             return ";";
         case TokenType::colon:
