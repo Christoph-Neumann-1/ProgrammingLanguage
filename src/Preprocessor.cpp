@@ -10,9 +10,11 @@
 //TODO: delete counter upon defining macro with same name and vice versa
 //TODO: forbid redefining keywords
 //TODO: move keywords to other file
+//TODO: tests for individual functions
 
 namespace VWA
 {
+    VoidLogger PreprocessorContext::defaultLogger{};
     void processMacro(File::iterator &current, PreprocessorContext &context)
     {
         auto end = current + 1;
@@ -199,6 +201,7 @@ namespace VWA
     }
     void PasteMacro(std::string identifier, File::FilePos position, PreprocessorContext &context, File::FilePos *nextCharacter, size_t prefixLength, size_t postfixLength)
     {
+        auto idlen = identifier.size();
         //TODO: check if whitespaces are handled correctly
         auto expanded = expandMacro(identifier, context, getMacroArgs(identifier));
         if (!expanded.index())
@@ -221,8 +224,8 @@ namespace VWA
             std::string first = file->begin()->content;
             std::string last = file->back()->content;
             auto Body = file->extractLines(file->begin() + 1, file->back());
-            std::string remainder = position.line->content.substr(position.firstChar + identifier.size() + prefixLength + postfixLength - 1);
-            position.line->content.replace(position.firstChar, position.line->content.size() - position.firstChar, first);
+            std::string remainder = position.line->content.substr(position.firstChar + idlen + prefixLength + postfixLength);
+            position.line->content.replace(position.firstChar, position.line->content.length() - position.firstChar, first);
             context.file.insertAfter(position.line, last + remainder);
             if (nextCharacter)
             {

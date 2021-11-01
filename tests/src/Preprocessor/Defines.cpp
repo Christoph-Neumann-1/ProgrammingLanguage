@@ -7,7 +7,6 @@ SCENARIO("Defining and later using a macro")
     GIVEN("A file")
     {
         File f("mfile");
-        VoidLogger logger;
         WHEN("A macro is created using #define")
         {
             f.append("#define(test,expanded)");
@@ -16,21 +15,21 @@ SCENARIO("Defining and later using a macro")
                 f.append("#ifdef(test)");
                 f.append("true");
                 f.append("#endif()");
-                REQUIRE(preprocess({f,logger}).toString() == "true");
+                REQUIRE(preprocess({f}).toString() == "true");
             }
             WHEN("The macro is expanded")
             {
                 THEN("The content of the macro should be pasted")
                 {
                     f.append("#(test)");
-                    REQUIRE(preprocess({f, logger}).toString() == "expanded");
+                    REQUIRE(preprocess({f}).toString() == "expanded");
                 }
                 WHEN("There are other characters on the line")
                 {
                     f.append("before#(test)after");
                     THEN("The everything preceding the macro should stay the same and everything after the space following the macro should stay the same")
                     {
-                        REQUIRE(preprocess({f, logger}).toString() == "beforeexpandedafter");
+                        REQUIRE(preprocess({f}).toString() == "beforeexpandedafter");
                     }
                 }
             }
@@ -40,7 +39,7 @@ SCENARIO("Defining and later using a macro")
                 f.append("#(macro2)");
                 THEN("The content of the macro should also be evaluated")
                 {
-                    REQUIRE(preprocess({f, logger}).toString() == "expanded");
+                    REQUIRE(preprocess({f}).toString() == "expanded");
                 }
             }
             WHEN("Trying to expand an undefined macro")
@@ -48,7 +47,7 @@ SCENARIO("Defining and later using a macro")
                 THEN("An exception should be thrown")
                 {
                     f.append("#(undefinedmacro)");
-                    REQUIRE_THROWS_AS(preprocess({f, logger}), PreprocessorException);
+                    REQUIRE_THROWS_AS(preprocess({f}), PreprocessorException);
                 }
             }
         }

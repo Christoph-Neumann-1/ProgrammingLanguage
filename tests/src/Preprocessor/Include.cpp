@@ -9,10 +9,9 @@ SCENARIO("Preprocessor include command", "[preprocessor]")
         File f("Preprocessor/basefile");
         f.append("#include(f1)");
         f.append("#include(f2)");
-        VoidLogger voidLogger;
         WHEN("The other files are included")
         {
-            auto res = preprocess({f, voidLogger});
+            auto res = preprocess({f});
             auto string = res.toString();
             THEN("The file should contain the content of the other files")
             {
@@ -27,7 +26,7 @@ SCENARIO("Preprocessor include command", "[preprocessor]")
         VoidLogger voidLogger;
         WHEN("f3 is included")
         {
-            auto res = preprocess({f, voidLogger});
+            auto res = preprocess({f});
             auto string = res.toString();
             THEN("The file should contain the content of f4")
             {
@@ -48,7 +47,7 @@ SCENARIO("Includes in expanded macros", "[preprocessor]")
         WHEN("The macro is expanded")
         {
             VoidLogger voidLogger;
-            auto res = preprocess({f, voidLogger});
+            auto res = preprocess({f});
 
             THEN("The file should be included")
             {
@@ -67,7 +66,7 @@ SCENARIO("Include guards using ifdef", "[preprocessor]")
         WHEN("The second time the file is included")
         {
             VoidLogger voidLogger;
-            auto res = preprocess({f, voidLogger});
+            auto res = preprocess({f});
             THEN("The file should be ignored")
             {
                 REQUIRE(res.toString() == "included 5");
@@ -75,3 +74,40 @@ SCENARIO("Include guards using ifdef", "[preprocessor]")
         }
     }
 }
+
+SCENARIO("Including an invalid file", "[preprocessor]")
+{
+    GIVEN("A file including an invalid file")
+    {
+        File f("Preprocessor/basefile");
+        f.append("#include(invalid)");
+        WHEN("The file is processed")
+        {
+            VoidLogger voidLogger;
+            THEN("An exception should be thrown")
+            {
+                REQUIRE_THROWS_AS(preprocess({f}), PreprocessorException);
+            }
+        }
+    }
+}
+
+SCENARIO("Including a path with unusual characters")
+{
+    GIVEN("A file")
+    {
+        File f("Preprocessor/basefile");
+        WHEN("Including a file with spaces in the name")
+        {
+            f.append("#include( f with spaces )");
+            REQUIRE(preprocess({f}).toString() == "included file");
+        }
+        WHEN("Including a file with other special chars")
+        {
+            f.append("#include(,.;\"'#)");
+            REQUIRE(preprocess({f}).toString() == "included file");
+        }
+    }
+}
+
+//TODO: include paths
