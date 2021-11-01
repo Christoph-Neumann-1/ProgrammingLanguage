@@ -160,11 +160,12 @@ namespace VWA
             throw std::runtime_error("Invalid identifier");
         }
         size_t start = pos;
-        for (++pos; pos <= str.size(); ++pos)
+        for (size_t end=pos+1; end <= str.size(); ++end)
         {
-            if ((!isalnum(str[pos]) && str[pos] != '_') || pos == str.size())
+            if ((!isalnum(str[end]) && str[end] != '_') || end == str.size())
             {
-                return str.substr(start, pos - start);
+                pos = end-1;
+                return str.substr(start, end - start);
             }
         }
         throw std::runtime_error("Invalid identifier");

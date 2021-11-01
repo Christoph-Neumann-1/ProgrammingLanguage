@@ -6,6 +6,8 @@
 #include <Logger.hpp>
 #include <CLI/CLI.hpp>
 #include <Tokenizer.hpp>
+#include <Types.hpp>
+#include <Parser.hpp>
 //TODO: Modernize code
 
 //TODO proper interface
@@ -62,9 +64,6 @@ int main(int argc, char *argv[])
         return 0;
     }
     auto tokens = VWA::Tokenizer(std::move(result));
-    for(auto &token: tokens)
-    {
-        std::cout << token.toString() <<'\n';
-    }
+    auto res=VWA::findDefinitions(std::move(tokens));
     return 0;
 }
