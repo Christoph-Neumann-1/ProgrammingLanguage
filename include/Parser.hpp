@@ -2,6 +2,7 @@
 #include <Tokens.hpp>
 #include <Types.hpp>
 #include <Functions.hpp>
+#include <Node.hpp>
 
 namespace VWA
 {
@@ -27,9 +28,12 @@ namespace VWA
     {
         std::unordered_map<std::string, CustomTypeInfo> structs;
         //Functions are parsed later, so their tokens need to be stored.
+        //TODO: avoid copies of the tokens
         std::unordered_map<std::string, std::pair<FunctionInfo, std::vector<Token>>> functions;
     };
 
     pass1_result findDefinitions(std::vector<Token> tokens);
+
+    ASTNode generateParseTree(pass1_result pass1);
 
 }

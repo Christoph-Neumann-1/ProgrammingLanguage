@@ -183,6 +183,161 @@ namespace VWA
             }
         }
 
+        //Assert that all structs have been defined
+        for (auto &[_, value] : result.structs)
+        {
+            if (!value.isInitialized)
+            {
+                throw std::runtime_error("Struct " + value.name + " is not defined");
+            }
+        }
+
+        //Assert that main is defined
+        if (auto main = result.functions.find("main"); main != result.functions.end())
+        {
+            //Assert that main has no arguments and returns int
+            if (main->second.first.args.size() != 0)
+            {
+                throw std::runtime_error("main must have no arguments");
+            }
+            if (main->second.first.returnType != VarType::Int)
+            {
+                throw std::runtime_error("main must return int");
+            }
+        }
+        else
+        {
+            throw std::runtime_error("main is not defined");
+        }
+
         return result;
     }
+
+    size_t findClosingBrace(const std::vector<Token> &tokens, size_t opening, TokenType openingType)
+    {
+        TokenType closingType;
+        switch (openingType)
+        {
+        case TokenType::lbrace:
+            closingType = TokenType::rbrace;
+            break;
+        case TokenType::lparen:
+            closingType = TokenType::rparen;
+            break;
+        case TokenType::lbracket:
+            closingType = TokenType::rbracket;
+            break;
+        default:
+            throw std::runtime_error("Not a brace");
+        }
+        size_t counter = 1;
+        for (size_t i = opening + 1; i < tokens.size(); i++)
+        {
+            if (tokens[i].type == openingType)
+            {
+                ++counter;
+            }
+            else if (tokens[i].type == closingType)
+            {
+                --counter;
+                if (counter == 0)
+                {
+                    return i;
+                }
+            }
+        }
+        throw std::runtime_error("Unclosed ");
+    }
+
+    ASTNode parseExpression(const std::vector<Token> &tokens, size_t start, size_t end)
+    {
+        return {};
+    }
+
+    ASTNode parseStatements(const std::vector<Token> &tokens, size_t pos, size_t end)
+    {
+        //TODO: bounds checking
+        ASTNode root{.type = ASTNode::Type::Body};
+        {
+            //Step one: identify the type of statement
+            for (; pos < end; ++pos)
+            {
+                auto type = tokens[pos].type;
+                switch (type)
+                {
+                case TokenType::if_:
+                { //Find condition
+                    if (tokens[pos + 1].type != TokenType::lparen)
+                    {
+                        throw std::runtime_error("Expected ( after if");
+                    }
+                    size_t condition_end = findClosingBrace(tokens, pos + 1, TokenType::lparen);
+                    auto condition = parseExpression(tokens, pos + 2, condition_end);
+                    //Find body
+                    if (tokens[condition_end + 1].type != TokenType::lbrace)
+                    {
+                        throw std::runtime_error("Expected { after if condition");
+                    }
+                    size_t body_end = findClosingBrace(tokens, condition_end + 1, TokenType::lbrace);
+                    auto body = parseStatements(tokens, condition_end + 2, body_end);
+                    ASTNode node{.type = ASTNode::Type::Branch, .value = Token{TokenType::if_}};
+                    node.children.push_back(condition);
+                    node.children.push_back(body);
+                    //Check for else
+                    if (tokens[body_end + 1].type == TokenType::else_)
+                    {
+                        if (tokens[body_end + 2].type != TokenType::lbrace)
+                        {
+                            throw std::runtime_error("Expected { after else");
+                        }
+                        size_t else_end = findClosingBrace(tokens, body_end + 2, TokenType::lbrace);
+                        auto else_body = parseStatements(tokens, body_end + 3, else_end);
+                        //Else just adds a second body node
+                        node.children.push_back(else_body);
+                        pos = else_end;
+                    }
+                    else
+                    {
+                        pos = body_end;
+                    }
+                    break;
+                }
+                default:
+                    throw std::runtime_error("Unexpected token");
+                }
+            }
+        }
+        return root;
+    }
+
+    ASTNode parseFunction(std::pair<VWA::FunctionInfo, std::vector<VWA::Token>> &function)
+    {
+        auto &[info, tokens] = function;
+        ASTNode root{.type = ASTNode::Type::Function};
+        root.children.push_back({.type = ASTNode::Type::Value, .value = Token{TokenType::identifier, info.name}});
+        root.children.push_back({.type = ASTNode::Type::Type, .value = std::tuple<VarType, CustomTypeInfo *, bool>{info.returnType, info.rtypeInfo, true}});
+        root.children.push_back(parseStatements(tokens, 0, tokens.size()));
+        for (auto &arg : info.args)
+        {
+            root.children.push_back({.type = ASTNode::Type::Type, .value = std::tuple<VarType, CustomTypeInfo *, bool>{arg.type, arg.typeInfo, arg.isMutable}});
+        }
+        return root;
+    }
+
+    ASTNode generateParseTree(pass1_result pass1)
+    {
+        ASTNode root{.type = ASTNode::Type::Program};
+        {
+            //Main needs to be at index 0
+            auto main = pass1.functions.find("main");
+            root.children.push_back(parseFunction(main->second));
+            pass1.functions.erase(main);
+        }
+        for (auto &[_, function] : pass1.functions)
+        {
+            root.children.push_back(parseFunction(function));
+        }
+        return root;
+    }
+
 }

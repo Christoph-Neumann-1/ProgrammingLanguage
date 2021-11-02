@@ -104,6 +104,10 @@ namespace VWA
             return std::string("'") + std::get<char>(value) + "'";
         case TokenType::bool_:
             return std::get<bool>(value) ? "true" : "false";
+        case TokenType::new_:
+            return "new";
+        case TokenType::delete_:
+            return "delete";
         }
     }
 }

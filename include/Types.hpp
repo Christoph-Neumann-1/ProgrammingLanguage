@@ -6,7 +6,8 @@
 namespace VWA
 {
     struct CustomTypeData;
-    using Variable=std::variant<int32_t,int64_t,float,double,char,bool,CustomTypeData>;
+    struct CustomTypeInfo;
+    using Variable = std::variant<int32_t, int64_t, float, double, char, bool, CustomTypeData>;
 
     enum class VarType
     {
@@ -20,20 +21,34 @@ namespace VWA
         Custom
     };
 
+
+    std::string typeToString(VarType type, CustomTypeInfo *info);
+
     //TODO: stored as a map of string to a unique ptr. If the entry does not exist, create an empty one and fill in the data once the definition is found.
 
     struct CustomTypeInfo
     {
-        bool isInitialized=false;
+        bool isInitialized = false;
         std::string name;
         struct Field
         {
             std::string name;
             bool isMutable;
             VarType type;
-            CustomTypeInfo* typeInfo;
-        };     
-        std::vector<Field> fields;   
+            CustomTypeInfo *typeInfo;
+        };
+        std::vector<Field> fields;
+        std::string toString()
+        {
+            std::string ret = "";
+            ret += "struct: " + name + "\n";
+            for (auto &field : fields)
+            {
+                ret += "Field: " + field.name + (field.isMutable ? " mut " : " ") + typeToString(field.type, field.typeInfo) + "\n";
+            }
+            ret+= "\n";
+            return ret;
+        }
     };
     struct CustomTypeData
     {

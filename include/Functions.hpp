@@ -13,5 +13,6 @@ namespace VWA{
             CustomTypeInfo *typeInfo;
         };
         std::vector<param> args;
+        std::string toString();
     };
 }

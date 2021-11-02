@@ -71,6 +71,8 @@ namespace VWA
         return_,
         arrow_operator,
         size_of,
+        new_,
+        delete_,
     };
     //TODO: replace with better data structure
     const std::unordered_map<std::string, TokenType> keywords{
@@ -86,6 +88,10 @@ namespace VWA
         {"sizeof", TokenType::size_of},
         {"true", TokenType::bool_},
         {"false", TokenType::bool_},
+        {"break", TokenType::break_},
+        {"continue", TokenType::continue_},
+        {"new", TokenType::new_},
+        {"delete", TokenType::delete_},
     };
     struct Token
     {
