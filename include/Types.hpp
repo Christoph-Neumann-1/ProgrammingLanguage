@@ -10,6 +10,7 @@ namespace VWA
 
     enum class VarType
     {
+        Void,
         Int,
         Long,
         Float,

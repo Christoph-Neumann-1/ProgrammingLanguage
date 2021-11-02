@@ -6,6 +6,12 @@ namespace VWA{
         std::string name;
         VarType returnType;
         CustomTypeInfo *rtypeInfo;
-        std::vector<std::pair<VarType, CustomTypeInfo *>> args;
+        struct param{
+            std::string name;
+            VarType type;
+            bool isMutable;
+            CustomTypeInfo *typeInfo;
+        };
+        std::vector<param> args;
     };
 }

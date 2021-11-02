@@ -3,6 +3,8 @@ namespace VWA
 {
     std::pair<VarType, CustomTypeInfo *> GetType(const std::string &type, pass1_result &result)
     {
+        if (type == "void")
+            return std::make_pair(VarType::Void, nullptr);
         if (type == "int")
             return {VarType::Int, nullptr};
         if (type == "long")
@@ -63,13 +65,104 @@ namespace VWA
                     throw std::runtime_error("Expected semicolon");
                 }
                 auto type_pair = GetType(type, result);
-                it.fields.push_back({name,isMutable,type_pair.first,type_pair.second});
+                it.fields.push_back({name, isMutable, type_pair.first, type_pair.second});
                 end += 3 + isMutable;
                 continue;
             }
             throw std::runtime_error("Unexpected token " + tokens[end].toString());
         }
-        pos=end;
+        pos = end;
+    }
+
+    void ParseFunctionDefinition(pass1_result &result, const std::vector<Token> &tokens, size_t &pos)
+    {
+        auto name = std::get<std::string>(tokens[pos + 1].value);
+        if (auto it = result.functions.find(name); it != result.functions.end())
+        {
+            throw std::runtime_error("Function " + name + " is already defined");
+        }
+        auto &it = result.functions[name];
+        it.first.name = name;
+        size_t counter = 0;
+        for (pos += 2;; ++pos)
+        {
+            if (pos == tokens.size())
+            {
+                throw std::runtime_error("Unexpected end of file");
+            }
+            if (tokens[pos].type == TokenType::lparen)
+            {
+                ++counter;
+                continue;
+            }
+            if (tokens[pos].type == TokenType::rparen)
+            {
+                --counter;
+                if (counter == 0)
+                {
+                    break;
+                }
+                continue;
+            }
+            if (tokens[pos].type == TokenType::variable_declaration)
+            {
+                bool isMutable = tokens[pos + 1].type == TokenType::mutable_;
+                std::string type = std::get<std::string>(tokens[pos + 1 + isMutable].value);
+                if (tokens[pos + 2 + isMutable].type != TokenType::identifier)
+                {
+                    throw std::runtime_error("Expected identifier");
+                }
+                std::string _name = std::get<std::string>(tokens[pos + 2 + isMutable].value);
+                if (tokens[pos + 3 + isMutable].type != TokenType::comma && tokens[pos + 3 + isMutable].type != TokenType::rparen)
+                {
+                    throw std::runtime_error("Expected comma or parentheses");
+                }
+                auto type_pair = GetType(type, result);
+                it.first.args.push_back({_name, type_pair.first, isMutable, type_pair.second});
+                pos += 2 + isMutable;
+                continue;
+            }
+            throw std::runtime_error("Unexpected token " + tokens[pos].toString());
+        }
+        if (tokens[pos + 1].type == TokenType::arrow_operator)
+        {
+            if (tokens[pos + 2].type != TokenType::identifier)
+            {
+                throw std::runtime_error("Expected identifier");
+            }
+            auto rtype = GetType(std::get<std::string>(tokens[pos + 2].value), result);
+            it.first.returnType = rtype.first;
+            it.first.rtypeInfo = rtype.second;
+            pos += 2;
+        }
+        else
+        {
+            it.first.returnType = VarType::Void;
+            it.first.rtypeInfo = nullptr;
+        }
+        size_t body_start = pos + 1;
+        for (pos += 1;; ++pos)
+        {
+            if (pos == tokens.size())
+            {
+                throw std::runtime_error("Unexpected end of file");
+            }
+            if (tokens[pos].type == TokenType::lbrace)
+            {
+                ++counter;
+                continue;
+            }
+            if (tokens[pos].type == TokenType::rbrace)
+            {
+                --counter;
+                if (counter == 0)
+                {
+                    break;
+                }
+                continue;
+            }
+        }
+        it.second = {tokens.begin() + body_start + 1, tokens.begin() + pos};
     }
 
     pass1_result findDefinitions(std::vector<Token> tokens)
@@ -83,6 +176,8 @@ namespace VWA
                 ParseStructDefinition(result, tokens, i);
                 continue;
             case TokenType::function_definition:
+                ParseFunctionDefinition(result, tokens, i);
+                continue;
             default:
                 continue;
             }

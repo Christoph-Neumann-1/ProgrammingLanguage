@@ -82,7 +82,7 @@ namespace VWA
         {"func", TokenType::function_definition},
         {"struct", TokenType::struct_definition},
         {"let", TokenType::variable_declaration},
-        {"mutable", TokenType::mutable_},
+        {"mut", TokenType::mutable_},
         {"sizeof", TokenType::size_of},
         {"true", TokenType::bool_},
         {"false", TokenType::bool_},
