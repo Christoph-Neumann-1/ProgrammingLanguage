@@ -376,6 +376,7 @@ namespace VWA
                 }
             }
         }
+        tokens.push_back(Token{.type = TokenType::eof, .file = tokens.back().file, .line =  tokens.back().line});
         return tokens;
     }
 

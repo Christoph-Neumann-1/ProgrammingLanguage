@@ -34,6 +34,6 @@ namespace VWA
 
     pass1_result findDefinitions(std::vector<Token> tokens);
 
-    ASTNode generateParseTree(pass1_result pass1);
+    ASTNode generateParseTree(const std::vector<VWA::Token> &tokens);
 
 }

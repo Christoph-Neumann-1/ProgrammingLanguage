@@ -8,24 +8,19 @@ namespace VWA
     {
         enum class Type
         {
-            Program,
+            Root,
             Function,
+            Struct,
             FunctionCall,
-            Type,
-            Value,
-            Variable,
-            Declaration,
-            Assignment,
-            BinaryOperator,
-            UnaryOperator,
-            Return,
-            Branch, //Covers for, while, if, and else
-            Break,
-            Continue,
-            Body,
+            Value,//primitive values or initializer for struct
+            Identifier,//Variables, types, and names nested within other nodes
+            Declaration,//Create a new variable
+            Operator,//Type is stored as token
+            ControlFlow,//All branches, loops, and return/break/continue
+            Compound,//Multiple statements enclosed in {}It may be used everywhere a statement is allowed
         };
         Type type;
-        std::variant<std::monostate, Token, std::tuple<VarType, CustomTypeInfo *, bool>> value;
+        Token value;
         std::vector<ASTNode> children;
     };
 }

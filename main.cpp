@@ -64,7 +64,6 @@ int main(int argc, char *argv[])
         return 0;
     }
     auto tokens = VWA::Tokenizer(std::move(result));
-    auto res=VWA::findDefinitions(std::move(tokens));
-    auto ast=VWA::generateParseTree(std::move(res));
+    auto ast=VWA::generateParseTree(tokens);
     return 0;
 }

@@ -9,7 +9,8 @@ namespace VWA
     struct CustomTypeInfo;
     using Variable = std::variant<int32_t, int64_t, float, double, char, bool, CustomTypeData>;
 
-    enum class VarType
+    enum class 
+    VarType
     {
         Void,
         Int,
@@ -50,6 +51,7 @@ namespace VWA
             return ret;
         }
     };
+    //TODO: remove for now, parse first, then find the type names
     struct CustomTypeData
     {
         CustomTypeInfo &info;

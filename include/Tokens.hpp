@@ -10,6 +10,7 @@ namespace VWA
     //TODO: reorder
     enum class TokenType
     {
+        null,
         //brackets
         lparen,
         rparen,
@@ -73,6 +74,7 @@ namespace VWA
         size_of,
         new_,
         delete_,
+        eof,//Could be removed but it makes the parser easier
     };
     //TODO: replace with better data structure
     const std::unordered_map<std::string, TokenType> keywords{
@@ -108,8 +110,9 @@ namespace VWA
             value;
         //For debugging
         //Maybe use a reference to the line instead?
+        //Use optional?
         std::shared_ptr<const std::string> file;
-        int line;
+        int line=-1;
         //TODO: use the same map used to find the tokens in the first place. For values simply use std::to_string(value).
         std::string toString() const;
     };
