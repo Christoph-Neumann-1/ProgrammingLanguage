@@ -11,6 +11,7 @@
 //TODO: forbid redefining keywords
 //TODO: move keywords to other file
 //TODO: tests for individual functions
+//TODO: make comments normal again.
 
 namespace VWA
 {

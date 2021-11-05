@@ -11,6 +11,7 @@ namespace VWA
     enum class TokenType
     {
         null,
+        compound,//TODO: use for paramaters
         //brackets
         lparen,
         rparen,
