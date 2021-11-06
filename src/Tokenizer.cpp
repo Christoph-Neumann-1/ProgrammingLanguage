@@ -246,6 +246,15 @@ namespace VWA
                     tokens.push_back(Token{.type = TokenType::minus, .file = line.fileName, .line = line.lineNumber});
                     continue;
                 case '*':
+                    if(line.content.size() > pos + 1)
+                    {
+                        if (line.content[pos + 1] == '*')
+                        {
+                            tokens.push_back(Token{.type = TokenType::power, .file = line.fileName, .line = line.lineNumber});
+                            ++pos;
+                            continue;
+                        }
+                    }
                     tokens.push_back(Token{.type = TokenType::star, .file = line.fileName, .line = line.lineNumber});
                     continue;
                 case '/':

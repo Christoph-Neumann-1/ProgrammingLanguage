@@ -34,6 +34,7 @@ namespace VWA
         divide,
         mod,
         ampersand,
+        power,
         //logical
         //Only symbols? or words like and, or, not?
         and_,
@@ -65,10 +66,15 @@ namespace VWA
         string_literal, //Comverto to array of chars? example: "abc"=>['a','b','c']||{'a','b','c'} what seperator?
         //function is just the keyword, identifier is used for everything else like type name, variables structs etc.
         function_definition,
+        function_call,
         struct_definition,
         identifier,
         variable_declaration,
+        export_,
+        import_,
         //other keywords
+        comptime,
+        tailrec,
         mutable_,
         return_,
         arrow_operator,
@@ -95,6 +101,10 @@ namespace VWA
         {"continue", TokenType::continue_},
         {"new", TokenType::new_},
         {"delete", TokenType::delete_},
+        {"export", TokenType::export_},
+        {"comptime", TokenType::comptime},
+        {"tailrec", TokenType::tailrec},
+        {"import", TokenType::import_},
     };
     struct Token
     {

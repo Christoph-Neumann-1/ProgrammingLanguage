@@ -108,6 +108,18 @@ namespace VWA
             return "new";
         case TokenType::delete_:
             return "delete";
+        case TokenType::power:
+            return "**";
+        case TokenType::comptime:
+            return "comptime";
+        case TokenType::export_:
+            return "export";
+        case TokenType::tailrec:
+            return "tailrec";
+        case TokenType::import_:
+            return "import";
+        default:
+            throw std::runtime_error("Unprintable token");
         }
     }
 }

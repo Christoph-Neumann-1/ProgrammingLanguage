@@ -172,6 +172,29 @@ namespace VWA
 
     ASTNode parseExpression(const std::vector<Token> &tokens, size_t &start);
 
+    //Returns either a tree of dot operators or just and identifier
+    ASTNode parseDotOperator(const std::vector<Token> &tokens, size_t &start)
+    {
+        //I have decided on this format for the dot operator:
+        //dot is the root node, the children are the identifiers in the correct order
+
+        ASTNode root{{TokenType::dot}, {{tokens[start++]}}};
+
+        for (;;)
+        {
+            if (tokens[start].type == TokenType::dot)
+            {
+                if (tokens[++start].type != TokenType::identifier)
+                {
+                    throw std::runtime_error("Expected identifier");
+                }
+                root.children.push_back({tokens[start++]});
+                continue;
+            }
+            return root;
+        }
+    }
+
     ASTNode parseFactor(const std::vector<Token> &tokens, size_t &pos)
     {
         switch (tokens[pos].type)
@@ -212,23 +235,74 @@ namespace VWA
                 return {.value = {TokenType::minus}, .children{result}};
             }
         }
+        case TokenType::identifier:
+        {
+            //An identifier can mean three things here:
+            //1. A variable name
+            //2. A function call
+            //3. a variable name with the dot operator
+            switch (tokens[pos + 1].type)
+            {
+            //This is a function call. Inside the parantheses may be 0 or more comma seperated expressions(the arguments)
+            //These arguments are stored as children of the node
+            case TokenType::lparen:
+            {
+                ASTNode node{{TokenType::function_call, tokens[pos].value}};
+                pos += 2;
+                while (tokens[pos].type != TokenType::rparen)
+                {
+                    node.children.push_back(parseExpression(tokens, pos));
+                    if (tokens[pos].type != TokenType::rparen)
+                    {
+                        if (tokens[pos].type != TokenType::comma)
+                        {
+                            throw std::runtime_error("Expected ',' or ')'");
+                        }
+                        ++pos;
+                    }
+                }
+                ++pos;
+                return node;
+            }
+            case TokenType::dot:
+            {
+                return parseDotOperator(tokens, pos);
+            }
+            default:
+            {
+                return {tokens[pos++]};
+            }
+            }
         default:
         {
             throw std::runtime_error("Unexpected token " + tokens[pos].toString());
         }
         }
+        }
+    }
+
+    ASTNode parsePower(const std::vector<Token> &tokens, size_t &pos)
+    {
+        auto lhs = parseFactor(tokens, pos);
+        if (tokens[pos].type != TokenType::power)
+        {
+            return lhs;
+        }
+        ++pos;
+        auto rhs = parsePower(tokens, pos);
+        return {.value{TokenType::power}, .children{lhs, rhs}};
     }
 
     ASTNode parseTerm(const std::vector<Token> &tokens, size_t &pos)
     {
-        ASTNode node = parseFactor(tokens, pos);
+        ASTNode node = parsePower(tokens, pos);
         while (1)
         {
             switch (tokens[pos].type)
             {
             case TokenType::star:
             case TokenType::divide:
-                node = ASTNode{.value = tokens[pos], .children{node, parseFactor(tokens, ++pos)}};
+                node = ASTNode{.value = tokens[pos], .children{node, parsePower(tokens, ++pos)}};
                 break;
             default:
                 return node;
