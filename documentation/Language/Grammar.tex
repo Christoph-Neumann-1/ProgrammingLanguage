@@ -1,0 +1,25 @@
+\documentclass[main.tex]{subfiles}
+\begin{document}
+
+    \chapter{Grammar}
+    There are two types of top level definitions:
+    \begin{itemize}
+        \item \textbf{structs}
+        \item \textbf{functions}
+    \end{itemize}
+    \section{Structs}
+        Structs start with the keyword \textit{struct} and are followed by an identifier.
+        Inside of curly braces, you can define member variables as follows:
+        \textit{name} : \textit{type} ;
+        Default values are not supported yet.
+        If the value is to be changed later, add the mut keyword.
+        mut \textit{name} : \textit{type};
+    \section{Functions}
+    The definition of a function looks like this:
+    func \textit{name} (\textit{parameters}) -> \textit{return type} statement
+    statement may be a single statement or a block of statements.
+    The return type may be omitted. In that case it is void.
+    Parameters are in the same format as struct members, but separated by commas.
+    e.g. func foo(x:int,mut y:float)\{...\}
+    
+\end{document}

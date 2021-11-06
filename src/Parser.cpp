@@ -427,6 +427,43 @@ namespace VWA
 
         case TokenType::variable_declaration:
             return parseVariableDeclaration(tokens, pos);
+        case TokenType::identifier:
+            if (tokens[pos + 1].type == TokenType::assign)
+            {
+                ASTNode node{{TokenType::assign}, {{tokens[pos++], {parseExpression(tokens, ++pos)}}}};
+                if(tokens[pos++].type != TokenType::semicolon)
+                {
+                    throw std::runtime_error("Expected semicolon");
+                }
+                return node;
+            }
+            else if (tokens[pos + 1].type == TokenType::lparen)
+            {
+                ASTNode node{{TokenType::function_call, tokens[pos].value}};
+                pos += 2;
+                while (tokens[pos].type != TokenType::rparen)
+                {
+                    node.children.push_back(parseExpression(tokens, pos));
+                    if (tokens[pos].type != TokenType::rparen)
+                    {
+                        if (tokens[pos].type != TokenType::comma)
+                        {
+                            throw std::runtime_error("Expected ',' or ')'");
+                        }
+                        ++pos;
+                    }
+                }
+                ++pos;
+                if(tokens[pos++].type != TokenType::semicolon)
+                {
+                    throw std::runtime_error("Expected semicolon");
+                }
+                return node;
+            }
+            else
+            {
+                throw std::runtime_error("Expected assignment or call");
+            }
         default:
             throw std::runtime_error("Unexpected token " + tokens[pos].toString());
         }
@@ -434,16 +471,6 @@ namespace VWA
 
     ASTNode parseFunction(const std::vector<Token> &tokens, size_t &pos)
     {
-        // auto &[info, tokens] = function;
-        // ASTNode root{.type = ASTNode::Type::Function};
-        // root.children.push_back({.type = ASTNode::Type::Value, .value = Token{TokenType::identifier, info.name}});
-        // root.children.push_back({.type = ASTNode::Type::Type, .value = std::tuple<VarType, CustomTypeInfo *, bool>{info.returnType, info.rtypeInfo, true}});
-        // root.children.push_back(parseStatements(tokens, 0, tokens.size()));
-        // for (auto &arg : info.args)
-        // {
-        //     root.children.push_back({.type = ASTNode::Type::Type, .value = std::tuple<VarType, CustomTypeInfo *, bool>{arg.type, arg.typeInfo, arg.isMutable}});
-        // }
-        // return root;
         //A consists of the func token, the name(identifier), the return type, the body, and the args args are at the end,  so we can get their number easily
         ASTNode root{Token{TokenType::function_definition}};
         if (tokens[++pos].type != TokenType::identifier)
@@ -514,26 +541,25 @@ namespace VWA
         //There are two types of top level definitions: funcitions and structs
         //Depending on the type call the appropriate function
         size_t pos = 0;
-        // ASTNode root{.value = Token{TokenType::null}};
+        ASTNode root{.value = Token{TokenType::null}};
 
-        // while (tokens[pos].type != TokenType::eof)
-        // {
-        //     switch (tokens[pos].type)
-        //     {
-        //     case TokenType::function_definition:
-        //         root.children.push_back(parseFunction(tokens, pos));
-        //         break;
-        //     case TokenType::struct_definition:
-        //         root.children.push_back(parseStruct(tokens, pos));
-        //         break;
-        //     default:
-        //         throw std::runtime_error("Unexpected top level token token " + tokens[pos].toString());
-        //     }
-        // }
+        while (tokens[pos].type != TokenType::eof)
+        {
+            switch (tokens[pos].type)
+            {
+            case TokenType::function_definition:
+                root.children.push_back(parseFunction(tokens, pos));
+                break;
+            case TokenType::struct_definition:
+                root.children.push_back(parseStruct(tokens, pos));
+                break;
+            default:
+                throw std::runtime_error("Unexpected top level token token " + tokens[pos].toString());
+            }
+        }
 
         //TODO: if type is executable, then it should contain a main function. The main function should be first. Just check the name
         //Main should be stored in the root node
-        // return root;
-        return parseExpression(tokens, pos);
+        return root;
     }
 }
