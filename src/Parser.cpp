@@ -24,156 +24,184 @@ namespace VWA
             return {VarType::Char, nullptr};
         return {VarType::Custom, &result.structs[type]};
     }
-    void ParseStructDefinition(pass1_result &result, const std::vector<Token> &tokens, size_t &pos)
-    {
-        std::string struct_name = std::get<std::string>(tokens[pos + 1].value); //if the user is stupid this could cause a segfault
-        auto &it = result.structs[struct_name];
-        if (it.isInitialized)
-        {
-            throw std::runtime_error("Struct " + struct_name + " is already defined");
-        }
-        it.isInitialized = true;
-        it.name = struct_name;
-        size_t end;
-        uint counter = 0;
-        for (end = pos + 2;; ++end)
-        {
-            if (end == tokens.size())
-            {
-                throw std::runtime_error("Unexpected end of file");
-            }
-            if (tokens[end].type == TokenType::lbrace)
-            {
-                ++counter;
-                continue;
-            }
-            if (tokens[end].type == TokenType::rbrace)
-            {
-                --counter;
-                if (counter == 0)
-                {
-                    break;
-                }
-                continue;
-            }
-            if (tokens[end].type == TokenType::variable_declaration)
-            {
-                bool isMutable = tokens[end + 1].type == TokenType::mutable_;
-                std::string type = std::get<std::string>(tokens[end + 1 + isMutable].value);
-                if (tokens[end + 2 + isMutable].type != TokenType::identifier)
-                {
-                    throw std::runtime_error("Expected identifier");
-                }
-                std::string name = std::get<std::string>(tokens[end + 2 + isMutable].value);
-                if (tokens[end + 3 + isMutable].type != TokenType::semicolon)
-                {
-                    throw std::runtime_error("Expected semicolon");
-                }
-                auto type_pair = GetType(type, result);
-                it.fields.push_back({name, isMutable, type_pair.first, type_pair.second});
-                end += 3 + isMutable;
-                continue;
-            }
-            throw std::runtime_error("Unexpected token " + tokens[end].toString());
-        }
-        pos = end;
-    }
-
-    void ParseFunctionDefinition(pass1_result &result, const std::vector<Token> &tokens, size_t &pos)
-    {
-        auto name = std::get<std::string>(tokens[pos + 1].value);
-        if (auto it = result.functions.find(name); it != result.functions.end())
-        {
-            throw std::runtime_error("Function " + name + " is already defined");
-        }
-        auto &it = result.functions[name];
-        it.first.name = name;
-        size_t counter = 0;
-        for (pos += 2;; ++pos)
-        {
-            if (pos == tokens.size())
-            {
-                throw std::runtime_error("Unexpected end of file");
-            }
-            if (tokens[pos].type == TokenType::lparen)
-            {
-                ++counter;
-                continue;
-            }
-            if (tokens[pos].type == TokenType::rparen)
-            {
-                --counter;
-                if (counter == 0)
-                {
-                    break;
-                }
-                continue;
-            }
-            if (tokens[pos].type == TokenType::variable_declaration)
-            {
-                bool isMutable = tokens[pos + 1].type == TokenType::mutable_;
-                std::string type = std::get<std::string>(tokens[pos + 1 + isMutable].value);
-                if (tokens[pos + 2 + isMutable].type != TokenType::identifier)
-                {
-                    throw std::runtime_error("Expected identifier");
-                }
-                std::string _name = std::get<std::string>(tokens[pos + 2 + isMutable].value);
-                if (tokens[pos + 3 + isMutable].type != TokenType::comma && tokens[pos + 3 + isMutable].type != TokenType::rparen)
-                {
-                    throw std::runtime_error("Expected comma or parentheses");
-                }
-                auto type_pair = GetType(type, result);
-                it.first.args.push_back({_name, type_pair.first, isMutable, type_pair.second});
-                pos += 2 + isMutable;
-                continue;
-            }
-            throw std::runtime_error("Unexpected token " + tokens[pos].toString());
-        }
-        if (tokens[pos + 1].type == TokenType::arrow_operator)
-        {
-            if (tokens[pos + 2].type != TokenType::identifier)
-            {
-                throw std::runtime_error("Expected identifier");
-            }
-            auto rtype = GetType(std::get<std::string>(tokens[pos + 2].value), result);
-            it.first.returnType = rtype.first;
-            it.first.rtypeInfo = rtype.second;
-            pos += 2;
-        }
-        else
-        {
-            it.first.returnType = VarType::Void;
-            it.first.rtypeInfo = nullptr;
-        }
-        size_t body_start = pos + 1;
-        for (pos += 1;; ++pos)
-        {
-            if (pos == tokens.size())
-            {
-                throw std::runtime_error("Unexpected end of file");
-            }
-            if (tokens[pos].type == TokenType::lbrace)
-            {
-                ++counter;
-                continue;
-            }
-            if (tokens[pos].type == TokenType::rbrace)
-            {
-                --counter;
-                if (counter == 0)
-                {
-                    break;
-                }
-                continue;
-            }
-        }
-        it.second = {tokens.begin() + body_start + 1, tokens.begin() + pos};
-    }
+#pragma region Expression Parsing
 
     ASTNode parseExpression(const std::vector<Token> &tokens, size_t &start);
+    ASTNode parseComparison(const std::vector<Token> &tokens, size_t &start);
+    ASTNode parseAddition(const std::vector<Token> &tokens, size_t &start);
+    ASTNode parseMultiplication(const std::vector<Token> &tokens, size_t &start);
+    ASTNode parseUnary(const std::vector<Token> &tokens, size_t &start);
+    ASTNode parsePower(const std::vector<Token> &tokens, size_t &start);
+    ASTNode parsePrimary(const std::vector<Token> &tokens, size_t &start);
+    ASTNode parseDot(const std::vector<Token> &tokens, size_t &start);
+    ASTNode parseFuncCall(const std::vector<Token> &tokens, size_t &start);
+
+    //TODO: move the bracket pairing in here and return the end as well
+    ASTNode parseExpression(const std::vector<Token> &tokens, size_t &start)
+    {
+        ASTNode node = parseComparison(tokens, start);
+        while (1)
+            switch (tokens[start].type)
+            {
+            case TokenType::and_:
+            case TokenType::or_:
+                node = ASTNode{.value = tokens[start], .children = {node, parseComparison(tokens, ++start)}};
+                break;
+            default: //TODO: better way to define end of expression
+                return node;
+            }
+    }
+
+    ASTNode parseComparison(const std::vector<Token> &tokens, size_t &start)
+    {
+        ASTNode node = parseAddition(tokens, start);
+        //Should i allow chained comparisons?
+        while (1)
+            switch (tokens[start].type)
+            {
+            case TokenType::lt:
+            case TokenType::gt:
+            case TokenType::leq:
+            case TokenType::geq:
+            case TokenType::eq:
+            case TokenType::neq:
+                node = ASTNode{.value = tokens[start], .children = {node, parseAddition(tokens, ++start)}};
+                break;
+            default:
+                return node;
+            }
+    }
+
+    ASTNode parseAddition(const std::vector<Token> &tokens, size_t &start)
+    {
+        ASTNode node = parseMultiplication(tokens, start);
+        while (1)
+            switch (tokens[start].type)
+            {
+            case TokenType::plus:
+            case TokenType::minus:
+                node = ASTNode{.value = tokens[start], .children = {node, parseMultiplication(tokens, ++start)}};
+                break;
+            default:
+                return node;
+            }
+    }
+
+    ASTNode parseMultiplication(const std::vector<Token> &tokens, size_t &start)
+    {
+        ASTNode node = parseUnary(tokens, start);
+        while (1)
+            switch (tokens[start].type)
+            {
+            case TokenType::star:
+            case TokenType::divide:
+            case TokenType::mod:
+                node = ASTNode{.value = tokens[start], .children = {node, parseUnary(tokens, ++start)}};
+                break;
+            default:
+                return node;
+            }
+    }
+
+    ASTNode parseUnary(const std::vector<Token> &tokens, size_t &start)
+    {
+        switch (tokens[start].type)
+        {
+        case TokenType::plus:
+        case TokenType::minus:
+        case TokenType::not_:
+            return {tokens[start], {parseUnary(tokens, ++start)}};
+        default:
+            return parsePower(tokens, start);
+        }
+    }
+
+    ASTNode parsePower(const std::vector<Token> &tokens, size_t &start)
+    {
+        ASTNode lhs = parsePrimary(tokens, start);
+        if (tokens[start].type != TokenType::power)
+        {
+            return lhs;
+        }
+        ++start;
+        ASTNode rhs = parsePower(tokens, start);
+        return {.value = {TokenType::power}, .children = {lhs, rhs}};
+    }
+
+    ASTNode parsePrimary(const std::vector<Token> &tokens, size_t &start)
+    {
+        switch (tokens[start].type)
+        {
+        case TokenType::int_:
+        case TokenType::long_:
+        case TokenType::float_:
+        case TokenType::double_:
+        {
+            return {tokens[start++]};
+        }
+        case TokenType::lparen:
+        {
+            ++start;
+            auto result = parseExpression(tokens, start);
+            if (tokens[start++].type != TokenType::rparen)
+            {
+                throw std::runtime_error("Expected ')'");
+            }
+            return result;
+        }
+        case TokenType::identifier:
+        {
+            //An identifier can mean three things here:
+            //1. A variable name
+            //2. A function call
+            //3. a variable name with the dot operator
+            switch (tokens[start + 1].type)
+            {
+            //This is a function call. Inside the parantheses may be 0 or more comma seperated expressions(the arguments)
+            //These arguments are stored as children of the node
+            case TokenType::lparen:
+            {
+                return parseFuncCall(tokens, start);
+            }
+            case TokenType::dot:
+            {
+                return parseDot(tokens, start);
+            }
+            default:
+            {
+                return {tokens[start++]};
+            }
+            }
+        default:
+        {
+            throw std::runtime_error("Unexpected token " + tokens[start].toString());
+        }
+        }
+        }
+    }
+
+    ASTNode parseFuncCall(const std::vector<Token> &tokens, size_t &start)
+    {
+        ASTNode node{{TokenType::function_call, tokens[start].value}};
+        start += 2;
+        while (tokens[start].type != TokenType::rparen)
+        {
+            node.children.push_back(parseExpression(tokens, start));
+            if (tokens[start].type != TokenType::rparen)
+            {
+                if (tokens[start].type != TokenType::comma)
+                {
+                    throw std::runtime_error("Expected ',' or ')'");
+                }
+                ++start;
+            }
+        }
+        ++start;
+        return node;
+    }
 
     //Returns either a tree of dot operators or just and identifier
-    ASTNode parseDotOperator(const std::vector<Token> &tokens, size_t &start)
+    ASTNode parseDot(const std::vector<Token> &tokens, size_t &start)
     {
         //I have decided on this format for the dot operator:
         //dot is the root node, the children are the identifiers in the correct order
@@ -195,136 +223,7 @@ namespace VWA
         }
     }
 
-    ASTNode parseFactor(const std::vector<Token> &tokens, size_t &pos)
-    {
-        switch (tokens[pos].type)
-        {
-        case TokenType::int_:
-        case TokenType::long_:
-        case TokenType::float_:
-        case TokenType::double_:
-        {
-            return {tokens[pos++]};
-        }
-        case TokenType::lparen:
-        {
-            ++pos;
-            auto result = parseExpression(tokens, pos);
-            if (tokens[pos].type != TokenType::rparen)
-            {
-                throw std::runtime_error("Expected ')'");
-            }
-            ++pos;
-            return result;
-        }
-        case TokenType::minus:
-        {
-            ++pos;
-            auto result = parseFactor(tokens, pos);
-            switch (result.value.type)
-            {
-            case TokenType::int_:
-                return {{TokenType::int_, -std::get<int>(result.value.value)}};
-            case TokenType::long_:
-                return {{TokenType::long_, -std::get<long>(result.value.value)}};
-            case TokenType::float_:
-                return {{TokenType::float_, -std::get<float>(result.value.value)}};
-            case TokenType::double_:
-                return {{TokenType::double_, -std::get<double>(result.value.value)}};
-            default:
-                return {.value = {TokenType::minus}, .children{result}};
-            }
-        }
-        case TokenType::identifier:
-        {
-            //An identifier can mean three things here:
-            //1. A variable name
-            //2. A function call
-            //3. a variable name with the dot operator
-            switch (tokens[pos + 1].type)
-            {
-            //This is a function call. Inside the parantheses may be 0 or more comma seperated expressions(the arguments)
-            //These arguments are stored as children of the node
-            case TokenType::lparen:
-            {
-                ASTNode node{{TokenType::function_call, tokens[pos].value}};
-                pos += 2;
-                while (tokens[pos].type != TokenType::rparen)
-                {
-                    node.children.push_back(parseExpression(tokens, pos));
-                    if (tokens[pos].type != TokenType::rparen)
-                    {
-                        if (tokens[pos].type != TokenType::comma)
-                        {
-                            throw std::runtime_error("Expected ',' or ')'");
-                        }
-                        ++pos;
-                    }
-                }
-                ++pos;
-                return node;
-            }
-            case TokenType::dot:
-            {
-                return parseDotOperator(tokens, pos);
-            }
-            default:
-            {
-                return {tokens[pos++]};
-            }
-            }
-        default:
-        {
-            throw std::runtime_error("Unexpected token " + tokens[pos].toString());
-        }
-        }
-        }
-    }
-
-    ASTNode parsePower(const std::vector<Token> &tokens, size_t &pos)
-    {
-        auto lhs = parseFactor(tokens, pos);
-        if (tokens[pos].type != TokenType::power)
-        {
-            return lhs;
-        }
-        ++pos;
-        auto rhs = parsePower(tokens, pos);
-        return {.value{TokenType::power}, .children{lhs, rhs}};
-    }
-
-    ASTNode parseTerm(const std::vector<Token> &tokens, size_t &pos)
-    {
-        ASTNode node = parsePower(tokens, pos);
-        while (1)
-        {
-            switch (tokens[pos].type)
-            {
-            case TokenType::star:
-            case TokenType::divide:
-                node = ASTNode{.value = tokens[pos], .children{node, parsePower(tokens, ++pos)}};
-                break;
-            default:
-                return node;
-            }
-        }
-    }
-
-    //TODO: move the bracket pairing in here and return the end as well
-    ASTNode parseExpression(const std::vector<Token> &tokens, size_t &start)
-    {
-        ASTNode node = parseTerm(tokens, start);
-        while (1)
-            switch (tokens[start].type)
-            {
-            case TokenType::plus:
-            case TokenType::minus:
-                node = ASTNode{.value = tokens[start], .children = {node, parseTerm(tokens, ++start)}};
-                break;
-            default: //TODO: better way to define end of expression
-                return node;
-            }
-    }
+#pragma endregion Expression Parsing
 
     ASTNode parseVariableDeclaration(const std::vector<Token> &tokens, size_t &start)
     {
@@ -403,58 +302,40 @@ namespace VWA
         return node;
     }
     ASTNode parseStatement(const std::vector<Token> &tokens, size_t &pos);
-    ASTNode parseCompound(const std::vector<Token> &tokens, size_t &start)
-    {
-        ASTNode node{Token{TokenType::compound}};
-        if (tokens[start++].type != TokenType::lbrace)
-        {
-            throw std::runtime_error("Expected left brace");
-        }
-        while (tokens[start].type != TokenType::rbrace)
-        {
-            node.children.push_back(parseStatement(tokens, start));
-        }
-        ++start;
-        return node;
-    }
+
+#pragma region Statement Parsing
+    ASTNode parseStatement(const std::vector<Token> &tokens, size_t &pos);
+    ASTNode parseBlock(const std::vector<Token> &tokens, size_t &pos);
+    ASTNode parseIf(const std::vector<Token> &tokens, size_t &pos);
+    ASTNode parseWhile(const std::vector<Token> &tokens, size_t &pos);
+    ASTNode parseFor(const std::vector<Token> &tokens, size_t &pos);
+    ASTNode parseDecl(const std::vector<Token> &tokens, size_t &pos);
+    ASTNode parseAssign(const std::vector<Token> &tokens, size_t &pos);
 
     ASTNode parseStatement(const std::vector<Token> &tokens, size_t &pos)
     {
         switch (tokens[pos].type)
         {
         case TokenType::lbrace:
-            return parseCompound(tokens, pos);
+            return parseBlock(tokens, pos);
 
         case TokenType::variable_declaration:
-            return parseVariableDeclaration(tokens, pos);
+            return parseDecl(tokens, pos);
         case TokenType::identifier:
             if (tokens[pos + 1].type == TokenType::assign)
             {
-                ASTNode node{{TokenType::assign}, {{tokens[pos++], {parseExpression(tokens, ++pos)}}}};
-                if(tokens[pos++].type != TokenType::semicolon)
-                {
-                    throw std::runtime_error("Expected semicolon");
-                }
-                return node;
+                // ASTNode node{{TokenType::assign}, {{tokens[pos++], {parseExpression(tokens, ++pos)}}}};
+                // if (tokens[pos++].type != TokenType::semicolon)
+                // {
+                //     throw std::runtime_error("Expected semicolon");
+                // }
+                // return node;
+                return parseAssign(tokens, pos);
             }
             else if (tokens[pos + 1].type == TokenType::lparen)
             {
-                ASTNode node{{TokenType::function_call, tokens[pos].value}};
-                pos += 2;
-                while (tokens[pos].type != TokenType::rparen)
-                {
-                    node.children.push_back(parseExpression(tokens, pos));
-                    if (tokens[pos].type != TokenType::rparen)
-                    {
-                        if (tokens[pos].type != TokenType::comma)
-                        {
-                            throw std::runtime_error("Expected ',' or ')'");
-                        }
-                        ++pos;
-                    }
-                }
-                ++pos;
-                if(tokens[pos++].type != TokenType::semicolon)
+                ASTNode node = parseFuncCall(tokens, pos);
+                if (tokens[pos++].type != TokenType::semicolon)
                 {
                     throw std::runtime_error("Expected semicolon");
                 }
@@ -464,10 +345,156 @@ namespace VWA
             {
                 throw std::runtime_error("Expected assignment or call");
             }
+        case TokenType::if_:
+            return parseIf(tokens, pos);
+        case TokenType::while_:
+            return parseWhile(tokens, pos);
+        case TokenType::for_:
+            return parseFor(tokens, pos);
+        case TokenType::semicolon:
+            return ASTNode{tokens[pos++]};
+        case TokenType::return_:
+        case TokenType::break_:
+        case TokenType::continue_:
+        case TokenType::size_of:
+        case TokenType::new_:
+        case TokenType::delete_:
         default:
             throw std::runtime_error("Unexpected token " + tokens[pos].toString());
         }
     }
+
+    ASTNode parseBlock(const std::vector<Token> &tokens, size_t &pos)
+    {
+        ASTNode node{Token{TokenType::compound}};
+        if (tokens[pos++].type != TokenType::lbrace)
+        {
+            throw std::runtime_error("Expected left brace");
+        }
+        while (tokens[pos].type != TokenType::rbrace)
+        {
+            node.children.push_back(parseStatement(tokens, pos));
+        }
+        ++pos;
+        return node;
+    }
+
+    ASTNode parseDecl(const std::vector<Token> &tokens, size_t &pos)
+    {
+        ASTNode node{Token{TokenType::variable_declaration}};
+        if (tokens[++pos].type == TokenType::mutable_)
+        {
+            node.children.push_back({{TokenType::mutable_}});
+            ++pos;
+        }
+        node.children.push_back({tokens[pos++]});
+        if (tokens[pos].type != TokenType::colon)
+        {
+            throw std::runtime_error("Expected colon");
+        }
+        node.children.push_back({tokens[++pos]});
+        if (tokens[pos].type == TokenType::assign)
+        {
+            node.children.push_back(parseExpression(tokens, ++pos));
+            if (tokens[pos++].type != TokenType::semicolon)
+            {
+                throw std::runtime_error("Expected semicolon");
+            }
+            return node;
+        }
+        else if (tokens[pos++].type == TokenType::semicolon)
+        {
+            return node;
+        }
+        else
+        {
+            throw std::runtime_error("Expected assignment or semicolon");
+        }
+    }
+
+    ASTNode parseAssign(const std::vector<Token> &tokens, size_t &pos)
+    {
+        ASTNode node{Token{TokenType::assign}, {{tokens[pos++], {parseExpression(tokens, ++pos)}}}};
+        if (tokens[pos++].type != TokenType::semicolon)
+        {
+            throw std::runtime_error("Expected semicolon");
+        }
+        return node;
+    }
+
+    ASTNode parseIf(const std::vector<Token> &tokens, size_t &pos)
+    {
+        ASTNode node{Token{TokenType::if_}};
+        if (tokens[pos++].type != TokenType::if_)
+        {
+            throw std::runtime_error("Expected if");
+        }
+        if (tokens[pos++].type != TokenType::lparen)
+        {
+            throw std::runtime_error("Expected left parenthesis");
+        }
+        node.children.push_back(parseExpression(tokens, pos));
+        if (tokens[pos++].type != TokenType::rparen)
+        {
+            throw std::runtime_error("Expected right parenthesis");
+        }
+        node.children.push_back(parseStatement(tokens, pos));
+        if (tokens[pos].type == TokenType::else_)
+        {
+            node.children.push_back(parseStatement(tokens, ++pos));
+        }
+        return node;
+    }
+
+    ASTNode parseWhile(const std::vector<Token> &tokens, size_t &pos)
+    {
+        ASTNode node{Token{TokenType::while_}};
+        if (tokens[pos++].type != TokenType::while_)
+        {
+            throw std::runtime_error("Expected while");
+        }
+        if (tokens[pos++].type != TokenType::lparen)
+        {
+            throw std::runtime_error("Expected left parenthesis");
+        }
+        node.children.push_back(parseExpression(tokens, pos));
+        if (tokens[pos++].type != TokenType::rparen)
+        {
+            throw std::runtime_error("Expected right parenthesis");
+        }
+        node.children.push_back(parseStatement(tokens, pos));
+        return node;
+    }
+
+    ASTNode parseFor(const std::vector<Token> &tokens, size_t &pos)
+    {
+        ASTNode node{Token{TokenType::for_}};
+        if (tokens[pos++].type != TokenType::for_)
+        {
+            throw std::runtime_error("Expected for");
+        }
+        if (tokens[pos++].type != TokenType::lparen)
+        {
+            throw std::runtime_error("Expected left parenthesis");
+        }
+        auto init = parseStatement(tokens, pos);
+        auto cond = parseExpression(tokens, pos);
+        if (tokens[pos++].type != TokenType::semicolon)
+        {
+            throw std::runtime_error("Expected semicolon");
+        }
+        auto inc = parseStatement(tokens, pos);
+        if (tokens[pos++].type != TokenType::rparen)
+        {
+            throw std::runtime_error("Expected right parenthesis");
+        }
+        node.children.push_back(init);
+        node.children.push_back(cond);
+        node.children.push_back(inc);
+        node.children.push_back(parseStatement(tokens, pos));
+        return node;
+    }
+#pragma endregion Statement Parsing
 
     ASTNode parseFunction(const std::vector<Token> &tokens, size_t &pos)
     {
