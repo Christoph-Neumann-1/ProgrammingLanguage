@@ -1,4 +1,5 @@
 #include <Tokenizer.hpp>
+//TODO: remove comment hack
 namespace VWA
 {
 
@@ -161,11 +162,11 @@ namespace VWA
             throw std::runtime_error("Invalid identifier");
         }
         size_t start = pos;
-        for (size_t end=pos+1; end <= str.size(); ++end)
+        for (size_t end = pos + 1; end <= str.size(); ++end)
         {
             if ((!isalnum(str[end]) && str[end] != '_') || end == str.size())
             {
-                pos = end-1;
+                pos = end - 1;
                 return str.substr(start, end - start);
             }
         }
@@ -247,7 +248,7 @@ namespace VWA
                     tokens.push_back(Token{.type = TokenType::minus, .file = line.fileName, .line = line.lineNumber});
                     continue;
                 case '*':
-                    if(line.content.size() > pos + 1)
+                    if (line.content.size() > pos + 1)
                     {
                         if (line.content[pos + 1] == '*')
                         {
@@ -259,6 +260,13 @@ namespace VWA
                     tokens.push_back(Token{.type = TokenType::star, .file = line.fileName, .line = line.lineNumber});
                     continue;
                 case '/':
+                    if (line.content.size() > pos + 1)
+                    {
+                        if (line.content[pos + 1] == '/')
+                        {
+                            goto OUTER_CONTINUE;
+                        }
+                    }
                     tokens.push_back(Token{.type = TokenType::divide, .file = line.fileName, .line = line.lineNumber});
                     continue;
                 case '%':
@@ -385,8 +393,10 @@ namespace VWA
                     }
                 }
             }
+        OUTER_CONTINUE:
+            continue;
         }
-        tokens.push_back(Token{.type = TokenType::eof, .file = tokens.back().file, .line =  tokens.back().line});
+        tokens.push_back(Token{.type = TokenType::eof, .file = tokens.back().file, .line = tokens.back().line});
         return tokens;
     }
 
