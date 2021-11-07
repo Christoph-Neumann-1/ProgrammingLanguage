@@ -5,6 +5,7 @@
 #include <memory>
 #include <variant>
 #include <Node.hpp>
+#include <optional>
 
 namespace VWA
 {
@@ -28,7 +29,7 @@ namespace VWA
     {
         VarType type;
         bool isMutable;
-        const StructInfo * structInfo;
+        const StructInfo *structInfo;
     };
     struct VarData
     {
@@ -41,7 +42,7 @@ namespace VWA
     };
     struct StructInfo
     {
-        bool initialized=false;
+        bool initialized = false;
         std::string name;
         struct Field
         {
@@ -56,13 +57,47 @@ namespace VWA
         std::vector<VarData> data;
     };
 
+    enum class NodeType
+    {
+        BLOCK,
+        IF,
+        WHILE,
+        FOR,
+        DECL,
+        ASSIGN,
+        RETURN,
+        BREAK,
+        CONTINUE,
+        FUNC_CALL,
+        VALUE,
+        VARIABLE,
+        ADD,
+        SUB,
+        MUL,
+        DIV,
+        MOD,
+        EQ,
+        NEQ,
+        GT,
+        LT,
+        GE,
+        LE,
+        AND,
+        OR,
+        NOT,
+        SIZEOF,
+    };
+
+    //Would subclasses help with evaluation?
     struct ActionTreeNode
     {
+        NodeType type;
+        //TODO: DATA
     };
 
     struct FunctionData
     {
-        bool initialized=false;
+        bool initialized = false;
         std::string name;
         struct Argument
         {
@@ -78,7 +113,7 @@ namespace VWA
     {
         std::unordered_map<std::string, StructInfo> structs;
         std::unordered_map<std::string, FunctionData> functions;
-        FunctionData *main=nullptr;
+        FunctionData *main = nullptr;
 
         void processStruct(const ASTNode &_struct);
 
