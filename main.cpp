@@ -6,8 +6,8 @@
 #include <Logger.hpp>
 #include <CLI/CLI.hpp>
 #include <Tokenizer.hpp>
-#include <Types.hpp>
 #include <Parser.hpp>
+#include <ActionTree.hpp>
 //TODO: Modernize code
 
 //TODO proper interface
@@ -65,6 +65,7 @@ int main(int argc, char *argv[])
     }
     auto tokens = VWA::Tokenizer(std::move(result));
     auto ast=VWA::generateParseTree(tokens);
-    std::cout << VWA::TreeToString(ast) << std::endl;
+    // std::cout << VWA::TreeToString(ast) << std::endl;
+    VWA::ActionTree tree(ast);
     return 0;
 }

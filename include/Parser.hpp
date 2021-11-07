@@ -1,7 +1,5 @@
 #pragma once
 #include <Tokens.hpp>
-#include <Types.hpp>
-#include <Functions.hpp>
 #include <Node.hpp>
 
 namespace VWA

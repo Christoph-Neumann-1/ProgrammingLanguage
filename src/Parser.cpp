@@ -111,6 +111,7 @@ namespace VWA
         return {.value = {TokenType::power}, .children = {lhs, rhs}};
     }
 
+    //TODO: sizeof
     ASTNode parsePrimary(const std::vector<Token> &tokens, size_t &start)
     {
         switch (tokens[start].type)
@@ -337,11 +338,36 @@ namespace VWA
         case TokenType::semicolon:
             return ASTNode{tokens[pos++]};
         case TokenType::return_:
+        {
+            ASTNode node{tokens[pos++], {parseExpression(tokens, pos)}};
+            if (tokens[pos++].type != TokenType::semicolon)
+            {
+                throw std::runtime_error("Expected semicolon");
+            }
+            return node;
+        }
         case TokenType::break_:
+        {
+            ASTNode node{tokens[pos++]};
+            if (tokens[pos++].type != TokenType::semicolon)
+            {
+                throw std::runtime_error("Expected semicolon");
+            }
+            return node;
+        }
         case TokenType::continue_:
-        case TokenType::size_of:
+        {
+            ASTNode node{tokens[pos++]};
+            if (tokens[pos++].type != TokenType::semicolon)
+            {
+                throw std::runtime_error("Expected semicolon");
+            }
+            return node;
+        }
+        //These two need to wait until I implement pointers
         case TokenType::new_:
         case TokenType::delete_:
+            throw std::runtime_error("Token not implemented");
         default:
             throw std::runtime_error("Unexpected token " + tokens[pos].toString());
         }
@@ -609,13 +635,14 @@ namespace VWA
     std::string TreeToString(const ASTNode &root, int indent)
     {
         std::stringstream ss;
-        ss << std::string(indent, ' ') << root.value.toString() << " " << std::visit(overloaded{
-                                                                                         [](const char c)
-                                                                                         { return std::string(1, c); },
-                                                                                         [](const std::monostate){return std::string();},
-                                                                                         [](const std::string &str){return str;},
-                                                                                         [](const auto val){return std::to_string(val);}
-                                                                                     },
+        ss << std::string(indent, ' ') << root.value.toString() << " " << std::visit(overloaded{[](const char c)
+                                                                                                { return std::string(1, c); },
+                                                                                                [](const std::monostate)
+                                                                                                { return std::string(); },
+                                                                                                [](const std::string &str)
+                                                                                                { return str; },
+                                                                                                [](const auto val)
+                                                                                                { return std::to_string(val); }},
                                                                                      root.value.value)
            << std::endl;
         for (const auto &child : root.children)
