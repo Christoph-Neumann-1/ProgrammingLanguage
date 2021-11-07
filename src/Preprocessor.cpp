@@ -81,7 +81,7 @@ namespace VWA
         if (macro != context.macros.end())
         {
             File body(macro->second);
-            for (int i = 0; i < args.size(); ++i)
+            for (uint i = 0; i < args.size(); ++i)
             {
                 auto name = "$" + std::to_string(i);
                 for (auto current = body.find(name); current.firstChar != std::string_view::npos; current = body.find(name))
@@ -332,7 +332,7 @@ namespace VWA
                             {
                                 throw PreprocessorException("Command " + copy + " requires at least " + std::to_string(command->second->minArguments) + " arguments");
                             }
-                            if (args.size() > command->second->maxArguments)
+                            if (args.size() > (size_t)command->second->maxArguments&&command->second->maxArguments!=-1)
                             {
                                 throw PreprocessorException("Command " + copy + " requires at most " + std::to_string(command->second->maxArguments) + " arguments");
                             }

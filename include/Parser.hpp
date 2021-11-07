@@ -21,19 +21,9 @@ namespace VWA
     TODO: make use of stack.
     TODO: eliminate redundant work
     TODO: consider switching to unique ids if pointers cause problems.
-    TODO: consider let x:int instead of let int x
     */
 
-    struct pass1_result
-    {
-        std::unordered_map<std::string, CustomTypeInfo> structs;
-        //Functions are parsed later, so their tokens need to be stored.
-        //TODO: avoid copies of the tokens
-        std::unordered_map<std::string, std::pair<FunctionInfo, std::vector<Token>>> functions;
-    };
-
-    pass1_result findDefinitions(std::vector<Token> tokens);
-
+    std::string TreeToString(const ASTNode& node,int indent = 0);
     ASTNode generateParseTree(const std::vector<VWA::Token> &tokens);
 
 }

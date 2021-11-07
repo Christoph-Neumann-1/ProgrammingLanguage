@@ -19,7 +19,7 @@ namespace VWA
         int lineNumber;
         std::shared_ptr<const std::string> fileName;
 
-        Line(Line *_next, Line *_prev, const std::shared_ptr<const std::string> &file_name = nullptr, int line_number = 1, std::string_view content = "") : content(content), prev(_prev), next(_next), lineNumber(line_number), fileName(file_name) {}
+        Line(Line *_next, Line *_prev, const std::shared_ptr<const std::string> &file_name = nullptr, int line_number = 1, std::string_view content_ = "") : content(content_), prev(_prev), next(_next), lineNumber(line_number), fileName(file_name) {}
         ~Line()
         {
             if (next != this)
@@ -119,7 +119,7 @@ namespace VWA
                     --*this;
                 return *this;
             }
-            iterator(Line *current) : current(current) {}
+            iterator(Line *current_) : current(current_) {}
             iterator(const iterator &old) : current(old.current) {}
 
         private:
@@ -201,7 +201,7 @@ namespace VWA
                     --*this;
                 return *this;
             }
-            const_iterator(const Line *current) : current(current) {}
+            const_iterator(const Line *current_) : current(current_) {}
             const_iterator(const const_iterator &old) : current(old.current) {}
             const_iterator(const iterator &old) : current(old.current) {}
 
@@ -209,9 +209,9 @@ namespace VWA
             const Line *current;
             friend class File;
             template <typename T1, typename T2>
-            friend bool operator==(const T1 &, const T2 &) requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>;
+            friend bool operator==(const T1 &, const T2 &) ;
             template <typename T1, typename T2>
-            friend bool operator!=(const T1 &, const T2 &) requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>;
+            friend bool operator!=(const T1 &, const T2 &) ;
         };
 
         iterator begin()
@@ -385,7 +385,6 @@ namespace VWA
         {
             if (it == end())
                 throw std::out_of_range("Tried removing end, not a valid iterator");
-            auto last = --end();
             if (it == begin())
             {
                 it->next->prev = nullptr;

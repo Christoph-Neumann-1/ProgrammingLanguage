@@ -79,6 +79,7 @@ namespace VWA
         case DOUBLE:
             return Token{.type = TokenType::double_, .value = std::stod(str.substr(start, end - start))};
         }
+        throw std::runtime_error("Invalid number");
     }
 
     char GetEscaped(char char_)

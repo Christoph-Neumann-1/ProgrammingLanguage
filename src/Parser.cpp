@@ -1,4 +1,5 @@
 #include <Parser.hpp>
+#include <sstream>
 
 //Instead of trying to find the end first, just pass the current token into the function and return both a node and set the current token, passed
 // by reference, to the next token.
@@ -6,24 +7,6 @@
 //TODO: dissallow assignment within expressions
 namespace VWA
 {
-    std::pair<VarType, CustomTypeInfo *> GetType(const std::string &type, pass1_result &result)
-    {
-        if (type == "void")
-            return std::make_pair(VarType::Void, nullptr);
-        if (type == "int")
-            return {VarType::Int, nullptr};
-        if (type == "long")
-            return {VarType::Long, nullptr};
-        if (type == "float")
-            return {VarType::Float, nullptr};
-        if (type == "double")
-            return {VarType::Double, nullptr};
-        if (type == "bool")
-            return {VarType::Bool, nullptr};
-        if (type == "char")
-            return {VarType::Char, nullptr};
-        return {VarType::Custom, &result.structs[type]};
-    }
 #pragma region Expression Parsing
 
     ASTNode parseExpression(const std::vector<Token> &tokens, size_t &start);
@@ -388,11 +371,11 @@ namespace VWA
             ++pos;
         }
         node.children.push_back({tokens[pos++]});
-        if (tokens[pos].type != TokenType::colon)
+        if (tokens[pos++].type != TokenType::colon)
         {
             throw std::runtime_error("Expected colon");
         }
-        node.children.push_back({tokens[++pos]});
+        node.children.push_back({tokens[pos++]});
         if (tokens[pos].type == TokenType::assign)
         {
             node.children.push_back(parseExpression(tokens, ++pos));
@@ -589,4 +572,57 @@ namespace VWA
         //Main should be stored in the root node
         return root;
     }
+
+    template <typename T>
+    std::string getTokenValueAsString(const T &val)
+    {
+        return std::to_string(val);
+    }
+    template <>
+    std::string getTokenValueAsString<std::string>(const std::string &val)
+    {
+        return val;
+    }
+    template <>
+    std::string getTokenValueAsString<char>(const char &val)
+    {
+        return std::string(1, val);
+    }
+    template <>
+    std::string getTokenValueAsString<std::monostate>(const std::monostate &val)
+    {
+        return "";
+    }
+
+    //I originally wanted to use the overload pattern for lambdas, but the gcc compiler decided to segfault in completely unrelated
+    //places when adding it. Since it got the code from cppreference, it is not my fault at least. Seems like gcc does not support that part of
+    //the standard.
+
+    template <class... Ts>
+    struct overloaded : Ts...
+    {
+        using Ts::operator()...;
+    };
+    template <class... Ts>
+    overloaded(Ts...) -> overloaded<Ts...>;
+
+    std::string TreeToString(const ASTNode &root, int indent)
+    {
+        std::stringstream ss;
+        ss << std::string(indent, ' ') << root.value.toString() << " " << std::visit(overloaded{
+                                                                                         [](const char c)
+                                                                                         { return std::string(1, c); },
+                                                                                         [](const std::monostate){return std::string();},
+                                                                                         [](const std::string &str){return str;},
+                                                                                         [](const auto val){return std::to_string(val);}
+                                                                                     },
+                                                                                     root.value.value)
+           << std::endl;
+        for (const auto &child : root.children)
+        {
+            ss << TreeToString(child, indent + 4);
+        }
+        return ss.str();
+    }
+
 }

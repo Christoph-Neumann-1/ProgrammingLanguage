@@ -89,21 +89,21 @@ namespace VWA
         case TokenType::size_of:
             return "sizeof";
         case TokenType::identifier:
-            return std::get<std::string>(value);
+            return "ID";
         case TokenType::int_:
-            return std::to_string(std::get<int32_t>(value));
+            return "int";
         case TokenType::float_:
-            return std::to_string(std::get<float>(value))+'f';
+            return "float";
         case TokenType::long_:
-            return std::to_string(std::get<int64_t>(value))+'l';
+            return "long";
         case TokenType::double_:
-            return std::to_string(std::get<double>(value));
+            return "double";
         case TokenType::string_literal:
-            return '"' + std::get<std::string>(value) + '"';
+            return "string";
         case TokenType::char_:
-            return std::string("'") + std::get<char>(value) + "'";
+            return "char";
         case TokenType::bool_:
-            return std::get<bool>(value) ? "true" : "false";
+            return "bool";
         case TokenType::new_:
             return "new";
         case TokenType::delete_:
@@ -119,7 +119,7 @@ namespace VWA
         case TokenType::import_:
             return "import";
         default:
-            throw std::runtime_error("Unprintable token");
+            return "empty";
         }
     }
 }

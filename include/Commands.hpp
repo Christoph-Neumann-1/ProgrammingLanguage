@@ -15,7 +15,7 @@ namespace VWA
         const bool requireEndOfLine;
         const bool erasesLine;
         const bool requiresRawArguments; //Skip breaking up the string into arguments and pass the unprocessed string as args[0]
-        const int minArguments;
+        const uint minArguments;
         const int maxArguments; //-1 for unlimited
         //TODO: additional constraints for args
 
@@ -80,7 +80,7 @@ namespace VWA
         File::FilePos operator()(PreprocessorContext &context, File::FilePos current, const std::string &fullIdentifier, const std::vector<std::string> &args = {}) override;
 
     public:
-        MathCommand(int (*op)(int, int)) : PreprocessorCommand(true, true, true, false, 2), op(op) {}
+        MathCommand(int (*op_)(int, int)) : PreprocessorCommand(true, true, true, false, 2), op(op_) {}
     };
     class MacrodefinitionCommand : public SetterCommon
     {
@@ -109,7 +109,7 @@ namespace VWA
     {
     protected:
         virtual bool IsTrue(PreprocessorContext &context, const std::vector<std::string> &args) = 0;
-        int numArgs;
+        uint numArgs;
 
     public:
         BranchCommand(int nArgs = 2) : PreprocessorCommand(true, true, false, false, nArgs, nArgs + 1), numArgs(nArgs) {}
