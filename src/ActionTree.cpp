@@ -35,6 +35,10 @@ namespace VWA
                 throw std::runtime_error("How?");
             }
         }
+        for(auto &struct_:structs)
+        {
+            ComputeTypeSize(struct_.second);
+        }
     }
 
     //TODO: remove return and just iterate over nodes again
