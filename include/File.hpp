@@ -45,11 +45,14 @@ namespace VWA
         };
 
         template <typename T1, typename T2>
-        friend bool operator==(const T1 &, const T2 &) requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>;
+        requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>
+        friend bool operator==(const T1 &, const T2 &);
         template <typename T1, typename T2>
-        friend bool operator!=(const T1 &, const T2 &) requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>;
+        requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>
+        friend bool operator!=(const T1 &, const T2 &);
 
-    public : struct iterator : private iterator_base
+    public:
+        struct iterator : private iterator_base
         {
             using iterator_category = std::bidirectional_iterator_tag;
             using value_type = Line;
@@ -126,9 +129,11 @@ namespace VWA
             Line *current;
             friend class File;
             template <typename T1, typename T2>
-            friend bool operator==(const T1 &, const T2 &) requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>;
+            requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>
+            friend bool operator==(const T1 &, const T2 &);
             template <typename T1, typename T2>
-            friend bool operator!=(const T1 &, const T2 &) requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>;
+            requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>
+            friend bool operator!=(const T1 &, const T2 &);
         };
 
         struct const_iterator : private iterator_base
@@ -209,9 +214,11 @@ namespace VWA
             const Line *current;
             friend class File;
             template <typename T1, typename T2>
-            friend bool operator==(const T1 &, const T2 &) ;
+            requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>
+            friend bool operator==(const T1 &, const T2 &);
             template <typename T1, typename T2>
-            friend bool operator!=(const T1 &, const T2 &) ;
+            requires std::is_base_of_v<iterator_base, T1> && std::is_base_of_v<iterator_base, T2>
+            friend bool operator!=(const T1 &, const T2 &);
         };
 
         iterator begin()
@@ -660,14 +667,14 @@ namespace VWA
     };
 
     template <typename T1, typename T2>
-    bool operator==(const T1 &arg1, const T2 &arg2) requires std::is_base_of_v<File::iterator_base, T1> && std::is_base_of_v<File::iterator_base, T2>
-    {
+    requires std::is_base_of_v<File::iterator_base, T1> && std::is_base_of_v<File::iterator_base, T2>
+    bool operator==(const T1 &arg1, const T2 &arg2)     {
         return arg1.current == arg2.current;
     }
 
     template <typename T1, typename T2>
-    bool operator!=(const T1 &arg1, const T2 &arg2) requires std::is_base_of_v<File::iterator_base, T1> && std::is_base_of_v<File::iterator_base, T2>
-    {
+    requires std::is_base_of_v<File::iterator_base, T1> && std::is_base_of_v<File::iterator_base, T2>
+    bool operator!=(const T1 &arg1, const T2 &arg2)     {
         return arg1.current != arg2.current;
     }
 }

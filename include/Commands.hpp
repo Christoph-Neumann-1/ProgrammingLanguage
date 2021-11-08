@@ -125,11 +125,13 @@ namespace VWA
         IfdefCommand(bool _invert) : BranchCommand(1), invert(_invert) {}
     };
 
-    template <bool (*op)(int, int)>
+    //TODO:don't use templates to allow for gcc compilation
     class MathComparisonCommand : public BranchCommand
     {
+        bool (*op)(int, int);
+
     public:
-        MathComparisonCommand() : BranchCommand(2) {}
+        MathComparisonCommand(bool (*operation)(int, int)) : BranchCommand(2), op(operation) {}
         bool IsTrue(PreprocessorContext &context, const std::vector<std::string> &args) override
         {
             int operands[2];

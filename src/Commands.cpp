@@ -32,48 +32,31 @@ namespace VWA
             commands[""] = std::make_unique<VWA::ExpandCommand>();
             commands["ifdef"] = std::make_unique<VWA::IfdefCommand>(false);
             commands["ifndef"] = std::make_unique<VWA::IfdefCommand>(true);
-            {
-                auto tmp = [](int a, int b) constexpr->bool
+            commands["ifeq"] = std::make_unique<VWA::MathComparisonCommand>(
+                [](int a, int b) constexpr->bool
                 {
                     return a == b;
-                };
-                commands["ifeq"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
-            }
-            {
-                auto tmp = [](int a, int b) constexpr->bool
-                {
-                    return a != b;
-                };
-                commands["ifneq"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
-            }
-            {
-                auto tmp = [](int a, int b) constexpr->bool
-                {
-                    return a > b;
-                };
-                commands["ifgt"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
-            }
-            {
-                auto tmp = [](int a, int b) constexpr->bool
-                {
-                    return a >= b;
-                };
-                commands["ifge"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
-            }
-            {
-                auto tmp = [](int a, int b) constexpr->bool
-                {
-                    return a < b;
-                };
-                commands["iflt"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
-            }
-            {
-                auto tmp = [](int a, int b) constexpr->bool
-                {
-                    return a <= b;
-                };
-                commands["ifle"] = std::make_unique<VWA::MathComparisonCommand<tmp>>();
-            }
+                });
+            commands["ifneq"] = std::make_unique<VWA::MathComparisonCommand>([](int a, int b) constexpr->bool
+                                                                             {
+                                                                                 return a != b;
+                                                                             });
+            commands["ifgt"] = std::make_unique<VWA::MathComparisonCommand>([](int a, int b) constexpr->bool
+                                                                            {
+                                                                                return a > b;
+                                                                            });
+            commands["ifge"] = std::make_unique<VWA::MathComparisonCommand>([](int a, int b) constexpr->bool
+                                                                            {
+                                                                                return a >= b;
+                                                                            });
+            commands["iflt"] = std::make_unique<VWA::MathComparisonCommand>([](int a, int b) constexpr->bool
+                                                                            {
+                                                                                return a < b;
+                                                                            });
+            commands["ifle"] = std::make_unique<VWA::MathComparisonCommand>([](int a, int b) constexpr->bool
+                                                                            {
+                                                                                return a <= b;
+                                                                            });
         }
         return commands;
     }
