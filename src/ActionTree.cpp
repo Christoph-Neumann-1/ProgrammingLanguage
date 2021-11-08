@@ -4,27 +4,56 @@ namespace VWA
 {
     ActionTree::ActionTree(const ASTNode &root)
     {
+        std::vector<std::pair<StructInfo&,const ASTNode&>> structDeclarations;
         for (auto &child : root.children)
         {
             switch (child.value.type)
             {
             case TokenType::struct_definition:
-                processStruct(child);
+                structDeclarations.push_back(readStructDecl(child));
+                break;
+            case TokenType::function_definition:
+            break;
+            default:
+                throw std::runtime_error("Invalid ast, only functions and structs are allowed at file level.");
+            }
+        }
+        for(auto &struct_:structDeclarations)
+        {
+            processStruct(struct_);
+        }
+        for(auto&child:root.children)
+        {
+            switch (child.value.type)
+            {
+            case TokenType::struct_definition:
                 break;
             case TokenType::function_definition:
                 processFunc(child);
                 break;
             default:
-                throw std::runtime_error("Invalid ast, only functions and structs are allowed at file level.");
+                throw std::runtime_error("How?");
             }
         }
-        //TODO: assert that all functions and structs are defined
     }
-    void ActionTree::processStruct(const ASTNode &_struct)
+
+    //TODO: remove return and just iterate over nodes again
+    std::pair<StructInfo &, const ASTNode &> ActionTree::readStructDecl(const ASTNode &_struct)
     {
-        auto &info = structs[std::get<std::string>(_struct.value.value)];
-        info.name = std::get<std::string>(_struct.value.value);
-        for (auto &child : _struct.children)
+        auto info=structs.find(std::get<std::string>(_struct.value.value));
+        if(info!=structs.end())
+        {
+            throw std::runtime_error("Struct "+std::get<std::string>(_struct.value.value)+" already defined");
+        }
+        auto &structInfo=structs[std::get<std::string>(_struct.value.value)];
+        structInfo.name=std::get<std::string>(_struct.value.value);
+        return {structInfo,_struct};
+    }
+
+    void ActionTree::processStruct(std::pair<StructInfo &, const ASTNode &> _struct)
+    {
+        auto &[info,structNode]=_struct;
+        for (auto &child : structNode.children)
         {
             bool is_Mutable = child.children[0].value.type == TokenType::mutable_;
             auto name = std::get<std::string>(child.children[0 + is_Mutable].value.value);
@@ -33,7 +62,6 @@ namespace VWA
             type.isMutable = is_Mutable;
             info.fields.push_back({name, type});
         }
-        info.initialized = true;
     }
     void ActionTree::processFunc(const ASTNode &func)
     {
@@ -41,7 +69,7 @@ namespace VWA
         info.name = std::get<std::string>(func.value.value);
         info.returnType = getType(std::get<std::string>(func.children[0].value.value));
         auto &body = func.children[1]; //TODO: parse
-        for (int i = 2; i < func.children.size(); i++)
+        for (size_t i = 2; i < func.children.size(); i++)
         {
             auto &child = func.children[i];
             bool is_Mutable = child.children[0].value.type == TokenType::mutable_;
@@ -63,7 +91,6 @@ namespace VWA
             }
             main = &info;
         }
-        info.initialized = true;
     }
 
 };

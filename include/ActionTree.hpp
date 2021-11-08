@@ -42,7 +42,6 @@ namespace VWA
     };
     struct StructInfo
     {
-        bool initialized = false;
         std::string name;
         struct Field
         {
@@ -97,7 +96,6 @@ namespace VWA
 
     struct FunctionData
     {
-        bool initialized = false;
         std::string name;
         struct Argument
         {
@@ -115,9 +113,11 @@ namespace VWA
         std::unordered_map<std::string, FunctionData> functions;
         FunctionData *main = nullptr;
 
-        void processStruct(const ASTNode &_struct);
+        void processStruct(std::pair<StructInfo &, const ASTNode &> _struct);
 
         void processFunc(const ASTNode &_func);
+
+        std::pair<StructInfo &, const ASTNode &> readStructDecl(const ASTNode &_struct);
 
         TypeInfo getType(const std::string &_type)
         {
@@ -137,7 +137,10 @@ namespace VWA
                 return TypeInfo{VarType::STRING, false, nullptr};
             if (_type == "bool")
                 return TypeInfo{VarType::BOOL, false, nullptr};
-            return TypeInfo{VarType::STRUCT, false, &structs[_type]};
+            auto info=structs.find(_type);
+            if(info==structs.end())
+                throw std::runtime_error("Unknown type: "+_type);
+            return TypeInfo{VarType::STRUCT, false, &info->second};
         }
 
     public:
