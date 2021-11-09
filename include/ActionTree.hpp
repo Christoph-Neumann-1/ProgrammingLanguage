@@ -21,6 +21,13 @@ Maybe pointers aren't needed after all. new and delete could just use references
 In order for the stack to work, the size of the types should be known, while there are ways to circumvent that, they are incredibly stupid. 
 I can just calculate the size recursivelly.
 Also I should remember to add arrays in the future.
+Ideally there won't be any recursive functions modelling function calls, just simple jumps to other nodes and later instructions.
+TODO: handle reference types (let mut x&:int=y;)First the keyword, then the usual modifiers, then the name. In case of a refernence,
+this is followed by a &. The type remains int and it can be used exactly like a normal variable, but internally it is no longer a simple offset,
+instead it is a index into the stack, but this index is independent of the current scope. There is no reference to a reference.
+References may be reassigned, but they may not point to a constant or expression.
+If you do something like let mut a:int; let mut b&:int=a; let mut c&:int=b; The variable c will point to a as well.
+The type of references must match. Mut may be omitted for a constant reference, but it may not be added if the value refered to is not mutable.
 */
 
 namespace VWA
