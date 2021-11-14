@@ -22,19 +22,28 @@ namespace VWA
         //It also allows to pass return values.
         //The exit condition is implemented with an exception, since that offers a clean way to back up the call stack.
         //This is just a hack until I achieve c compatibility.
-        std::vector<void (*)(Stack *, Interpreter *)> externFunctions = {[](Stack *stack, Interpreter *interpreterm)
+        std::vector<void (*)(Stack *, Interpreter *)> externFunctions = {[](Stack *stck, Interpreter *interpreter)
                                                                          {
-                                                                             char val = stack->readVal<char>(stack->getTop() - 1);
+                                                                             char val = stck->readVal<char>(stck->getTop() - 1);
                                                                              printf("called%c.", val);
                                                                          }};
-        std::vector<uint8_t> code;
+
+    public:
+        union CodeElement
+        {
+            instruction::instruction instr;
+            uint8_t byte;
+            CodeElement(instruction::instruction instr_) : instr(instr_) {}
+            CodeElement(uint8_t byte_) : byte(byte_) {}
+        };
+
+    private:
+        std::vector<CodeElement> code;
+        std::vector<uint8_t> constants;
 
     public:
         Stack stack;
-        Interpreter(std::vector<uint8_t> code)
-        {
-            this->code = std::move(code);
-        }
+        Interpreter(std::vector<CodeElement> code_, std::vector<uint8_t> constants_) : code(code_), constants(constants_) {}
         void exec(uint64_t pos);
         int run()
         {

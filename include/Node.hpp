@@ -4,9 +4,9 @@
 namespace VWA
 {
     //I will try to store just the token and handle precedence
-    struct ASTNode
+    struct ParseTreeNode
     {
         Token value;
-        std::vector<ASTNode> children;
+        std::vector<ParseTreeNode> children;
     };
 }

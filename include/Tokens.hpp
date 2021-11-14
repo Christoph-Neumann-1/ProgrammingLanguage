@@ -78,7 +78,7 @@ namespace VWA
         mutable_,
         return_,
         arrow_operator,
-        size_of,
+        size_of,//TODO:
         new_,
         delete_,
         eof,//Could be removed but it makes the parser easier

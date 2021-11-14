@@ -7,11 +7,11 @@ namespace VWA
     class Stack
     {
         //TODO: geometric growth
-        std::size_t maxSize; //How many bytes can be stored on the stack
+        std::size_t capacity; //How many bytes can be stored on the stack
         uint8_t *data;
         uint64_t top = 0; //Points to the top of the stack The first free space
     public:
-        Stack(std::size_t maxSize = 2000000) : maxSize(maxSize), data(new uint8_t[maxSize]) {}
+        Stack(std::size_t maxSize = 2000000) : capacity(maxSize), data(new uint8_t[maxSize]) {}
         ~Stack() { delete[] data; }
         //TODO: push functions for custom types (Create interface)
         uint64_t getTop() { return top; }

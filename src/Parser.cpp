@@ -9,35 +9,35 @@ namespace VWA
 {
 #pragma region Expression Parsing
 
-    ASTNode parseExpression(const std::vector<Token> &tokens, size_t &start);
-    ASTNode parseComparison(const std::vector<Token> &tokens, size_t &start);
-    ASTNode parseAddition(const std::vector<Token> &tokens, size_t &start);
-    ASTNode parseMultiplication(const std::vector<Token> &tokens, size_t &start);
-    ASTNode parseUnary(const std::vector<Token> &tokens, size_t &start);
-    ASTNode parsePower(const std::vector<Token> &tokens, size_t &start);
-    ASTNode parsePrimary(const std::vector<Token> &tokens, size_t &start);
-    ASTNode parseDot(const std::vector<Token> &tokens, size_t &start);
-    ASTNode parseFuncCall(const std::vector<Token> &tokens, size_t &start);
+    ParseTreeNode parseExpression(const std::vector<Token> &tokens, size_t &start);
+    ParseTreeNode parseComparison(const std::vector<Token> &tokens, size_t &start);
+    ParseTreeNode parseAddition(const std::vector<Token> &tokens, size_t &start);
+    ParseTreeNode parseMultiplication(const std::vector<Token> &tokens, size_t &start);
+    ParseTreeNode parseUnary(const std::vector<Token> &tokens, size_t &start);
+    ParseTreeNode parsePower(const std::vector<Token> &tokens, size_t &start);
+    ParseTreeNode parsePrimary(const std::vector<Token> &tokens, size_t &start);
+    ParseTreeNode parseDot(const std::vector<Token> &tokens, size_t &start);
+    ParseTreeNode parseFuncCall(const std::vector<Token> &tokens, size_t &start);
 
     //TODO: move the bracket pairing in here and return the end as well
-    ASTNode parseExpression(const std::vector<Token> &tokens, size_t &start)
+    ParseTreeNode parseExpression(const std::vector<Token> &tokens, size_t &start)
     {
-        ASTNode node = parseComparison(tokens, start);
+        ParseTreeNode node = parseComparison(tokens, start);
         while (1)
             switch (tokens[start].type)
             {
             case TokenType::and_:
             case TokenType::or_:
-                node = ASTNode{.value = tokens[start], .children = {node, parseComparison(tokens, ++start)}};
+                node = ParseTreeNode{.value = tokens[start], .children = {node, parseComparison(tokens, ++start)}};
                 break;
             default: //TODO: better way to define end of expression
                 return node;
             }
     }
 
-    ASTNode parseComparison(const std::vector<Token> &tokens, size_t &start)
+    ParseTreeNode parseComparison(const std::vector<Token> &tokens, size_t &start)
     {
-        ASTNode node = parseAddition(tokens, start);
+        ParseTreeNode node = parseAddition(tokens, start);
         //Should i allow chained comparisons?
         while (1)
             switch (tokens[start].type)
@@ -48,45 +48,45 @@ namespace VWA
             case TokenType::geq:
             case TokenType::eq:
             case TokenType::neq:
-                node = ASTNode{.value = tokens[start], .children = {node, parseAddition(tokens, ++start)}};
+                node = ParseTreeNode{.value = tokens[start], .children = {node, parseAddition(tokens, ++start)}};
                 break;
             default:
                 return node;
             }
     }
 
-    ASTNode parseAddition(const std::vector<Token> &tokens, size_t &start)
+    ParseTreeNode parseAddition(const std::vector<Token> &tokens, size_t &start)
     {
-        ASTNode node = parseMultiplication(tokens, start);
+        ParseTreeNode node = parseMultiplication(tokens, start);
         while (1)
             switch (tokens[start].type)
             {
             case TokenType::plus:
             case TokenType::minus:
-                node = ASTNode{.value = tokens[start], .children = {node, parseMultiplication(tokens, ++start)}};
+                node = ParseTreeNode{.value = tokens[start], .children = {node, parseMultiplication(tokens, ++start)}};
                 break;
             default:
                 return node;
             }
     }
 
-    ASTNode parseMultiplication(const std::vector<Token> &tokens, size_t &start)
+    ParseTreeNode parseMultiplication(const std::vector<Token> &tokens, size_t &start)
     {
-        ASTNode node = parseUnary(tokens, start);
+        ParseTreeNode node = parseUnary(tokens, start);
         while (1)
             switch (tokens[start].type)
             {
             case TokenType::star:
             case TokenType::divide:
             case TokenType::mod:
-                node = ASTNode{.value = tokens[start], .children = {node, parseUnary(tokens, ++start)}};
+                node = ParseTreeNode{.value = tokens[start], .children = {node, parseUnary(tokens, ++start)}};
                 break;
             default:
                 return node;
             }
     }
 
-    ASTNode parseUnary(const std::vector<Token> &tokens, size_t &start)
+    ParseTreeNode parseUnary(const std::vector<Token> &tokens, size_t &start)
     {
         switch (tokens[start].type)
         {
@@ -99,20 +99,20 @@ namespace VWA
         }
     }
 
-    ASTNode parsePower(const std::vector<Token> &tokens, size_t &start)
+    ParseTreeNode parsePower(const std::vector<Token> &tokens, size_t &start)
     {
-        ASTNode lhs = parsePrimary(tokens, start);
+        ParseTreeNode lhs = parsePrimary(tokens, start);
         if (tokens[start].type != TokenType::power)
         {
             return lhs;
         }
         ++start;
-        ASTNode rhs = parsePower(tokens, start);
+        ParseTreeNode rhs = parsePower(tokens, start);
         return {.value = {TokenType::power}, .children = {lhs, rhs}};
     }
 
     //TODO: sizeof
-    ASTNode parsePrimary(const std::vector<Token> &tokens, size_t &start)
+    ParseTreeNode parsePrimary(const std::vector<Token> &tokens, size_t &start)
     {
         switch (tokens[start].type)
         {
@@ -164,9 +164,9 @@ namespace VWA
         }
     }
 
-    ASTNode parseFuncCall(const std::vector<Token> &tokens, size_t &start)
+    ParseTreeNode parseFuncCall(const std::vector<Token> &tokens, size_t &start)
     {
-        ASTNode node{{TokenType::function_call, tokens[start].value}};
+        ParseTreeNode node{{TokenType::function_call, tokens[start].value}};
         start += 2;
         while (tokens[start].type != TokenType::rparen)
         {
@@ -185,12 +185,12 @@ namespace VWA
     }
 
     //Returns either a tree of dot operators or just and identifier
-    ASTNode parseDot(const std::vector<Token> &tokens, size_t &start)
+    ParseTreeNode parseDot(const std::vector<Token> &tokens, size_t &start)
     {
         //I have decided on this format for the dot operator:
         //dot is the root node, the children are the identifiers in the correct order
 
-        ASTNode root{{TokenType::dot}, {{tokens[start++]}}};
+        ParseTreeNode root{{TokenType::dot}, {{tokens[start++]}}};
 
         for (;;)
         {
@@ -209,18 +209,18 @@ namespace VWA
 
 #pragma endregion Expression Parsing
 
-    ASTNode parseVariableDeclaration(const std::vector<Token> &tokens, size_t &start)
+    ParseTreeNode parseVariableDeclaration(const std::vector<Token> &tokens, size_t &start)
     {
         //Format let (mut) x:int; or with initializer let (mut) x:int = 5;
         if (tokens[start++].type != TokenType::variable_declaration)
         {
             throw std::runtime_error("Expected variable declaration");
         }
-        ASTNode node{Token{TokenType::variable_declaration}};
+        ParseTreeNode node{Token{TokenType::variable_declaration}};
         switch (tokens[start].type)
         {
         case TokenType::mutable_:
-            node.children.push_back(ASTNode{Token{TokenType::mutable_}}); //TODO: better way to store this
+            node.children.push_back(ParseTreeNode{Token{TokenType::mutable_}}); //TODO: better way to store this
             if (tokens[++start].type != TokenType::identifier)
             {
                 throw std::runtime_error("Expected identifier");
@@ -228,7 +228,7 @@ namespace VWA
             node.children.push_back({tokens[start++]});
             break;
         case TokenType::identifier:
-            node.children.push_back(ASTNode{tokens[start++]});
+            node.children.push_back(ParseTreeNode{tokens[start++]});
             break;
         default:
             throw std::runtime_error("Expected identifier");
@@ -238,7 +238,7 @@ namespace VWA
             throw std::runtime_error("Expected colon after variable name");
         }
         //TODO: refactor for easy extraction into assignment statement
-        node.children.push_back(ASTNode{tokens[start++]}); //type
+        node.children.push_back(ParseTreeNode{tokens[start++]}); //type
         switch (tokens[start].type)
         {
         case TokenType::semicolon:
@@ -258,13 +258,13 @@ namespace VWA
     }
 
     //TODO: default values
-    ASTNode parseParameterDeclaration(const std::vector<Token> &tokens, size_t &start)
+    ParseTreeNode parseParameterDeclaration(const std::vector<Token> &tokens, size_t &start)
     {
-        ASTNode node{Token{TokenType::variable_declaration}};
+        ParseTreeNode node{Token{TokenType::variable_declaration}};
         switch (tokens[start].type)
         {
         case TokenType::mutable_:
-            node.children.push_back(ASTNode{Token{TokenType::mutable_}}); //TODO: better way to store this
+            node.children.push_back(ParseTreeNode{Token{TokenType::mutable_}}); //TODO: better way to store this
             if (tokens[++start].type != TokenType::identifier)
             {
                 throw std::runtime_error("Expected identifier");
@@ -272,7 +272,7 @@ namespace VWA
             node.children.push_back({tokens[start++]});
             break;
         case TokenType::identifier:
-            node.children.push_back(ASTNode{tokens[start++]});
+            node.children.push_back(ParseTreeNode{tokens[start++]});
             break;
         default:
             throw std::runtime_error("Expected identifier");
@@ -282,21 +282,21 @@ namespace VWA
             throw std::runtime_error("Expected colon after variable name. Type inference is not supported");
         }
         //TODO: refactor for easy extraction into assignment statement
-        node.children.push_back(ASTNode{tokens[start++]}); //type
+        node.children.push_back(ParseTreeNode{tokens[start++]}); //type
         return node;
     }
-    ASTNode parseStatement(const std::vector<Token> &tokens, size_t &pos);
+    ParseTreeNode parseStatement(const std::vector<Token> &tokens, size_t &pos);
 
 #pragma region Statement Parsing
-    ASTNode parseStatement(const std::vector<Token> &tokens, size_t &pos);
-    ASTNode parseBlock(const std::vector<Token> &tokens, size_t &pos);
-    ASTNode parseIf(const std::vector<Token> &tokens, size_t &pos);
-    ASTNode parseWhile(const std::vector<Token> &tokens, size_t &pos);
-    ASTNode parseFor(const std::vector<Token> &tokens, size_t &pos);
-    ASTNode parseDecl(const std::vector<Token> &tokens, size_t &pos);
-    ASTNode parseAssign(const std::vector<Token> &tokens, size_t &pos);
+    ParseTreeNode parseStatement(const std::vector<Token> &tokens, size_t &pos);
+    ParseTreeNode parseBlock(const std::vector<Token> &tokens, size_t &pos);
+    ParseTreeNode parseIf(const std::vector<Token> &tokens, size_t &pos);
+    ParseTreeNode parseWhile(const std::vector<Token> &tokens, size_t &pos);
+    ParseTreeNode parseFor(const std::vector<Token> &tokens, size_t &pos);
+    ParseTreeNode parseDecl(const std::vector<Token> &tokens, size_t &pos);
+    ParseTreeNode parseAssign(const std::vector<Token> &tokens, size_t &pos);
 
-    ASTNode parseStatement(const std::vector<Token> &tokens, size_t &pos)
+    ParseTreeNode parseStatement(const std::vector<Token> &tokens, size_t &pos)
     {
         switch (tokens[pos].type)
         {
@@ -308,7 +308,7 @@ namespace VWA
         case TokenType::identifier:
             if (tokens[pos + 1].type == TokenType::assign)
             {
-                // ASTNode node{{TokenType::assign}, {{tokens[pos++], {parseExpression(tokens, ++pos)}}}};
+                // ParseTreeNode node{{TokenType::assign}, {{tokens[pos++], {parseExpression(tokens, ++pos)}}}};
                 // if (tokens[pos++].type != TokenType::semicolon)
                 // {
                 //     throw std::runtime_error("Expected semicolon");
@@ -318,7 +318,7 @@ namespace VWA
             }
             else if (tokens[pos + 1].type == TokenType::lparen)
             {
-                ASTNode node = parseFuncCall(tokens, pos);
+                ParseTreeNode node = parseFuncCall(tokens, pos);
                 if (tokens[pos++].type != TokenType::semicolon)
                 {
                     throw std::runtime_error("Expected semicolon");
@@ -336,10 +336,10 @@ namespace VWA
         case TokenType::for_:
             return parseFor(tokens, pos);
         case TokenType::semicolon:
-            return ASTNode{tokens[pos++]};
+            return ParseTreeNode{tokens[pos++]};
         case TokenType::return_:
         {
-            ASTNode node{tokens[pos++], {parseExpression(tokens, pos)}};
+            ParseTreeNode node{tokens[pos++], {parseExpression(tokens, pos)}};
             if (tokens[pos++].type != TokenType::semicolon)
             {
                 throw std::runtime_error("Expected semicolon");
@@ -348,7 +348,7 @@ namespace VWA
         }
         case TokenType::break_:
         {
-            ASTNode node{tokens[pos++]};
+            ParseTreeNode node{tokens[pos++]};
             if (tokens[pos++].type != TokenType::semicolon)
             {
                 throw std::runtime_error("Expected semicolon");
@@ -357,7 +357,7 @@ namespace VWA
         }
         case TokenType::continue_:
         {
-            ASTNode node{tokens[pos++]};
+            ParseTreeNode node{tokens[pos++]};
             if (tokens[pos++].type != TokenType::semicolon)
             {
                 throw std::runtime_error("Expected semicolon");
@@ -373,9 +373,9 @@ namespace VWA
         }
     }
 
-    ASTNode parseBlock(const std::vector<Token> &tokens, size_t &pos)
+    ParseTreeNode parseBlock(const std::vector<Token> &tokens, size_t &pos)
     {
-        ASTNode node{Token{TokenType::compound}};
+        ParseTreeNode node{Token{TokenType::compound}};
         if (tokens[pos++].type != TokenType::lbrace)
         {
             throw std::runtime_error("Expected left brace");
@@ -388,9 +388,9 @@ namespace VWA
         return node;
     }
 
-    ASTNode parseDecl(const std::vector<Token> &tokens, size_t &pos)
+    ParseTreeNode parseDecl(const std::vector<Token> &tokens, size_t &pos)
     {
-        ASTNode node{Token{TokenType::variable_declaration}};
+        ParseTreeNode node{Token{TokenType::variable_declaration}};
         if (tokens[++pos].type == TokenType::mutable_)
         {
             node.children.push_back({{TokenType::mutable_}});
@@ -421,9 +421,9 @@ namespace VWA
         }
     }
 
-    ASTNode parseAssign(const std::vector<Token> &tokens, size_t &pos)
+    ParseTreeNode parseAssign(const std::vector<Token> &tokens, size_t &pos)
     {
-        ASTNode node{Token{TokenType::assign}, {{tokens[pos++], {parseExpression(tokens, ++pos)}}}};
+        ParseTreeNode node{.value = {TokenType::assign}, .children = {{tokens[pos++]}, {parseExpression(tokens, ++pos)}}};
         if (tokens[pos++].type != TokenType::semicolon)
         {
             throw std::runtime_error("Expected semicolon");
@@ -431,9 +431,9 @@ namespace VWA
         return node;
     }
 
-    ASTNode parseIf(const std::vector<Token> &tokens, size_t &pos)
+    ParseTreeNode parseIf(const std::vector<Token> &tokens, size_t &pos)
     {
-        ASTNode node{Token{TokenType::if_}};
+        ParseTreeNode node{Token{TokenType::if_}};
         if (tokens[pos++].type != TokenType::if_)
         {
             throw std::runtime_error("Expected if");
@@ -455,9 +455,9 @@ namespace VWA
         return node;
     }
 
-    ASTNode parseWhile(const std::vector<Token> &tokens, size_t &pos)
+    ParseTreeNode parseWhile(const std::vector<Token> &tokens, size_t &pos)
     {
-        ASTNode node{Token{TokenType::while_}};
+        ParseTreeNode node{Token{TokenType::while_}};
         if (tokens[pos++].type != TokenType::while_)
         {
             throw std::runtime_error("Expected while");
@@ -475,9 +475,9 @@ namespace VWA
         return node;
     }
 
-    ASTNode parseFor(const std::vector<Token> &tokens, size_t &pos)
+    ParseTreeNode parseFor(const std::vector<Token> &tokens, size_t &pos)
     {
-        ASTNode node{Token{TokenType::for_}};
+        ParseTreeNode node{Token{TokenType::for_}};
         if (tokens[pos++].type != TokenType::for_)
         {
             throw std::runtime_error("Expected for");
@@ -505,10 +505,10 @@ namespace VWA
     }
 #pragma endregion Statement Parsing
 
-    ASTNode parseFunction(const std::vector<Token> &tokens, size_t &pos)
+    ParseTreeNode parseFunction(const std::vector<Token> &tokens, size_t &pos)
     {
         //A consists of the func token, the name(identifier), the return type, the body, and the args args are at the end,  so we can get their number easily
-        ASTNode root{Token{TokenType::function_definition}};
+        ParseTreeNode root{Token{TokenType::function_definition}};
         if (tokens[++pos].type != TokenType::identifier)
         {
             throw std::runtime_error("Expected identifier after function");
@@ -518,7 +518,7 @@ namespace VWA
         {
             throw std::runtime_error("Expected ( after function name");
         }
-        std::vector<ASTNode> args;
+        std::vector<ParseTreeNode> args;
         while (tokens[pos].type != TokenType::rparen)
         {
             args.push_back(parseParameterDeclaration(tokens, pos));
@@ -548,14 +548,14 @@ namespace VWA
         return root;
     }
 
-    ASTNode parseStruct(const std::vector<Token> &tokens, size_t &pos)
+    ParseTreeNode parseStruct(const std::vector<Token> &tokens, size_t &pos)
     {
         ++pos;
         if (tokens[pos].type != TokenType::identifier)
         {
             throw std::runtime_error("Expected identifier after struct");
         }
-        ASTNode root{.value = Token{TokenType::struct_definition, tokens[pos++].value}};
+        ParseTreeNode root{.value = Token{TokenType::struct_definition, tokens[pos++].value}};
         if (tokens[pos++].type != TokenType::lbrace)
         {
             throw std::runtime_error("Expected { after struct");
@@ -572,12 +572,12 @@ namespace VWA
         return root;
     }
 
-    ASTNode generateParseTree(const std::vector<VWA::Token> &tokens)
+    ParseTreeNode generateParseTree(const std::vector<VWA::Token> &tokens)
     {
         //There are two types of top level definitions: funcitions and structs
         //Depending on the type call the appropriate function
         size_t pos = 0;
-        ASTNode root{.value = Token{TokenType::null}};
+        ParseTreeNode root{.value = Token{TokenType::null}};
 
         while (tokens[pos].type != TokenType::eof)
         {
@@ -632,7 +632,7 @@ namespace VWA
     template <class... Ts>
     overloaded(Ts...) -> overloaded<Ts...>;
 
-    std::string TreeToString(const ASTNode &root, int indent)
+    std::string TreeToString(const ParseTreeNode &root, int indent)
     {
         std::stringstream ss;
         ss << std::string(indent, ' ') << root.value.toString() << " " << std::visit(overloaded{[](const char c)

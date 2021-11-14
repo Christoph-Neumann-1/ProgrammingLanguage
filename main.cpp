@@ -7,7 +7,7 @@
 #include <CLI/CLI.hpp>
 #include <Tokenizer.hpp>
 #include <Parser.hpp>
-#include <ActionTree.hpp>
+#include <AST.hpp>
 #include <Interpreter.hpp>
 //TODO: Modernize code
 
@@ -32,45 +32,42 @@ int main(int argc, char *argv[])
     app.add_option("-l,--log", logFile, "Log file");
     CLI11_PARSE(app, argc, argv);
 
-    // std::unique_ptr<VWA::ILogger> logger;
-    // if (logFile.empty())
-    // {
-    //     logger = std::make_unique<VWA::ConsoleLogger>();
-    // }
-    // else
-    // {
-    //     logger = std::make_unique<VWA::FileLogger>(logFile);
-    // }
-    // std::ifstream file(fileName);
-    // if (!file.is_open())
-    // {
-    //     std::cout << "File not found" << std::endl;
-    //     return -1;
-    // }
-    // VWA::File result = VWA::preprocess({.file = VWA::File{file, fileName}, .logger = *logger});
-    // file.close();
+    std::unique_ptr<VWA::ILogger> logger;
+    if (logFile.empty())
+    {
+        logger = std::make_unique<VWA::ConsoleLogger>();
+    }
+    else
+    {
+        logger = std::make_unique<VWA::FileLogger>(logFile);
+    }
+    std::ifstream file(fileName);
+    if (!file.is_open())
+    {
+        std::cout << "File not found" << std::endl;
+        return -1;
+    }
+    VWA::File result = VWA::preprocess({.file = VWA::File{file, fileName}, .logger = *logger});
+    file.close();
 
-    // if (pponly)
-    // {
-    //     if (toStdout)
-    //     {
-    //         std::cout << result.toString() << std::endl;
-    //     }
-    //     else
-    //     {
-    //         std::ofstream out(output);
-    //         out << result.toString();
-    //         out.close();
-    //     }
-    //     return 0;
-    // }
-    // auto tokens = VWA::Tokenizer(std::move(result));
-    // auto ast=VWA::generateParseTree(tokens);
-    // // std::cout << VWA::TreeToString(ast) << std::endl;
-    // VWA::ActionTree tree(ast);
-
-    VWA::Interpreter interpreter({VWA::instruction::Call,0,0,0,0,0,0,0,0,VWA::instruction::Exit,0,0,0,0});
-    interpreter.stack.pushVal('F');
-    return interpreter.run();
+    if (pponly)
+    {
+        if (toStdout)
+        {
+            std::cout << result.toString() << std::endl;
+        }
+        else
+        {
+            std::ofstream out(output);
+            out << result.toString();
+            out.close();
+        }
+        return 0;
+    }
+    auto tokens = VWA::Tokenizer(std::move(result));
+    auto root = VWA::generateParseTree(tokens);
+    // std::cout << VWA::TreeToString(root) << std::endl;
+    VWA::AST tree(root);
+    std::cout<<tree.toString();
     return 0;
 }
