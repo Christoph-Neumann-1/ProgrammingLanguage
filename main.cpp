@@ -9,6 +9,7 @@
 #include <Parser.hpp>
 #include <AST.hpp>
 #include <Interpreter.hpp>
+#include <VM.hpp>
 //TODO: Modernize code
 
 //TODO proper interface

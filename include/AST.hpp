@@ -171,7 +171,7 @@ namespace VWA
         }
     }
 
-    class AST
+    struct AST
     {
         std::unordered_map<std::string, StructInfo> structs;
         std::unordered_map<std::string, FunctionData> functions;
@@ -396,7 +396,6 @@ namespace VWA
         TypeInfo expressionType(const ASTNode &node);
         void ValidateNode(const ASTNode &node);
 
-    public:
         FunctionData *main = nullptr;
         AST(const ParseTreeNode &root);
         std::string toString() const

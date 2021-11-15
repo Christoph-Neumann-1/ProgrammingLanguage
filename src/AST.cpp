@@ -127,7 +127,7 @@ namespace VWA
                                        return false;
                                    });
             if (it != scope->variables.end())
-                return {it->second, std::move(FindScopeOffset(scope)), (uint64_t)std::distance(scope->variables.begin(), it)};
+                return {it->second, FindScopeOffset(scope), (uint64_t)std::distance(scope->variables.begin(), it)};
             scope = scope->parent;
         }
         throw std::runtime_error("Variable " + name + " not found");
@@ -456,7 +456,7 @@ namespace VWA
         {
             auto lhs = expressionType(std::get<std::vector<ASTNode>>(node.data)[0]);
             auto rhs = expressionType(std::get<std::vector<ASTNode>>(node.data)[1]);
-
+            //TODO:cast in this order int->long->float->double
         }
         default:
             throw std::runtime_error("Unknown expression type");

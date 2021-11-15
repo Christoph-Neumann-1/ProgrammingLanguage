@@ -1,5 +1,7 @@
 #pragma once
 #include <cstdint>
+#include <cstring>
+#include <stdexcept>
 //TODO: should access happen using system addresses or just offset from the start?
 namespace VWA
 {
@@ -23,14 +25,14 @@ namespace VWA
         template <typename T>
         void pushVal(T val)
         {
-            *(T*)(data+top) = val;
-            top+=sizeof(T);
+            *(T *)(data + top) = val;
+            top += sizeof(T);
         }
         template <typename T>
         T popVal()
         {
             top -= sizeof(T);
-            return *(T*)(data+top);
+            return *(T *)(data + top);
         }
         template <typename T>
         T readVal(uint64_t offset)
@@ -41,6 +43,21 @@ namespace VWA
         void writeVal(uint64_t offset, T val)
         {
             *(T *)(data + offset) = val;
+        }
+        const uint8_t *readBytes(uint64_t addr, uint64_t size) const
+        {
+            auto memAddr = data + addr;
+            if (top > size + addr)
+                throw std::runtime_error("Stack access out of bounds");
+            return memAddr;
+        }
+
+        void writeBytes(uint64_t addr, uint64_t size, const uint8_t *source)
+        {
+            auto memAddr = data + addr;
+            if (top > size + addr)
+                throw std::runtime_error("Stack access out of bounds");
+            std::memcpy(memAddr, source, size);
         }
     };
 }
