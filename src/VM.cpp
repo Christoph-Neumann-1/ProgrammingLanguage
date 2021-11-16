@@ -69,7 +69,7 @@ namespace VWA::VM
             {
                 auto where = ReadInstructionArg<ByteCodeElement *>(instruction + 1);
                 auto argSize = ReadInstructionArg<uint64_t>(instruction + 1 + sizeof(ByteCodeElement *));
-                auto args = std::make_unique<uint8_t[]>(argSize);
+                std::unique_ptr<uint8_t[]> args{new uint8_t[argSize]};
                 std::memcpy(args.get(), mmu.stack.getData() + mmu.stack.getTop() - argSize, argSize);
                 mmu.stack.pop(argSize);
                 mmu.stack.pushVal<uint8_t *>(stackBase);
@@ -82,12 +82,14 @@ namespace VWA::VM
             case Return:
             {
                 auto argSize = ReadInstructionArg<uint64_t>(instruction + 1);
-                stackBase = *reinterpret_cast<uint8_t **>(stackBase);
                 instruction = *reinterpret_cast<ByteCodeElement **>(stackBase + sizeof(uint8_t *));
-                auto buffer = std::make_unique<uint8_t[]>(argSize);
+                std::unique_ptr<uint8_t[]> buffer{new uint8_t[argSize]};
                 std::memcpy(buffer.get(), mmu.stack.getData() + mmu.stack.getTop() - argSize, argSize);
                 mmu.stack.pop(mmu.stack.getData() + mmu.stack.getTop() - stackBase);
                 mmu.stack.PushN(argSize, buffer.get());
+                stackBase = *reinterpret_cast<uint8_t **>(stackBase);
+                if (instruction == nullptr)
+                    return;
                 break;
             }
             case JumpFFI:

@@ -51,23 +51,17 @@ namespace VWA
         const uint8_t *readBytes(uint64_t addr, uint64_t size) const
         {
             auto memAddr = data + addr;
-            if (top > size + addr)
-                throw std::runtime_error("Stack access out of bounds");
             return memAddr;
         }
 
         void writeBytes(uint64_t addr, uint64_t size, const uint8_t *source)
         {
             auto memAddr = data + addr;
-            if (top > size + addr)
-                throw std::runtime_error("Stack access out of bounds");
             std::memcpy(memAddr, source, size);
         }
 
         void PushN(uint64_t size, const uint8_t *source)
         {
-            if (top > size)
-                throw std::runtime_error("Stack access out of bounds");
             std::memcpy(data + top, source, size);
             top += size;
         }

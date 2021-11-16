@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
         PushConst32, 1, 0, 0, 0,
         PushConst32, 2, 0, 0, 0,
         AddI,
-        Exit};
+        Return,4,0,0,0,0,0,0,0};
     #pragma clang diagnostic pop
     VWA::VM::VM vm(code, sizeof(code));
     std::cout << "Ran vm with code" << vm.run() << '\n';

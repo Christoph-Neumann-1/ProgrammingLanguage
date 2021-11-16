@@ -64,9 +64,9 @@ namespace VWA::VM
         {
             try
             {
+                mmu.stack.pushVal<uint8_t *>(nullptr);
                 mmu.stack.pushVal<instruction::ByteCodeElement *>(nullptr);
-                mmu.stack.pushVal<instruction::ByteCodeElement *>(nullptr);
-                exec(code, mmu.stack.getData() + mmu.stack.getTop()-2);//TODO: args
+                exec(code, mmu.stack.getData() + mmu.stack.getTop() - sizeof(uint8_t *) - sizeof(instruction::ByteCodeElement *)); //TODO: args
             }
             catch (ExitException e)
             {
