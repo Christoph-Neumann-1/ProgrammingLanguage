@@ -5,13 +5,17 @@
 //TODO: should access happen using system addresses or just offset from the start?
 namespace VWA
 {
+    namespace VM
+    {
+        class VM;
+    }
     //TODO: make this all c compatible
     class Stack
     {
         //TODO: geometric growth
         std::size_t capacity; //How many bytes can be stored on the stack
         uint8_t *data;
-        uint64_t top = 0; //Points to the top of the stack The first free space
+        uint64_t top = 0; //Points to the top of the stack The first free space//TODO: remove mmu and replace with pointer
     public:
         Stack(std::size_t maxSize = 2000000) : capacity(maxSize), data(new uint8_t[maxSize]) {}
         ~Stack() { delete[] data; }
@@ -20,8 +24,8 @@ namespace VWA
         uint8_t *getData() { return data; }
         //These functions are ugly, but they will have to do for now
         //TODO: over and underflow checks
-        void push(std::size_t size) { top += size; }
-        void pop(std::size_t size) { top -= size; }
+        void push(uint64_t size) { top += size; }
+        void pop(uint64_t size) { top -= size; }
         template <typename T>
         void pushVal(T val)
         {
@@ -35,9 +39,9 @@ namespace VWA
             return *(T *)(data + top);
         }
         template <typename T>
-        T readVal(uint64_t offset)
+        const T *readVal(uint64_t offset) const
         {
-            return *(T *)(data + offset);
+            return (T *)(data + offset);
         }
         template <typename T>
         void writeVal(uint64_t offset, T val)
@@ -58,6 +62,14 @@ namespace VWA
             if (top > size + addr)
                 throw std::runtime_error("Stack access out of bounds");
             std::memcpy(memAddr, source, size);
+        }
+
+        void PushN(uint64_t size, const uint8_t *source)
+        {
+            if (top > size)
+                throw std::runtime_error("Stack access out of bounds");
+            std::memcpy(data + top, source, size);
+            top += size;
         }
     };
 }

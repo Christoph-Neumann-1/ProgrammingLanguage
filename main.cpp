@@ -69,6 +69,17 @@ int main(int argc, char *argv[])
     auto root = VWA::generateParseTree(tokens);
     // std::cout << VWA::TreeToString(root) << std::endl;
     VWA::AST tree(root);
-    std::cout<<tree.toString();
+    // std::cout<<tree.toString();
+    using namespace VWA::instruction;
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wmissing-braces"
+    ByteCodeElement code[]{
+        PushConst32, 1, 0, 0, 0,
+        PushConst32, 2, 0, 0, 0,
+        AddI,
+        Exit};
+    #pragma clang diagnostic pop
+    VWA::VM::VM vm(code, sizeof(code));
+    std::cout << "Ran vm with code" << vm.run() << '\n';
     return 0;
 }

@@ -6,38 +6,30 @@ namespace VWA
     {
         enum instruction : uint8_t
         {
-            //Operands are takes from the top of the stack. The result is pushed back onto the stack, consuming the operands.
             //Special control instructions
-            Exit, //Stop execution. Args: 32bit int (exit code)
-            LocalAddr,//Tells the interpreter that the next command requires offsetting the adress.This is not executed
-            ExternSymbol, //Tells the compiler that the next commands address is the index of an symbol, which needs to be resolved at runtime.
-            FFISymbol, //Tells the compiler that the next commands address is the index of an symbol from the c api, which needs to loaded dynamically.
-            Call, //Call a function, which is either intrinsic, or from another language(c interface).The interpreter will assume the function
-            //to be of the type void(*)(Stack*) Args: 64bit pointer to function
-            //General arithmetic instructions oprands are as follows: destinatin register
-            //followed by the registers containing operands
-            Addf,
-            Subtractf,
-            Multiplyf,
-            Dividef,
-            Powerf,
-            Addd,
-            Subtractd,
-            Multiplyd,
-            Divided,
-            Powerd,
-            Addi,
-            Subtracti,
-            Multiplyi,
-            Dividei,
-            Poweri,
-            Addl,
-            Subtractl,
-            Multiplyl,
-            Dividel,
-            Powerl,
-            Moduloi,
-            Modulol,
+            Exit,         //Stop execution. Args: 32bit int (exit code)
+            AddF,
+            SubtractF,
+            MultiplyF,
+            DivideF,
+            PowerF,
+            AddD,
+            SubtractD,
+            MultiplyD,
+            DivideD,
+            PowerD,
+            AddI,
+            SubtractI,
+            MultiplyI,
+            DivideI,
+            PowerI,
+            AddL,
+            SubtractL,
+            MultiplyL,
+            DivideL,
+            PowerL,
+            ModuloI,
+            ModuloL,
             //Casting
             //Operands: dest,source
             FtoD,
@@ -60,57 +52,66 @@ namespace VWA
             CtoI,
             CtoL,
             CtoD,
-            //Booleans may be interpreted as characters. 
+            //Booleans may be interpreted as characters.
             //Boolean logic instructions
             And,
             Or,
             Not,
             //Comparison instructions
-            GreaterThanf,
-            LessThanf,
-            GreaterThanOrEqualf,
-            LessThanOrEqualf,
-            Equalf,
-            NotEqualf,
-            GreaterThand,
-            LessThand,
-            GreaterThanOrEquald,
-            LessThanOrEquald,
-            Equald,
-            NotEquald,
-            GreaterThani,
-            LessThani,
-            GreaterThanOrEquali,
-            LessThanOrEquali,
-            Equali,
-            NotEquali,
-            GreaterThanl,
-            LessThanl,
-            GreaterThanOrEquall,
-            LessThanOrEquall,
-            Equall,
-            NotEquall,
+            GreaterThanF,
+            LessThanF,
+            GreaterThanOrEqualF,
+            LessThanOrEqualF,
+            EqualF,
+            NotEqualF,
+            GreaterThanD,
+            LessThanD,
+            GreaterThanOrEqualD,
+            LessThanOrEqualD,
+            EqualD,
+            NotEqualD,
+            GreaterThanI,
+            LessThanI,
+            GreaterThanOrEqualI,
+            LessThanOrEqualI,
+            EqualI,
+            NotEqualI,
+            GreaterThanL,
+            LessThanL,
+            GreaterThanOrEqualL,
+            LessThanOrEqualL,
+            EqualL,
+            NotEqualL,
             //stack manipulation instructions. Btw the stack pointer should be in a global somewhere.
-            StackPush, //Increment the stack pointer. Args: 64bit uint (amount to increment)
-            StackPop,  //Decrement the stack pointer. Args: 64bit uint (amount to decrement)
-            StackTop,  //Reads the current top of the stack and pushes it back onto the stack.
-            Duplicate, //Dubplicates nbytes of the stack.
-            //I need to support data copy without stack manipulation.
-            Read,  //Read a value from an address and put it on the stack. Args: 64bit uint (address), 64bit uint (size)
-            ReadConst,
-            Write, //Write a value from the stack to an address. Args: 64bit uint (address), 64bit uint (size)
+            
+            ReadLocal,//Reads data at an offset from the base pointer.
+            WriteLocal, 
+            ReadGlobal,//These instructions read data from a pointer, provided on the stack.
+            WriteGlobal,
+            //TODO: direct copy
+            Push,//Increment the stack pointer. This does not allow for intialization of the value, use read or ConstPush for that.
+            Pop,
+            PushConst8,//Push a constant value onto the stack.
+            PushConst32,
+            PushConst64,
+            PushConstN,//This instruction takes the number of bytes as the first argument.
             //Control flow
             //The addresses are indices to an array containing the instructions.
             //Later, when I add support for multiple dynamically linkes files, the instruction tables will just be appended.
-            Jump,          //continue with the instruction at the given address. Args: 64bit uint (address) Example: function call
-            JumpIfFalse,   //continue with the instruction at the given address if the top of the stack is false. Args: 64bit uint (address)
-            JumpIfTrue,    //continue with the instruction at the given address if the top of the stack is true. Args: 64bit uint (address)
-            JumpFromStack, //continue with the instruction at the given address. Args: 64bit uint (address)(given on the stack)
-            InstructionAddr,//Put the address of the instruction on the stack.
-            //Use this for JumpFromStack
+            Jump,        //continue with the instruction at the given address. Args: 64bit uint (address) Example: function call
+            JumpIfFalse, //continue with the instruction at the given address if the top of the stack is false. Args: 64bit uint (address)
+            JumpIfTrue,  //continue with the instruction at the given address if the top of the stack is true. Args: 64bit uint (address)
+            JumpFunc,//Jump to the address, while setting the base pointer and return address. Args: 64bit uint (address), 64bit uint (nBytes for args)
+            JumpFFI,//Jump to the ffi function at the given address.
+            Return,//Return from a function and restore base pointer and stack. Args: 64bit uint (nBytes for rval
+            
+        };
+
+        union ByteCodeElement
+        {
+            uint8_t value;
+            instruction byteCode;
         };
     }
 
-    //This function returns the total size used by this instruction including arguments.
-    uint64_t getInstructionSize(instruction::instruction instruction);
 }

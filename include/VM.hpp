@@ -4,24 +4,6 @@
 
 namespace VWA::VM
 {
-    template <uint64_t size> //Size in bits
-    struct Register
-    {
-        uint8_t data[size / 8];
-        template <typename T>
-        requires(sizeof(T) <= size) void set(T value)
-        {
-            *reinterpret_cast<T *>(data) = value;
-        }
-        template <typename T>
-        requires(sizeof(T) <= size)
-            T get()
-        const
-        {
-            return *reinterpret_cast<T *>(data);
-        }
-    };
-
     class MemoryManager
     {
         Stack stack;
@@ -30,58 +12,67 @@ namespace VWA::VM
         friend class VM; //Vm needs the ability to access the stack and add new regions.
         //Returns a pointer the region of memory. Size is used to assert that it is within bounds
     public:
+        template <typename T>
+        const T *Read(uint64_t addr) const
+        {
+            return stack.readVal<T>(addr);
+        }
         const uint8_t *Read(uint64_t addr, uint64_t size) const
         {
             return stack.readBytes(addr, size);
+        }
+        template <typename T>
+        void Write(uint64_t addr, T value)
+        {
+            return stack.writeVal(addr, value);
         }
         void Write(uint64_t addr, uint64_t size, const uint8_t *source)
         {
             stack.writeBytes(addr, size, source);
         }
+        //TODO: read n bytes
     };
 
     class VM
     {
-        Register<64> stack_base;
-        Register<64> r64a, r64b, r64c, r64d, r64e, r64f, r64g;
-        Register<32> r32a, r32b, r32c, r32d;
-        Register<8> rba, rbb, rbc;
+
         MemoryManager mmu;
-        union ByteCodeElement
-        {
-            instruction::instruction byteCode;
-            uint8_t value;
-        };
         //TODO:relocatable code
-        ByteCodeElement *code{nullptr};
+        instruction::ByteCodeElement *code{nullptr};
         struct ExitException
         {
             int32_t exitCode;
         };
+
         template <typename T>
-        T readValFromCode(uint64_t addr)
+        T ReadInstructionArg(instruction::ByteCodeElement *begin)
         {
-            return *reinterpret_cast<T *>(code + addr);
-        }
-        template <typename T>
-        void RegisterStore(uint8_t reg, T value)
-        {
-         //TODO: size comparison, read method, enum for access;   
+            return *reinterpret_cast<T *>(begin);
         }
 
     public:
-        void exec(uint64_t programCounter);
+        VM(instruction::ByteCodeElement *code_, size_t size) : code(new instruction::ByteCodeElement[size])
+        {
+            std::memcpy(code, code_, size);
+        }
+        ~VM()
+        {
+            delete[] code;
+        }
+        void exec(instruction::ByteCodeElement *instruction, uint8_t *stackBase);
         int run()
         {
             try
             {
-                exec(0); //0 is expected to contain main, or the jump to main
+                mmu.stack.pushVal<instruction::ByteCodeElement *>(nullptr);
+                mmu.stack.pushVal<instruction::ByteCodeElement *>(nullptr);
+                exec(code, mmu.stack.getData() + mmu.stack.getTop()-2);//TODO: args
             }
             catch (ExitException e)
             {
                 return e.exitCode;
             }
-            throw std::runtime_error("VM exited without an exit code");
+            return mmu.stack.popVal<int32_t>();
         }
     };
 }

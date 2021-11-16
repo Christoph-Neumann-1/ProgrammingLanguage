@@ -24,8 +24,8 @@ namespace VWA
         //This is just a hack until I achieve c compatibility.
         std::vector<void (*)(Stack *, Interpreter *)> externFunctions = {[](Stack *stck, Interpreter *interpreter)
                                                                          {
-                                                                             char val = stck->readVal<char>(stck->getTop() - 1);
-                                                                             printf("called%c.", val);
+                                                                            //  char val = *stck->readVal<char>(stck->getTop() - 1);
+                                                                            //  printf("called%c.", val);
                                                                          }};
 
     public:

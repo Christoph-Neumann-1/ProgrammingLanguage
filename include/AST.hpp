@@ -66,6 +66,7 @@ namespace VWA
         uint64_t index;
     };
     //A variable refers to a previously declared variable. It is then used by the compiler and the optimizer
+    //TODO: consider reverting to offset from stack pointer
     struct Variable
     {
         TypeInfo type;
