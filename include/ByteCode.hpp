@@ -103,6 +103,7 @@ namespace VWA
             JumpIfTrue,  //continue with the instruction at the given address if the top of the stack is true. Args: 64bit uint (address)
             JumpFunc,//Jump to the address, while setting the base pointer and return address. Args: 64bit uint (address), 64bit uint (nBytes for args)
             JumpFFI,//Jump to the ffi function at the given address.
+            JumpExternal,//Jump to the function in the files link table. This gets turned into a JumpFFI or JumpFunc.
             Return,//Return from a function and restore base pointer and stack. Args: 64bit uint (nBytes for rval
             
         };

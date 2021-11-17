@@ -71,15 +71,22 @@ int main(int argc, char *argv[])
     VWA::AST tree(root);
     // std::cout<<tree.toString();
     using namespace VWA::instruction;
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wmissing-braces"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-braces"
     ByteCodeElement code[]{
+        JumpFunc, 26, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        Return, 4, 0, 0, 0, 0, 0, 0, 0,
         PushConst32, 1, 0, 0, 0,
         PushConst32, 2, 0, 0, 0,
         AddI,
-        Return,4,0,0,0,0,0,0,0};
-    #pragma clang diagnostic pop
-    VWA::VM::VM vm(code, sizeof(code));
+        Return, 4, 0, 0, 0, 0, 0, 0, 0};
+#pragma clang diagnostic pop
+    VWA::VM::VM::FileInfo fi;
+    fi.bc = std::make_unique<ByteCodeElement[]>(sizeof(code) / sizeof(ByteCodeElement));
+    std::memcpy(fi.bc.get(), code, sizeof(code));
+    fi.bcSize = sizeof(code);
+    fi.exportedFunctions.push_back({"main", "int", {}, {0}, false, true});
+    VWA::VM::VM vm(std::move(fi));
     std::cout << "Ran vm with code" << vm.run() << '\n';
     return 0;
 }

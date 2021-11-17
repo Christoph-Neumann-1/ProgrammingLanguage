@@ -90,9 +90,9 @@ namespace VWA
         }
         if (info.name == "main")
         {
-            if (info.returnType.type != VarType::VOID && info.returnType.type != VarType::INT)
+            if (info.returnType.type != VarType::INT)
             {
-                throw std::runtime_error("main function must return int or void");
+                throw std::runtime_error("main function must return int");
             }
             if (info.arguments.size() != 0)
             {
