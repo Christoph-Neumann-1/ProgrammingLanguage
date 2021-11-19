@@ -305,7 +305,7 @@ namespace VWA
         {
         case TokenType::compound:
         {
-            auto inner = scope.children.emplace_back();
+            auto &inner = scope.children.emplace_back();
             inner.index = scope.children.size() - 1;
             inner.parent = &scope;
             newNode.type = NodeType::BLOCK;
@@ -328,7 +328,7 @@ namespace VWA
             scope.variables.emplace_back(name, typeInfo);
             if (oldNode.children.size() == 3 + is_Mutable)
             {
-                Variable var{.type = typeInfo, .offsets = FindScopeOffset(&scope), .scopeIndex = scope.variables.size()};
+                Variable var{.type = typeInfo, .offsets = FindScopeOffset(&scope), .scopeIndex = scope.variables.size()-1};
                 newNode.data = std::vector<ASTNode>{{NodeType::VARIABLE, var}, processExpression(oldNode.children[2 + is_Mutable], scope)};
             }
             break;
