@@ -67,6 +67,7 @@ namespace VWA
     };
     //A variable refers to a previously declared variable. It is then used by the compiler and the optimizer
     //TODO: consider reverting to offset from stack pointer
+    //TODO: add reference to scope
     struct Variable
     {
         TypeInfo type;

@@ -529,171 +529,171 @@ namespace VWA::VM
         }
     }
 
-    void VM::PerformByteCodeOffsets(FileInfo &file)
-    {
-        for (auto position = file.bc.get(); position < file.bc.get() + file.bcSize;)
-        {
-            switch (position->byteCode)
-            {
-                using namespace instruction;
-            case JumpFFI:
-                throw std::runtime_error("JumpFFI before linking");
-            case Jump:
-            case JumpIfFalse:
-            case JumpIfTrue:
-            {
-                auto address = reinterpret_cast<ByteCodeElement **>(position + 1);
-                *address += (uint64_t)file.bc.get();
-                position += sizeof(ByteCodeElement *) + 1;
-                break;
-            }
-            case JumpFunc:
-            {
-                auto address = reinterpret_cast<ByteCodeElement **>(position + 1);
-                *address += (uint64_t)file.bc.get();
-                position += sizeof(ByteCodeElement *) + 1 + sizeof(uint64_t);
-                break;
-            }
-            case JumpExternal:
-            {
-                auto index = reinterpret_cast<uint64_t *>(position + 1);
-                auto &function = file.importedFunctions[*index];
-                if (function.isC)
-                {
-                    auto addr = reinterpret_cast<FFIFunc *>(index);
-                    *addr = function.declaration->func;
-                    position->byteCode = JumpFFI;
-                    position += 2 * sizeof(uint64_t) + 1;
-                    break;
-                }
-                else
-                {
-                    auto addr = reinterpret_cast<ByteCodeElement **>(position + 1);
-                    *addr = function.declaration->bc;
-                    position->byteCode = JumpFunc;
-                    position += 2 * sizeof(ByteCodeElement *) + 1;
-                    break;
-                }
-            }
-            case PushConstN:
-            case Return:
-                position += ReadInstructionArg<uint64_t>(position + 1);
-            case ReadLocal:
-            case WriteLocal:
-            case ReadGlobal:
-            case WriteGlobal:
-            case Push:
-            case Pop:
-            case PushConst64:
-                position += sizeof(uint32_t);
-            case PushConst32:
-                position += 3 * sizeof(uint8_t);
-            case PushConst8:
-                position += sizeof(uint8_t);
-            default:
-                position++;
-                break;
-            }
-        }
-    }
+    // void VM::PerformByteCodeOffsets(FileInfo &file)
+    // {
+    //     for (auto position = file.bc.get(); position < file.bc.get() + file.bcSize;)
+    //     {
+    //         switch (position->byteCode)
+    //         {
+    //             using namespace instruction;
+    //         case JumpFFI:
+    //             throw std::runtime_error("JumpFFI before linking");
+    //         case Jump:
+    //         case JumpIfFalse:
+    //         case JumpIfTrue:
+    //         {
+    //             auto address = reinterpret_cast<ByteCodeElement **>(position + 1);
+    //             *address += (uint64_t)file.bc.get();
+    //             position += sizeof(ByteCodeElement *) + 1;
+    //             break;
+    //         }
+    //         case JumpFunc:
+    //         {
+    //             auto address = reinterpret_cast<ByteCodeElement **>(position + 1);
+    //             *address += (uint64_t)file.bc.get();
+    //             position += sizeof(ByteCodeElement *) + 1 + sizeof(uint64_t);
+    //             break;
+    //         }
+    //         case JumpExternal:
+    //         {
+    //             auto index = reinterpret_cast<uint64_t *>(position + 1);
+    //             auto &function = file.importedFunctions[*index];
+    //             if (function.isC)
+    //             {
+    //                 auto addr = reinterpret_cast<FFIFunc *>(index);
+    //                 *addr = function.declaration->func;
+    //                 position->byteCode = JumpFFI;
+    //                 position += 2 * sizeof(uint64_t) + 1;
+    //                 break;
+    //             }
+    //             else
+    //             {
+    //                 auto addr = reinterpret_cast<ByteCodeElement **>(position + 1);
+    //                 *addr = function.declaration->bc;
+    //                 position->byteCode = JumpFunc;
+    //                 position += 2 * sizeof(ByteCodeElement *) + 1;
+    //                 break;
+    //             }
+    //         }
+    //         case PushConstN:
+    //         case Return:
+    //             position += ReadInstructionArg<uint64_t>(position + 1);
+    //         case ReadLocal:
+    //         case WriteLocal:
+    //         case ReadGlobal:
+    //         case WriteGlobal:
+    //         case Push:
+    //         case Pop:
+    //         case PushConst64:
+    //             position += sizeof(uint32_t);
+    //         case PushConst32:
+    //             position += 3 * sizeof(uint8_t);
+    //         case PushConst8:
+    //             position += sizeof(uint8_t);
+    //         default:
+    //             position++;
+    //             break;
+    //         }
+    //     }
+    // }
 
-    void VM::ValidateLinkage()
-    {
-        for (auto &func : functions)
-        {
-            if (!func.second.hasBeenDeclared)
-            {
-                throw std::runtime_error("Function " + func.first + " has not been declared");
-            }
-        }
-        for (auto &struct_ : structs)
-        {
-            if (!struct_.second.hasBeenDeclared)
-            {
-                throw std::runtime_error("Struct " + struct_.first + " has not been declared");
-            }
-        }
-    }
+    // void VM::ValidateLinkage()
+    // {
+    //     for (auto &func : functions)
+    //     {
+    //         if (!func.second.hasBeenDeclared)
+    //         {
+    //             throw std::runtime_error("Function " + func.first + " has not been declared");
+    //         }
+    //     }
+    //     for (auto &struct_ : structs)
+    //     {
+    //         if (!struct_.second.hasBeenDeclared)
+    //         {
+    //             throw std::runtime_error("Struct " + struct_.first + " has not been declared");
+    //         }
+    //     }
+    // }
 
-    void VM::ProcessFile(FileInfo &file, std::list<FileInfo> &files)
-    {
-        for (auto &exported : file.exportedFunctions)
-        {
-            auto it = functions.find(exported.name);
-            if (it == functions.end())
-            {
-                exported.hasBeenDeclared = true; //This should probably be done before
-                exported.bc = exported.localIndex + file.bc.get();
-                //TODO: check if this move works
-                functions[exported.name] = std::move(exported);
-            }
-            else
-            {
-                //Verify that the types match.
-                if (it->second.hasBeenDeclared)
-                {
-                    throw std::runtime_error("Function " + exported.name + " has already been declared");
-                }
-                if (it->second != exported)
-                {
-                    throw std::runtime_error("Function " + exported.name + " has already been declared with different types");
-                }
-                it->second.hasBeenDeclared = true;
-                it->second.bc = exported.localIndex + file.bc.get();
-            }
-        }
-        for (auto &imported : file.importedFunctions)
-        {
-            auto it = functions.find(imported.name);
-            if (it == functions.end())
-            {
-                functions[imported.name] = std::move(imported); //TODO: avoid double lookup
-                imported.declaration = &functions[imported.name];
-            }
-            else
-            {
-                imported.declaration = &it->second;
-            }
-        }
-        for (auto &exported : file.exportedStructs)
-        {
-            auto it = structs.find(exported.name);
-            if (it == structs.end())
-            {
-                exported.hasBeenDeclared = true; //This should probably be done before
-                structs[exported.name] = std::move(exported);
-            }
-            else
-            {
-                if (it->second.hasBeenDeclared)
-                {
-                    throw std::runtime_error("Struct " + exported.name + " has already been declared");
-                }
-                if (exported != it->second)
-                {
-                    throw std::runtime_error("Struct " + exported.name + " has already been declared with different types");
-                }
-                it->second.hasBeenDeclared = true;
-            }
-        }
-        for (auto &imported : file.importedStructs)
-        {
-            auto it = structs.find(imported.name);
-            if (it == structs.end())
-            {
-                structs[imported.name] = std::move(imported); //TODO: avoid double lookup
-            }
-            else
-            {
-                if (imported != it->second)
-                {
-                    throw std::runtime_error("Struct " + imported.name + " has already been declared with different types");
-                }
-            }
-        }
-        for (auto &importFile : file.importedFiles)
-        {
-            //TODO:
-        }
-    }
+    // void VM::ProcessFile(FileInfo &file, std::list<FileInfo> &files)
+    // {
+    //     for (auto &exported : file.exportedFunctions)
+    //     {
+    //         auto it = functions.find(exported.name);
+    //         if (it == functions.end())
+    //         {
+    //             exported.hasBeenDeclared = true; //This should probably be done before
+    //             exported.bc = exported.localIndex + file.bc.get();
+    //             //TODO: check if this move works
+    //             functions[exported.name] = std::move(exported);
+    //         }
+    //         else
+    //         {
+    //             //Verify that the types match.
+    //             if (it->second.hasBeenDeclared)
+    //             {
+    //                 throw std::runtime_error("Function " + exported.name + " has already been declared");
+    //             }
+    //             if (it->second != exported)
+    //             {
+    //                 throw std::runtime_error("Function " + exported.name + " has already been declared with different types");
+    //             }
+    //             it->second.hasBeenDeclared = true;
+    //             it->second.bc = exported.localIndex + file.bc.get();
+    //         }
+    //     }
+    //     for (auto &imported : file.importedFunctions)
+    //     {
+    //         auto it = functions.find(imported.name);
+    //         if (it == functions.end())
+    //         {
+    //             functions[imported.name] = std::move(imported); //TODO: avoid double lookup
+    //             imported.declaration = &functions[imported.name];
+    //         }
+    //         else
+    //         {
+    //             imported.declaration = &it->second;
+    //         }
+    //     }
+    //     for (auto &exported : file.exportedStructs)
+    //     {
+    //         auto it = structs.find(exported.name);
+    //         if (it == structs.end())
+    //         {
+    //             exported.hasBeenDeclared = true; //This should probably be done before
+    //             structs[exported.name] = std::move(exported);
+    //         }
+    //         else
+    //         {
+    //             if (it->second.hasBeenDeclared)
+    //             {
+    //                 throw std::runtime_error("Struct " + exported.name + " has already been declared");
+    //             }
+    //             if (exported != it->second)
+    //             {
+    //                 throw std::runtime_error("Struct " + exported.name + " has already been declared with different types");
+    //             }
+    //             it->second.hasBeenDeclared = true;
+    //         }
+    //     }
+    //     for (auto &imported : file.importedStructs)
+    //     {
+    //         auto it = structs.find(imported.name);
+    //         if (it == structs.end())
+    //         {
+    //             structs[imported.name] = std::move(imported); //TODO: avoid double lookup
+    //         }
+    //         else
+    //         {
+    //             if (imported != it->second)
+    //             {
+    //                 throw std::runtime_error("Struct " + imported.name + " has already been declared with different types");
+    //             }
+    //         }
+    //     }
+    //     for (auto &importFile : file.importedFiles)
+    //     {
+    //         //TODO:
+    //     }
+    // }
 }

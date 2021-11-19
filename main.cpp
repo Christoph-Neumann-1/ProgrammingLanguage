@@ -8,8 +8,9 @@
 #include <Tokenizer.hpp>
 #include <Parser.hpp>
 #include <AST.hpp>
-#include <Interpreter.hpp>
 #include <VM.hpp>
+#include <Imports.hpp>
+#include <Compiler.hpp>
 //TODO: Modernize code
 
 //TODO proper interface
@@ -70,23 +71,27 @@ int main(int argc, char *argv[])
     // std::cout << VWA::TreeToString(root) << std::endl;
     VWA::AST tree(root);
     // std::cout<<tree.toString();
-    using namespace VWA::instruction;
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-braces"
-    ByteCodeElement code[]{
-        JumpFunc, 26, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        Return, 4, 0, 0, 0, 0, 0, 0, 0,
-        PushConst32, 1, 0, 0, 0,
-        PushConst32, 2, 0, 0, 0,
-        AddI,
-        Return, 4, 0, 0, 0, 0, 0, 0, 0};
-#pragma clang diagnostic pop
-    VWA::VM::VM::FileInfo fi;
-    fi.bc = std::make_unique<ByteCodeElement[]>(sizeof(code) / sizeof(ByteCodeElement));
-    std::memcpy(fi.bc.get(), code, sizeof(code));
-    fi.bcSize = sizeof(code);
-    fi.exportedFunctions.push_back({"main", "int", {}, {0}, false, true});
-    VWA::VM::VM vm(std::move(fi));
-    std::cout << "Ran vm with code" << vm.run() << '\n';
+//     using namespace VWA::instruction;
+// #pragma clang diagnostic push
+// #pragma clang diagnostic ignored "-Wmissing-braces"
+//     ByteCodeElement code[]{
+//         JumpFunc, 26, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+//         Return, 4, 0, 0, 0, 0, 0, 0, 0,
+//         PushConst32, 1, 0, 0, 0,
+//         PushConst32, 2, 0, 0, 0,
+//         AddI,
+//         Return, 4, 0, 0, 0, 0, 0, 0, 0};
+// #pragma clang diagnostic pop
+//     VWA::Imports::ImportedFileData fileData;
+//     fileData.bc = std::make_unique<ByteCodeElement[]>(sizeof(code) / sizeof(ByteCodeElement));
+//     std::memcpy(fileData.bc.get(), code, sizeof(code));
+//     fileData.bcSize = sizeof(code);
+//     fileData.main=0;
+//     fileData.hasMain=true;
+    VWA::Compiler compiler;
+    auto fileData = compiler.compile(tree);
+    VWA::Imports::ImportManager manager(std::move(fileData));
+    VWA::VM::VM vm;
+    std::cout << "Ran vm with code" << vm.run(manager.getMain()) << '\n';
     return 0;
 }
