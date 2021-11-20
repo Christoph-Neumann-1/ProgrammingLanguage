@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
     }
     auto tokens = VWA::Tokenizer(std::move(result));
     auto root = VWA::generateParseTree(tokens);
-    // std::cout << VWA::TreeToString(root) << std::endl;
+    std::cout << VWA::TreeToString(root) << std::endl;
     VWA::AST tree(root);
     // std::cout<<tree.toString();
 //     using namespace VWA::instruction;
@@ -92,6 +92,6 @@ int main(int argc, char *argv[])
     auto fileData = compiler.compile(tree);
     VWA::Imports::ImportManager manager(std::move(fileData));
     VWA::VM::VM vm;
-    std::cout << "Ran vm with code" << vm.run(manager.getMain()) << '\n';
+    std::cout << "Ran vm with code " << vm.run(manager.getMain()) << '\n';
     return 0;
 }

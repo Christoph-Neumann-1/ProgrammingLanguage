@@ -89,6 +89,7 @@ namespace VWA
 
     enum class NodeType
     {
+        NOOP,
         BLOCK,
         IF,
         WHILE,

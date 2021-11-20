@@ -293,6 +293,10 @@ namespace VWA
         {
             return processDot(oldNode, scope);
         }
+        case TokenType::semicolon:
+        {
+            return {NodeType::NOOP};
+        }
         default:
             throw std::runtime_error("Unknown node " + oldNode.value.toString());
         }
@@ -326,10 +330,10 @@ namespace VWA
             auto typeInfo = getType(typeName);
             typeInfo.isMutable = is_Mutable;
             scope.variables.emplace_back(name, typeInfo);
-            scope.stackSize+=getSizeOfType(typeInfo);
+            scope.stackSize += getSizeOfType(typeInfo);
             if (oldNode.children.size() == 3 + is_Mutable)
             {
-                Variable var{.type = typeInfo, .offsets = FindScopeOffset(&scope), .scopeIndex = scope.variables.size()-1};
+                Variable var{.type = typeInfo, .offsets = FindScopeOffset(&scope), .scopeIndex = scope.variables.size() - 1};
                 newNode.data = std::vector<ASTNode>{{NodeType::VARIABLE, var}, processExpression(oldNode.children[2 + is_Mutable], scope)};
             }
             break;
@@ -361,8 +365,11 @@ namespace VWA
         }
         case TokenType::for_:
         {
+            auto &inner = scope.children.emplace_back();
+            inner.index = scope.children.size() - 1;
+            inner.parent = &scope;
             newNode.type = NodeType::FOR;
-            newNode.data = std::vector<ASTNode>{processNode(oldNode.children[0], scope), processExpression(oldNode.children[1], scope), processNode(oldNode.children[2], scope), processNode(oldNode.children[3], scope)};
+            newNode.data = std::vector<ASTNode>{processNode(oldNode.children[0], inner), processExpression(oldNode.children[1], inner), processNode(oldNode.children[2], inner), processNode(oldNode.children[3], inner)};
             break;
         }
         case TokenType::return_:
