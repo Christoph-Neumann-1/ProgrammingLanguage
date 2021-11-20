@@ -8,6 +8,13 @@ namespace VWA
         for (auto &func : ast.functions)
         {
             compileFunction(func.second);
+            if (func.first == "main")
+            {
+                bytecode.push_back({instruction::PushConst32});
+                for (int i = 0; i < 4; ++i)
+                    bytecode.push_back({0});
+                bytecode.push_back({instruction::Return});
+            }
         }
         Imports::ImportedFileData fileData;
         fileData.bc = std::make_unique<instruction::ByteCodeElement[]>(bytecode.size());
@@ -41,16 +48,17 @@ namespace VWA
         // {
         //     bytecode.push_back({0});
         // }
-        compileNode(func.body, func);
+        compileNode(func.body, func, &func.scopes);
         functions[func.name] = (instruction::ByteCodeElement *)addr;
     }
-    void Compiler::compileNode(const ASTNode &node, const FunctionData &func)
+    void Compiler::compileNode(const ASTNode &node, const FunctionData &func, const Scope *scope)
     {
+        uint counter = 0;
         switch (node.type)
         {
         case NodeType::DECL:
         {
-            compileNode(std::get<std::vector<ASTNode>>(node.data)[1], func);
+            compileNode(std::get<std::vector<ASTNode>>(node.data)[1], func, scope);
             bytecode.push_back({instruction::WriteLocal});
             auto &type = std::get<Variable>(std::get<std::vector<ASTNode>>(node.data)[0].data);
             writeBytes(getSizeOfType(type.type));
@@ -64,12 +72,34 @@ namespace VWA
             writeBytes(std::get<int>(node.data));
             break;
         }
+        case NodeType::ADD:
+        {
+            compileNode(std::get<std::vector<ASTNode>>(node.data)[0], func, scope);
+            compileNode(std::get<std::vector<ASTNode>>(node.data)[1], func, scope);
+            bytecode.push_back({instruction::AddI});
+            break;
+        }
         case NodeType::BLOCK:
         {
+            auto nextScope = &scope->children[counter++];
+            bytecode.push_back({instruction::Push});
+            writeBytes(nextScope->stackSize);
             for (auto &child : std::get<std::vector<ASTNode>>(node.data))
             {
-                compileNode(child, func);
+                compileNode(child, func, nextScope);
             }
+            bytecode.push_back({instruction::Pop});
+            writeBytes(nextScope->stackSize);
+            break;
+        }
+        case NodeType::RETURN:
+        {
+            auto vec = std::get<std::vector<ASTNode>>(node.data);
+            if (vec.size())
+                compileNode(vec[0], func, scope);
+            bytecode.push_back({instruction::Return});
+            writeBytes(getSizeOfType(func.returnType));
+            break;
         }
         }
     }

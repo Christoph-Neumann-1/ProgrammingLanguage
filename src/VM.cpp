@@ -525,6 +525,8 @@ namespace VWA::VM
                 instruction++;
                 break;
             }
+            case JumpInternal:
+                throw std::runtime_error("JumpInternal not executable");
             }
         }
     }

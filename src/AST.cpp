@@ -326,6 +326,7 @@ namespace VWA
             auto typeInfo = getType(typeName);
             typeInfo.isMutable = is_Mutable;
             scope.variables.emplace_back(name, typeInfo);
+            scope.stackSize+=getSizeOfType(typeInfo);
             if (oldNode.children.size() == 3 + is_Mutable)
             {
                 Variable var{.type = typeInfo, .offsets = FindScopeOffset(&scope), .scopeIndex = scope.variables.size()-1};

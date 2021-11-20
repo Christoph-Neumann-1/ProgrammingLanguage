@@ -10,7 +10,7 @@ namespace VWA
         //TODO: args and state
         std::unordered_map<std::string, instruction::ByteCodeElement *> functions;
         std::vector<instruction::ByteCodeElement> bytecode;
-        void compileNode(const ASTNode &node, const FunctionData &func);
+        void compileNode(const ASTNode &node, const FunctionData &func,const Scope *scope);
         void compileFunction(const FunctionData &func);
         template <typename T>
         void writeBytes(T value)
