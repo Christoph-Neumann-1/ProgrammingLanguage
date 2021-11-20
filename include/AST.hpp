@@ -340,6 +340,8 @@ namespace VWA
                 return "NOT";
             case NodeType::SIZEOF:
                 return "SIZEOF";
+            case NodeType::NOOP:
+                return "NOOP";
             }
         }
         template <class... Ts>
@@ -424,6 +426,7 @@ namespace VWA
                 ss << ") -> " << typeAsString(func.returnType);
                 ss << NodeToString(func.body, 1);
             }
+            ss<<'\n';
             return ss.str();
         }
     };

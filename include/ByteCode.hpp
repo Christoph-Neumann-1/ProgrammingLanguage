@@ -91,6 +91,8 @@ namespace VWA
             //TODO: direct copy
             Push,//Increment the stack pointer. This does not allow for intialization of the value, use read or ConstPush for that.
             Pop,
+            Dup,//Duplicate relative to the stack pointer. args: 64bit uint offset, 64bit uint size Probably not needed
+            PopMiddle,//take n bytes from the stack, the remove the next n bytes and put them back.
             PushConst8,//Push a constant value onto the stack.
             PushConst32,
             PushConst64,

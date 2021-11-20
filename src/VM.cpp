@@ -3,6 +3,7 @@
 
 namespace VWA::VM
 {
+    //TODO: remove dynamic memory allocation
     void VM::exec(instruction::ByteCodeElement *instruction, uint8_t *stackBase)
     {
         for (;;)
@@ -20,6 +21,24 @@ namespace VWA::VM
                 mmu.stack.pop(ReadInstructionArg<uint64_t>(instruction + 1));
                 instruction += 1 + sizeof(uint64_t);
                 break;
+            case Dup:
+            {
+                auto offset = ReadInstructionArg<uint64_t>(instruction + 1);
+                auto size = ReadInstructionArg<uint64_t>(instruction + 1 + sizeof(uint64_t));
+                std::memcpy(mmu.stack.getData() + mmu.stack.getTop(), mmu.stack.getData() + mmu.stack.getTop() - offset, size);
+                mmu.stack.push(size);
+                instruction += 1 + 2 * sizeof(uint64_t);
+                break;
+            }
+            case PopMiddle:
+            {
+                auto size = ReadInstructionArg<uint64_t>(instruction + 1);
+                auto length = ReadInstructionArg<uint64_t>(instruction + 1 + sizeof(uint64_t));
+                std::memmove(mmu.stack.getData() + mmu.stack.getTop() - size - length, mmu.stack.getData() + mmu.stack.getTop() - size, size);
+                mmu.stack.pop(length);
+                instruction += 1 + 2 * sizeof(uint64_t);
+                break;
+            }
             case PushConst8:
                 mmu.stack.pushVal(ReadInstructionArg<uint8_t>(instruction + 1));
                 instruction += 1 + sizeof(uint8_t);
