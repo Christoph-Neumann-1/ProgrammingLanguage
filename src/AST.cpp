@@ -162,7 +162,7 @@ namespace VWA
             auto offset = std::distance(currentStruct->fields.begin(), it);
             vec.push_back({.type = NodeType::LONG_Val, .data = offset});
             currentStruct = it->type.structInfo;
-            if (!currentStruct)
+            if (!currentStruct && i != node.children.size() - 1)
             {
                 throw std::runtime_error("Field " + std::get<std::string>(node.children[i].value.value) + " is not a struct");
             }
@@ -340,11 +340,11 @@ namespace VWA
         }
         case TokenType::assign:
         {
-            auto &name = std::get<std::string>(oldNode.children[0].value.value);
-            auto var = resolveVariableName(name, &scope);
+            const bool isDot = oldNode.children[0].value.type == TokenType::dot;
+            ASTNode lhs=isDot?processDot(oldNode.children[0], scope):ASTNode{NodeType::VARIABLE, resolveVariableName(std::get<std::string>(oldNode.children[0].value.value), &scope)};
             auto value = processExpression(oldNode.children[1], scope);
             newNode.type = NodeType::ASSIGN;
-            newNode.data = std::vector<ASTNode>{{NodeType::VARIABLE, var}, value};
+            newNode.data = std::vector<ASTNode>{lhs, value};
             break;
         }
         case TokenType::if_:

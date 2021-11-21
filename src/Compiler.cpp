@@ -116,13 +116,28 @@ namespace VWA
         case NodeType::ASSIGN:
         {
             auto &vec = std::get<std::vector<ASTNode>>(node.data);
-            auto &var = std::get<Variable>(vec[0].data);
+            uint64_t tSize, tOffset;
+            TypeInfo tType;
+            if (std::holds_alternative<Variable>(vec[0].data))
+            {
+                auto &var = std::get<Variable>(vec[0].data);
+                tSize = getSizeOfType(var.type);
+                tOffset = getVarOffset(var, func.scopes);
+                tType = var.type;
+            }
+            else
+            {
+                auto [tOffset_, tType_] = getStructMemberOffset(std::get<std::vector<ASTNode>>(vec[0].data), func.scopes);
+                tSize = getSizeOfType(tType_);
+                tOffset = tOffset_;
+                tType = tType_;
+            }
             auto exprType = compileNode(vec[1], func, scope);
-            if (exprType.type != var.type.type)
-                CastToType(exprType, var.type);
+            if (exprType.type != tType.type)
+                CastToType(exprType, tType);
             bytecode.push_back({instruction::WriteLocal});
-            writeBytes(getSizeOfType(var.type));
-            writeBytes(getVarOffset(var, func.scopes));
+            writeBytes(tSize);
+            writeBytes(tOffset);
             break;
         }
         case NodeType::VARIABLE:
@@ -132,6 +147,14 @@ namespace VWA
             writeBytes(getSizeOfType(type.type));
             writeBytes(getVarOffset(type, func.scopes));
             return type.type;
+        }
+        case NodeType::DOT:
+        {
+            auto pos = getStructMemberOffset(std::get<std::vector<ASTNode>>(node.data), func.scopes);
+            bytecode.push_back({instruction::ReadLocal});
+            writeBytes(getSizeOfType(pos.second));
+            writeBytes(pos.first);
+            return pos.second;
         }
         case NodeType::INT_Val:
         {
@@ -156,6 +179,13 @@ namespace VWA
             bytecode.push_back({instruction::PushConst64});
             writeBytes(std::get<double>(node.data));
             return {VarType::DOUBLE, false, nullptr};
+        }
+        case NodeType::BOOL_Val:
+        case NodeType::CHAR_Val:
+        {
+            bytecode.push_back({instruction::PushConst8});
+            writeBytes(std::get<bool>(node.data));
+            return {VarType::BOOL, false, nullptr};
         }
         case NodeType::ADD:
             BinaryMathOp(Add);
@@ -237,6 +267,14 @@ namespace VWA
             bytecode.push_back({instruction::LessThanI});
             break;
         }
+        case NodeType::NOT:
+        {
+
+            if (auto t = compileNode(std::get<std::vector<ASTNode>>(node.data)[0], func, scope); t.type != VarType::BOOL)
+                CastToType(t, {VarType::BOOL});
+            bytecode.push_back({instruction::Not});
+            return {VarType::BOOL, false, nullptr};
+        }
         case NodeType::IF:
         {
             auto &vec = std::get<std::vector<ASTNode>>(node.data);
@@ -268,9 +306,9 @@ namespace VWA
             auto nextScope = &scope->children[counter++];
             bytecode.push_back({instruction::Push});
             writeBytes(nextScope->stackSize);
-            compileNode(vec[0], func, scope);
+            compileNode(vec[0], func, nextScope);
             auto condAddr = bytecode.size();
-            compileNode(vec[1], func, scope);
+            compileNode(vec[1], func, nextScope);
             bytecode.push_back({instruction::JumpIfFalse});
             auto addr1 = bytecode.size();
             writeBytes(uint64_t(0));
@@ -284,10 +322,24 @@ namespace VWA
             writeBytes(nextScope->stackSize);
             break;
         }
+        case NodeType::WHILE:
+        {
+            auto &vec = std::get<std::vector<ASTNode>>(node.data);
+            auto condAddr = bytecode.size();
+            compileNode(vec[0], func, scope);
+            bytecode.push_back({instruction::JumpIfFalse});
+            auto addr1 = bytecode.size();
+            writeBytes(uint64_t(0));
+            compileNode(vec[1], func, scope);
+            bytecode.push_back({instruction::Jump});
+            writeBytes(condAddr);
+            auto end = bytecode.size();
+            *(uint64_t *)&bytecode[addr1] = end;
+            break;
+        }
         case NodeType::NOOP:
             break;
         }
-
         return {VarType::VOID, false, nullptr};
     }
 

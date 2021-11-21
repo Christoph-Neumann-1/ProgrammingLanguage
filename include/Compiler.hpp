@@ -32,11 +32,33 @@ namespace VWA
                 scope = &scope->children[var.offsets[i]];
             }
             if (var.scopeIndex)
-                for (auto i = var.scopeIndex - 1; i+1 > 0; --i)
+                for (auto i = var.scopeIndex - 1; i + 1 > 0; --i)
                 {
                     offset += getSizeOfType(scope->variables[i].second);
                 }
             return offset;
+        }
+
+        std::pair<uint64_t, TypeInfo> getStructMemberOffset(const std::vector<ASTNode> &list, const Scope &scope, uint currentIndex = 0, StructInfo *structInfo = nullptr)
+        {
+            if (!currentIndex)
+            {
+                auto &var = std::get<Variable>(list.begin()->data);
+                auto res = getStructMemberOffset(list, scope, 1, var.type.structInfo);
+                res.first += getVarOffset(var, scope);
+                return res;
+            }
+            auto previousSize = 0;
+            for (auto i = std::get<long>(list[currentIndex].data) - 1; i + 1 > 0; --i)
+            {
+                previousSize += getSizeOfType(structInfo->fields[i].type);
+            }
+            if (currentIndex + 1 < list.size())
+            {
+                auto next = getStructMemberOffset(list, scope, currentIndex + 1, structInfo);
+                return {previousSize + next.first, next.second};
+            }
+            return {previousSize, structInfo->fields[std::get<long>(list[currentIndex].data)].type};
         }
 
         void CastToType(const TypeInfo &from, const TypeInfo &to)

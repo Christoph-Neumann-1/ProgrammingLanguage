@@ -120,6 +120,8 @@ namespace VWA
         case TokenType::long_:
         case TokenType::float_:
         case TokenType::double_:
+        case TokenType::char_:
+        case TokenType::bool_:
         {
             return {tokens[start++]};
         }
@@ -323,6 +325,19 @@ namespace VWA
                 {
                     throw std::runtime_error("Expected semicolon");
                 }
+                return node;
+            }
+            else if (tokens[pos + 1].type == TokenType::dot)
+            {
+                auto dot = parseDot(tokens, pos);
+                if (tokens[pos].type != TokenType::assign)
+                {
+                    throw std::runtime_error("Expected assignment");
+                }
+                ParseTreeNode node;
+                node.value.type = TokenType::assign;
+                node.children.push_back(dot);
+                node.children.push_back(parseExpression(tokens, ++pos));
                 return node;
             }
             else
