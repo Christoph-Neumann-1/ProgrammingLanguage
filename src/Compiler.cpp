@@ -47,42 +47,39 @@ namespace VWA
 {
     Imports::ImportedFileData Compiler::compile(const AST &ast)
     {
+        data.internalStart = data.importedFunctions.size();
+        for (auto &func : ast.functions)
+        {
+            //TODO: args
+            data.importedFunctions.push_back({func.first, Imports::ImportedFileData::FuncDef{.name = func.first, .returnType = AST::typeAsString(func.second.returnType), .isC = false}});
+        }
         for (auto &func : ast.functions)
         {
             compileFunction(func.second);
         }
-        Imports::ImportedFileData fileData;
-        fileData.bc = std::make_unique<instruction::ByteCodeElement[]>(bytecode.size());
-        std::memcpy(fileData.bc.get(), bytecode.data(), bytecode.size() * sizeof(instruction::ByteCodeElement));
-        fileData.bcSize = bytecode.size();
-        if (auto it = functions.find("main"); it != functions.end())
+        data.bc = std::make_unique<instruction::ByteCodeElement[]>(bytecode.size());
+        std::memcpy(data.bc.get(), bytecode.data(), bytecode.size() * sizeof(instruction::ByteCodeElement));
+        data.bcSize = bytecode.size();
+        if (auto it = std::find_if(data.importedFunctions.begin() + data.internalStart, data.importedFunctions.end(),
+                                   [](const std::pair<std::string, VWA::Imports::ImportedFileData::FuncDef> &val)
+                                   { return val.first == "main"; });
+            it != data.importedFunctions.end())
         {
-            fileData.main = it->second;
-            fileData.hasMain = true;
+            data.main = it->second.bc;
+            data.hasMain = true;
         }
         else
         {
-            fileData.main = 0;
-            fileData.hasMain = false;
+            data.main = 0;
+            data.hasMain = false;
         }
-        return fileData;
+        data.staticLink();
+        return std::move(data);
     }
 
     void Compiler::compileFunction(const FunctionData &func)
     {
         auto addr = bytecode.size();
-        // bytecode.push_back({instruction::PushConst32});
-        // bytecode.push_back({4});
-        // for (int i = 0; i < 3; i++)
-        // {
-        //     bytecode.push_back({0});
-        // }
-        // bytecode.push_back({instruction::Return});
-        // bytecode.push_back({4});
-        // for (int i = 0; i < 7; i++)
-        // {
-        //     bytecode.push_back({0});
-        // }
         compileNode(func.body, func, &func.scopes);
         if (func.name == "main")
         {
@@ -91,7 +88,10 @@ namespace VWA
             bytecode.push_back({instruction::Return});
             writeBytes((uint64_t)4);
         }
-        functions[func.name] = (instruction::ByteCodeElement *)addr;
+        auto f = std::find_if(data.importedFunctions.begin() + data.internalStart, data.importedFunctions.end(),
+                              [func](const std::pair<std::string, VWA::Imports::ImportedFileData::FuncDef> &val)
+                              { return val.first == func.name; });
+        f->second.bc = (instruction::ByteCodeElement *)addr;
     }
     const TypeInfo Compiler::compileNode(const ASTNode &node, const FunctionData &func, const Scope *scope)
     {
@@ -246,6 +246,22 @@ namespace VWA
             bytecode.push_back({instruction::Pop});
             writeBytes(nextScope->stackSize);
             break;
+        }
+        case NodeType::FUNC_CALL:
+        {
+            //TODO: remove JumpInternal resolve names during linking stage
+            auto &vec = std::get<std::vector<ASTNode>>(node.data);
+            auto funcName = std::get<std::string>(vec[0].data);
+
+            auto func = std::find_if(data.importedFunctions.begin(), data.importedFunctions.end(),
+                                     [&funcName](const auto &f)
+                                     { return f.first == funcName; });
+            if (func == data.importedFunctions.end())
+                throw std::runtime_error("Function not found");
+            bytecode.push_back({instruction::FCall});
+            writeBytes(std::distance(data.importedFunctions.begin(), func));
+            writeBytes<uint64_t>(0);
+            break; //TODO: args and return type
         }
         case NodeType::RETURN:
         {

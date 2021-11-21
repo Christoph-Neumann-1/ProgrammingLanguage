@@ -97,7 +97,7 @@ namespace VWA::VM
                 instruction = where;
                 break;
             }
-            case JumpExternal:
+            case FCall:
                 throw std::runtime_error("Unlinked symbol");
             case Return:
             {
@@ -544,8 +544,6 @@ namespace VWA::VM
                 instruction++;
                 break;
             }
-            case JumpInternal:
-                throw std::runtime_error("JumpInternal not executable");
             }
         }
     }

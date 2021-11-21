@@ -9,7 +9,7 @@ namespace VWA
     {
 
         //TODO: args and state
-        std::unordered_map<std::string, instruction::ByteCodeElement *> functions;
+        Imports::ImportedFileData data;
         std::vector<instruction::ByteCodeElement> bytecode;
         const TypeInfo compileNode(const ASTNode &node, const FunctionData &func, const Scope *scope);
         void compileFunction(const FunctionData &func);

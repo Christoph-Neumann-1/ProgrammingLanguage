@@ -55,6 +55,63 @@ namespace VWA::Imports
         }
     }
 
+    void SkipInstruction(instruction::ByteCodeElement *&instr)
+    {
+        switch (instr->byteCode)
+        {
+            using namespace instruction;
+        case JumpFFI:
+        case JumpFunc:
+        case FCall:
+        case Dup:
+        case PopMiddle:
+        case PushConstN:
+            instr += *reinterpret_cast<uint64_t *>(instr + 1);
+        case Return:
+        case ReadLocal:
+        case WriteLocal:
+        case ReadGlobal:
+        case WriteGlobal:
+        case Push:
+        case Pop:
+        case PushConst64:
+        case Jump:
+        case JumpIfFalse:
+        case JumpIfTrue:
+            instr += sizeof(uint32_t);
+        case PushConst32:
+            instr += 3 * sizeof(uint8_t);
+        case PushConst8:
+            instr += sizeof(uint8_t);
+        default:
+            instr++;
+            break;
+        }
+    }
+
+    void ImportedFileData::staticLink()
+    {
+        for (auto position = bc.get(); position < bc.get() + bcSize;)
+        {
+            if (position->byteCode == instruction::FCall)
+            {
+                auto where = reinterpret_cast<uint64_t *>(position + 1);
+                if (*where >= internalStart)
+                {
+                    auto &func = importedFunctions[*where];
+                    *where = reinterpret_cast<uint64_t>(func.second.bc);
+                }
+                position->byteCode = instruction::JumpFunc;
+            }
+            SkipInstruction(position);
+        }
+        for( auto n=importedFunctions.size()-internalStart;n>0;--n)
+        {
+            importedFunctions.pop_back();
+        }
+        importedFunctions.shrink_to_fit();
+    }
+
     void ImportedFileData::performBcOffsets()
     {
         //Dynamic libraries don't require any offseting
@@ -88,7 +145,7 @@ namespace VWA::Imports
                 position += sizeof(ByteCodeElement *) + 1 + sizeof(uint64_t);
                 break;
             }
-            case JumpExternal:
+            case FCall:
             {
                 auto index = reinterpret_cast<uint64_t *>(position + 1);
                 auto &function = importedFunctions[*index].second;

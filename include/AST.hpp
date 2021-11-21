@@ -154,7 +154,7 @@ namespace VWA
         switch (type.type)
         {
         case VarType::VOID:
-            throw std::runtime_error("Can't get size of void type");
+            return 0;
         case VarType::INT:
             return sizeof(int);
         case VarType::LONG:
@@ -241,7 +241,7 @@ namespace VWA
             return TypeInfo{VarType::STRUCT, false, &info->second};
         }
 
-        std::string typeAsString(const TypeInfo &type) const
+        static std::string typeAsString(const TypeInfo &type)
         {
             switch (type.type)
             {

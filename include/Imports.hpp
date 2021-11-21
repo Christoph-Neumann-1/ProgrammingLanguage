@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <ByteCode.hpp>
+//TODO: map of all imported symbols
 namespace VWA
 {
     namespace VM
@@ -114,6 +115,7 @@ namespace VWA::Imports
         };
         std::unordered_map<std::string, FuncDef> exportedFunctions;
         std::vector<std::pair<std::string, FuncDef>> importedFunctions;
+        uint64_t internalStart;
         std::unordered_map<std::string, StructDef> exportedStructs;
         std::vector<std::pair<std::string, StructDef>> importedStructs;
         DLHandle dlHandle;
@@ -124,6 +126,7 @@ namespace VWA::Imports
         void Setup(ImportManager *manager);
         void performFunctionOffsets();
         void performBcOffsets();
+        void staticLink();
         //TODO: load from file
     };
     class ImportManager
