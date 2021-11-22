@@ -184,8 +184,8 @@ namespace VWA
         case NodeType::CHAR_Val:
         {
             bytecode.push_back({instruction::PushConst8});
-            writeBytes(std::get<bool>(node.data));
-            return {VarType::BOOL, false, nullptr};
+            writeBytes<char>(std::holds_alternative<bool>(node.data)? std::get<bool>(node.data):std::get<char>(node.data));
+            return {VarType::CHAR, false, nullptr};
         }
         case NodeType::ADD:
             BinaryMathOp(Add);
@@ -260,8 +260,19 @@ namespace VWA
                 throw std::runtime_error("Function not found");
             bytecode.push_back({instruction::FCall});
             writeBytes(std::distance(data.importedFunctions.begin(), func_));
+            //I am lacking a way to get info about structs here, and all parameters are
+            //stored as strings, therefore a return type of int or void is assumed
+            auto &rtype= func_->second.returnType;
+            TypeInfo retType;
+            if(rtype=="int")
+                retType = {VarType::INT, false, nullptr};
+            else if(rtype=="void")
+                retType = {VarType::VOID, false, nullptr};
+            else
+                throw std::runtime_error("Invalid return type");
             writeBytes<uint64_t>(0);
-            break; //TODO: args and return type
+            return retType;
+            //TODO: if it is a free standing function call(e.g there is no assignment, discard the return value)
         }
         case NodeType::RETURN:
         {
