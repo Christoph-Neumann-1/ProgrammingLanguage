@@ -253,13 +253,13 @@ namespace VWA
             auto &vec = std::get<std::vector<ASTNode>>(node.data);
             auto funcName = std::get<std::string>(vec[0].data);
 
-            auto func = std::find_if(data.importedFunctions.begin(), data.importedFunctions.end(),
+            auto func_ = std::find_if(data.importedFunctions.begin(), data.importedFunctions.end(),
                                      [&funcName](const auto &f)
                                      { return f.first == funcName; });
-            if (func == data.importedFunctions.end())
+            if (func_ == data.importedFunctions.end())
                 throw std::runtime_error("Function not found");
             bytecode.push_back({instruction::FCall});
-            writeBytes(std::distance(data.importedFunctions.begin(), func));
+            writeBytes(std::distance(data.importedFunctions.begin(), func_));
             writeBytes<uint64_t>(0);
             break; //TODO: args and return type
         }
