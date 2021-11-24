@@ -2,6 +2,7 @@
 #include <AST.hpp>
 #include <Imports.hpp>
 #include <stdexcept>
+#include <Error.hpp>
 
 namespace VWA
 {
