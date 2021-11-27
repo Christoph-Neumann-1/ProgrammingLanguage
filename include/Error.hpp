@@ -4,9 +4,21 @@
 #include <vector>
 #include <optional>
 #include <optional>
+#include <Logger.hpp>
 
 namespace VWA
 {
+
+//TODO: test this and use in parser
+#define TRY(x)                          \
+    (                                   \
+        {                               \
+            auto tmp = (x);             \
+            if (!tmp)                   \
+                return tmp.moveError(); \
+            tmp.moveValue();            \
+        })
+
     struct Error
     {
         std::string message;
@@ -14,6 +26,23 @@ namespace VWA
         std::optional<std::string> file;
         uint line;
         std::vector<std::string> backtrace;
+
+        void log(ILogger &logger)
+        {
+            logger << ILogger::Error << "Error: " << message;
+            if (suggestion)
+                logger << "\nSuggestion: " << *suggestion;
+            if (file)
+                logger << "\nAt:" << *file << ':' << std::to_string(line);
+            if (backtrace.size())
+            {
+                logger << "\nBacktrace:";
+                for (auto &i : backtrace)
+                    logger << "\n"
+                           << i;
+            }
+            logger << ILogger::FlushNewLine;
+        }
 
         //TODO: function for adding context
     };
@@ -28,6 +57,11 @@ namespace VWA
         bool isError() const
         {
             return errorState;
+        }
+
+        operator bool() const
+        {
+            return !errorState;
         }
 
         //Throws an exception if it contains an error

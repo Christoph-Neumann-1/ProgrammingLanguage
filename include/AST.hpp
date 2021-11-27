@@ -35,6 +35,14 @@ The type of references must match. Mut may be omitted for a constant reference, 
 
 namespace VWA
 {
+    template <class... Ts>
+    struct overloaded : Ts...
+    {
+        using Ts::operator()...;
+    };
+    template <class... Ts>
+    overloaded(Ts...) -> overloaded<Ts...>;
+
     //The idea for the action tree is to bring everything into a more useful format, as well as to resolve symbols and therefore allow for
     //Type checking.
     enum class VarType : uint64_t
@@ -344,13 +352,6 @@ namespace VWA
                 return "NOOP";
             }
         }
-        template <class... Ts>
-        struct overloaded : Ts...
-        {
-            using Ts::operator()...;
-        };
-        template <class... Ts>
-        overloaded(Ts...) -> overloaded<Ts...>;
 
         std::string NodeToString(const ASTNode &node, int depth = 0) const
         {

@@ -11,7 +11,7 @@ namespace VWA
     enum class TokenType
     {
         null,
-        compound,//TODO: use for paramaters
+        compound, //TODO: use for paramaters
         //brackets
         lparen,
         rparen,
@@ -78,10 +78,10 @@ namespace VWA
         mutable_,
         return_,
         arrow_operator,
-        size_of,//TODO:
+        size_of, //TODO:
         new_,
         delete_,
-        eof,//Could be removed but it makes the parser easier
+        eof, //Could be removed but it makes the parser easier
     };
     //TODO: replace with better data structure
     const std::unordered_map<std::string, TokenType> keywords{
@@ -123,8 +123,9 @@ namespace VWA
         //Maybe use a reference to the line instead?
         //Use optional?
         std::shared_ptr<const std::string> file;
-        int line=-1;
+        int line = -1;
         //TODO: use the same map used to find the tokens in the first place. For values simply use std::to_string(value).
         std::string toString() const;
+
     };
 }

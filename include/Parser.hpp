@@ -1,6 +1,7 @@
 #pragma once
 #include <Tokens.hpp>
 #include <Node.hpp>
+#include <Error.hpp>
 
 namespace VWA
 {
@@ -22,6 +23,6 @@ namespace VWA
     */
 
     std::string TreeToString(const ParseTreeNode& node,int indent = 0);
-    ParseTreeNode generateParseTree(const std::vector<VWA::Token> &tokens);
+    ErrorOr<ParseTreeNode> generateParseTree(const std::vector<VWA::Token> &tokens);
 
 }

@@ -1,5 +1,6 @@
 #include <Compiler.hpp>
 #include <cstring>
+//TODO: panic mode
 
 #define BinaryMathOp(name)                                                                  \
     {                                                                                       \
