@@ -1,5 +1,6 @@
 #include <Compiler.hpp>
 #include <cstring>
+#include <algorithm>
 
 #define BinaryMathOp(name)                                                                  \
     {                                                                                       \
@@ -50,8 +51,12 @@ namespace VWA
         data.internalStart = data.importedFunctions.size();
         for (auto &func : ast.functions)
         {
-            //TODO: args
-            data.importedFunctions.push_back({func.first, Imports::ImportedFileData::FuncDef{.name = func.first, .returnType = AST::typeAsString(func.second.returnType), .isC = false}});
+            std::vector<Imports::ImportedFileData::FuncDef::Parameter> params;
+            for (auto &param : func.second.arguments)
+            {
+                params.push_back({AST::typeAsString(param.type), true});
+            }
+            data.importedFunctions.push_back({func.first, Imports::ImportedFileData::FuncDef{.name = func.first, .returnType = AST::typeAsString(func.second.returnType), .parameters = std::move(params), .isC = false}});
         }
         for (auto &func : ast.functions)
         {
@@ -184,7 +189,7 @@ namespace VWA
         case NodeType::CHAR_Val:
         {
             bytecode.push_back({instruction::PushConst8});
-            writeBytes<char>(std::holds_alternative<bool>(node.data)? std::get<bool>(node.data):std::get<char>(node.data));
+            writeBytes<char>(std::holds_alternative<bool>(node.data) ? std::get<bool>(node.data) : std::get<char>(node.data));
             return {VarType::CHAR, false, nullptr};
         }
         case NodeType::ADD:
@@ -249,28 +254,42 @@ namespace VWA
         }
         case NodeType::FUNC_CALL:
         {
-            //TODO: remove JumpInternal resolve names during linking stage
+            //TODO: use the parser to convert free calls to assignments to null, then just pop the stack in
+            //that case
             auto &vec = std::get<std::vector<ASTNode>>(node.data);
             auto funcName = std::get<std::string>(vec[0].data);
 
             auto func_ = std::find_if(data.importedFunctions.begin(), data.importedFunctions.end(),
-                                     [&funcName](const auto &f)
-                                     { return f.first == funcName; });
+                                      [&funcName](const auto &f)
+                                      { return f.first == funcName; });
             if (func_ == data.importedFunctions.end())
                 throw std::runtime_error("Function not found");
-            bytecode.push_back({instruction::FCall});
-            writeBytes(std::distance(data.importedFunctions.begin(), func_));
             //I am lacking a way to get info about structs here, and all parameters are
             //stored as strings, therefore a return type of int or void is assumed
-            auto &rtype= func_->second.returnType;
+            auto &rtype = func_->second.returnType;
             TypeInfo retType;
-            if(rtype=="int")
+            if (rtype == "int")
                 retType = {VarType::INT, false, nullptr};
-            else if(rtype=="void")
+            else if (rtype == "void")
                 retType = {VarType::VOID, false, nullptr};
             else
                 throw std::runtime_error("Invalid return type");
-            writeBytes<uint64_t>(0);
+            auto &parameters = func_->second.parameters;
+            if (parameters.size() != vec.size() - 1)
+                throw std::runtime_error("Invalid number of parameters");
+            uint64_t argLength = 0;
+            for (size_t i = 0; i < parameters.size(); i++)
+            {
+                auto &parameter = parameters[i];
+                if (parameter.typeName != "int")
+                    throw std::runtime_error("Invalid parameter type. Only int is supported yet.");
+                argLength += 4;
+                auto rT = compileNode(vec[i + 1], func, scope);
+                CastToType(rT, {VarType::INT, false, nullptr});
+            }
+            bytecode.push_back({instruction::FCall});
+            writeBytes(std::distance(data.importedFunctions.begin(), func_));
+            writeBytes<uint64_t>(argLength);
             return retType;
             //TODO: if it is a free standing function call(e.g there is no assignment, discard the return value)
         }
