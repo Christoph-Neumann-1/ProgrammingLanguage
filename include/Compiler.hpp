@@ -10,6 +10,7 @@ namespace VWA
     {
 
         //TODO: args and state
+        Imports::ImportManager &manager;
         Imports::ImportedFileData data;
         std::vector<instruction::ByteCodeElement> bytecode;
         const TypeInfo compileNode(const ASTNode &node, const FunctionData &func, const Scope *scope);
@@ -247,12 +248,12 @@ namespace VWA
         }
 
     public:
-        Compiler() = default;
+        Compiler(Imports::ImportManager &mgr) : manager(mgr) {}
         Compiler(const Compiler &) = delete;
         Compiler(Compiler &&) = delete;
         Compiler &operator=(const Compiler &) = delete;
         Compiler &operator=(Compiler &&) = delete;
         ~Compiler() = default;
-        Imports::ImportedFileData compile(const AST &ast);
+        void compile(const AST &ast);
     };
 }

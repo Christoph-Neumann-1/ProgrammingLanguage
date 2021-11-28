@@ -14,8 +14,6 @@
 //TODO: Modernize code
 
 //TODO proper interface
-//TODO refactor everything
-//TODO more const
 //TODO try different format styles
 int main(int argc, char *argv[])
 {
@@ -94,9 +92,24 @@ int main(int argc, char *argv[])
     //     fileData.bcSize = sizeof(code);
     //     fileData.main=0;
     //     fileData.hasMain=true;
-    VWA::Compiler compiler;
-    auto fileData = compiler.compile(tree);
-    VWA::Imports::ImportManager manager(std::move(fileData));
+    VWA::Imports::ImportManager manager;
+    auto handle = dlopen("./libstdlib.so", RTLD_LAZY);
+    if (!handle)
+    {
+        std::cout << dlerror() << std::endl;
+        return -1;
+    }
+    auto func = reinterpret_cast<VWA::Imports::ImportedFileData (*)(VWA::Imports::ImportManager * manager)>(dlsym(handle, "MODULE_ENTRY_POINT"));
+    if (!func)
+    {
+        std::cout << dlerror() << std::endl;
+        return -1;
+    }
+    auto module = func(&manager);
+    module.dlHandle.handle = handle;
+    manager.makeModuleAvailable("stdlib", std::move(module));
+    VWA::Compiler compiler(manager);
+    compiler.compile(tree);
     VWA::VM::VM vm;
     std::cout << "Ran vm with code " << vm.run(manager.getMain()) << '\n';
     return 0;

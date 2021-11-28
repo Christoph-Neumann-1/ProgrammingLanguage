@@ -105,7 +105,7 @@ namespace VWA::Imports
             }
             SkipInstruction(position);
         }
-        for( auto n=importedFunctions.size()-internalStart;n>0;--n)
+        for (auto n = importedFunctions.size() - internalStart; n > 0; --n)
         {
             importedFunctions.pop_back();
         }
@@ -118,7 +118,7 @@ namespace VWA::Imports
         //they also need to handle this differently, but I haven't put any thought into that yet.
         if (dlHandle)
         {
-            throw std::runtime_error("Dynamic libraries not supported");
+            return;
         }
         uint64_t offset = (uint64_t)bc.get();
 
@@ -128,7 +128,10 @@ namespace VWA::Imports
             {
                 using namespace instruction;
             case JumpFFI:
-                throw std::runtime_error("JumpFFI before linking");
+                position += sizeof(FFIFunc) + sizeof(uint64_t) + 1;
+                break;
+                //TODO: add this back.
+                // throw std::runtime_error("JumpFFI before linking");
             case Jump:
             case JumpIfFalse:
             case JumpIfTrue:

@@ -113,7 +113,13 @@ namespace VWA::VM
                 break;
             }
             case JumpFFI:
-                throw std::runtime_error("JumpFFI not implemented");
+            {
+                auto where = ReadInstructionArg<FFIFunc>(instruction + 1);
+                auto argSize = ReadInstructionArg<uint64_t>(instruction + 1 + sizeof(FFIFunc));
+                where(&mmu.stack, this);
+                instruction += 1 + sizeof(FFIFunc) + sizeof(uint64_t);
+                break;
+            }
             case ReadLocal:
             {
                 auto size = ReadInstructionArg<uint64_t>(instruction + 1);

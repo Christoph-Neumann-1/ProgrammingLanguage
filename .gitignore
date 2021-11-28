@@ -2,3 +2,4 @@ build
 testfile.src
 test2.src
 **/out
+libstdlib.so

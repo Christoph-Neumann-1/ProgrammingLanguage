@@ -22,7 +22,7 @@ namespace VWA
     TODO: consider switching to unique ids if pointers cause problems.
     */
 
-    std::string TreeToString(const ParseTreeNode& node,int indent = 0);
+    std::string TreeToString(const ParseTreeNode &node, int indent = 0);
     ErrorOr<ParseTreeNode> generateParseTree(const std::vector<VWA::Token> &tokens);
 
 }

@@ -46,7 +46,7 @@
     }
 namespace VWA
 {
-    Imports::ImportedFileData Compiler::compile(const AST &ast)
+    void Compiler::compile(const AST &ast)
     {
         data.internalStart = data.importedFunctions.size();
         for (auto &func : ast.functions)
@@ -75,7 +75,7 @@ namespace VWA
             data.hasMain = false;
         }
         data.staticLink();
-        return std::move(data);
+        manager.makeModuleAvailable("main", std::move(data));
     }
 
     void Compiler::compileFunction(const FunctionData &func)
@@ -254,15 +254,47 @@ namespace VWA
             auto &vec = std::get<std::vector<ASTNode>>(node.data);
             auto funcName = std::get<std::string>(vec[0].data);
 
-            auto func = std::find_if(data.importedFunctions.begin(), data.importedFunctions.end(),
-                                     [&funcName](const auto &f)
-                                     { return f.first == funcName; });
-            if (func == data.importedFunctions.end())
-                throw std::runtime_error("Function not found");
-            bytecode.push_back({instruction::FCall});
-            writeBytes(std::distance(data.importedFunctions.begin(), func));
-            writeBytes<uint64_t>(0);
-            break; //TODO: args and return type
+            Imports::ImportedFileData::FuncDef *definition;
+            auto f = std::find_if(data.importedFunctions.begin(), data.importedFunctions.end(),
+                                  [&funcName](const auto &f)
+                                  { return f.first == funcName; });
+            if (f == data.importedFunctions.end())
+            {
+                auto stdlib = manager.getModule("stdlib");
+                auto sym = stdlib->exportedFunctions.find(funcName);
+                if (sym == stdlib->exportedFunctions.end())
+                    throw std::runtime_error("Function not found");
+                definition = &sym->second;
+            }
+            else
+            {
+                definition = &f->second;
+            }
+            TypeInfo rtype;
+            if (definition->returnType != "int")
+                throw std::runtime_error("Function return type not supported");
+            rtype = {VarType::INT, false, nullptr};
+            for (int i = 1; i < vec.size(); i++)
+            {
+                auto &arg = vec[i];
+                auto argType = compileNode(arg, func, scope);
+                if (argType.type != rtype.type)
+                    CastToType(argType, rtype);
+            }
+            auto argSize = sizeof(int) * (vec.size() - 1);
+            if (definition->isC)
+            {
+                bytecode.push_back({instruction::JumpFFI});
+                writeBytes(definition->func);
+                writeBytes<uint64_t>(argSize);
+            }
+            else
+            {
+                bytecode.push_back({instruction::FCall});
+                writeBytes(std::distance(data.importedFunctions.begin(), f));
+                writeBytes<uint64_t>(argSize);
+            }
+            return rtype;
         }
         case NodeType::RETURN:
         {

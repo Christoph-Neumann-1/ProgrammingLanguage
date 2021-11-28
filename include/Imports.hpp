@@ -16,7 +16,7 @@ namespace VWA
 }
 namespace VWA::Imports
 {
-    using FFIFunc = void (*)(Stack *, VM::VM *, uint8_t *stackBase);
+    using FFIFunc = void (*)(Stack *, VM::VM *);
 
     class ImportManager;
     struct DLHandle
@@ -150,17 +150,8 @@ namespace VWA::Imports
         }
 
     public:
-        //TODO: replace by file path.
-        ImportManager(ImportedFileData &&file)
+        ImportManager()
         {
-            //TODO: fix
-            auto [f, _] = importedFiles.emplace(std::make_pair("", std::move(file)));
-            if (!f->second.hasMain)
-                throw std::runtime_error("No main function found");
-            f->second.Setup(this);
-            main = f->second.main;
-            TransferContents();
-            importedFiles.clear();
         }
         ImportedFileData *getModule(const std::string &moduleName)
         {
@@ -176,6 +167,15 @@ namespace VWA::Imports
         {
             auto [f, _] = importedFiles.emplace(std::make_pair(moduleName, std::move(file)));
             f->second.Setup(this);
+            if (f->second.hasMain)
+            {
+                if (main)
+                    throw std::runtime_error("Main function already defined");
+                main = f->second.main;
+            }
+        }
+        void compact()
+        {
             TransferContents();
             importedFiles.clear();
         }

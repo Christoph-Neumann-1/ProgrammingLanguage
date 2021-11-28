@@ -9,6 +9,7 @@
 //TODO: add backtrace
 //TODO: catch more errors here
 //TODO: replace push back with emplace_back where possible
+//TODO: save line number in Nodes
 namespace VWA
 {
 #pragma region Expression Parsing

@@ -36,7 +36,7 @@ namespace VWA::VM
         }
         //TODO: read n bytes
     };
-    using FFIFunc = void (*)(Stack *, VM *, uint8_t *stackBase);
+    using FFIFunc = void (*)(Stack *, VM *);
 
     class VM
     {

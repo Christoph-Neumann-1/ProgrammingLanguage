@@ -188,11 +188,11 @@ namespace VWA
             auto &vec = std::get<std::vector<ASTNode>>(node.data);
             auto funcName = std::get<std::string>(oldNode.value.value);
             vec.push_back({NodeType::STR_Val, funcName});
-            auto func = functions.find(funcName);
-            if (func == functions.end())
-            {
-                throw std::runtime_error("Function " + funcName + " not found");
-            }
+            // auto func = functions.find(funcName);
+            // if (func == functions.end())
+            // {
+            //     throw std::runtime_error("Function " + funcName + " not found");
+            // }
             for (size_t i = 0; i < oldNode.children.size(); ++i)
             {
                 auto &child = oldNode.children[i];
@@ -341,7 +341,7 @@ namespace VWA
         case TokenType::assign:
         {
             const bool isDot = oldNode.children[0].value.type == TokenType::dot;
-            ASTNode lhs=isDot?processDot(oldNode.children[0], scope):ASTNode{NodeType::VARIABLE, resolveVariableName(std::get<std::string>(oldNode.children[0].value.value), &scope)};
+            ASTNode lhs = isDot ? processDot(oldNode.children[0], scope) : ASTNode{NodeType::VARIABLE, resolveVariableName(std::get<std::string>(oldNode.children[0].value.value), &scope)};
             auto value = processExpression(oldNode.children[1], scope);
             newNode.type = NodeType::ASSIGN;
             newNode.data = std::vector<ASTNode>{lhs, value};
