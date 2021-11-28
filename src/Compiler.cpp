@@ -51,8 +51,12 @@ namespace VWA
         data.internalStart = data.importedFunctions.size();
         for (auto &func : ast.functions)
         {
-            //TODO: args
-            data.importedFunctions.push_back({func.first, Imports::ImportedFileData::FuncDef{.name = func.first, .returnType = AST::typeAsString(func.second.returnType), .isC = false}});
+            std::vector<Imports::ImportedFileData::FuncDef::Parameter> params;
+            for (auto &param : func.second.arguments)
+            {
+                params.push_back({AST::typeAsString(param.type), true});
+            }
+            data.importedFunctions.push_back({func.first, Imports::ImportedFileData::FuncDef{.name = func.first, .returnType = AST::typeAsString(func.second.returnType), .parameters = std::move(params), .isC = false}});
         }
         for (auto &func : ast.functions)
         {
@@ -274,6 +278,8 @@ namespace VWA
             if (definition->returnType != "int")
                 throw std::runtime_error("Function return type not supported");
             rtype = {VarType::INT, false, nullptr};
+            if (definition->parameters.size() != vec.size() - 1)
+                throw std::runtime_error("Function parameter count mismatch");
             for (int i = 1; i < vec.size(); i++)
             {
                 auto &arg = vec[i];

@@ -92,7 +92,7 @@ namespace VWA::VM
                 mmu.stack.pop(argSize);
                 mmu.stack.pushVal<uint8_t *>(stackBase);
                 stackBase = mmu.stack.getData() + mmu.stack.getTop() - sizeof(uint8_t *);
-                mmu.stack.pushVal<ByteCodeElement *>(instruction + 1 + sizeof(ByteCodeElement *) + sizeof(uint64_t) + argSize);
+                mmu.stack.pushVal<ByteCodeElement *>(instruction + 1 + sizeof(ByteCodeElement *) + sizeof(uint64_t));
                 mmu.stack.PushN(argSize, args.get());
                 instruction = where;
                 break;

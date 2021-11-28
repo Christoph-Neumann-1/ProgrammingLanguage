@@ -425,7 +425,7 @@ namespace VWA
         node.children.emplace_back(tokens[pos++]);
         if (tokens[pos].type == TokenType::assign)
         {
-            node.children.emplace_back(TRY(parseExpression(tokens, pos)));
+            node.children.emplace_back(TRY(parseExpression(tokens, ++pos)));
             if (tokens[pos++].type != TokenType::semicolon)
             {
                 return Error{.message = "Expected semicolon after variable declaration"};
