@@ -185,8 +185,8 @@ namespace VWA
         case NodeType::CHAR_Val:
         {
             bytecode.push_back({instruction::PushConst8});
-            writeBytes(std::get<bool>(node.data));
-            return {VarType::BOOL, false, nullptr};
+            writeBytes<char>(std::holds_alternative<bool>(node.data) ? std::get<bool>(node.data) : std::get<char>(node.data));
+            return {VarType::CHAR, false, nullptr};
         }
         case NodeType::ADD:
             BinaryMathOp(Add);

@@ -51,6 +51,7 @@ namespace VWA::Imports
     {
         struct FuncDef
         {
+            //TODO: convert to proper type
             std::string name;
             std::string returnType;
             struct Parameter
