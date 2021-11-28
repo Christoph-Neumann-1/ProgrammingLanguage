@@ -15,7 +15,7 @@ namespace VWA
         ParseTreeNode(Token &&value, std::vector<ParseTreeNode> &&children) : value(std::move(value)), children(std::move(children)) {}
         ParseTreeNode(Token &&value, const std::vector<ParseTreeNode> &children) : value(std::move(value)), children(children) {}
         ParseTreeNode(Token &&value) : value(std::move(value)) {}
-        //TODO: do i need this, or can the compiler do it for me?
+        //TODO: do I need this, or can the compiler do it for me?
         ParseTreeNode(const ParseTreeNode &other) : value(other.value), children(other.children) {}
         ParseTreeNode(ParseTreeNode &&other) : value(std::move(other.value)), children(std::move(other.children)) {}
         ParseTreeNode &operator=(const ParseTreeNode &other)

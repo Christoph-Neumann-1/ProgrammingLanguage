@@ -1,5 +1,6 @@
 #include <Tokenizer.hpp>
 //TODO: remove comment hack
+//TODO: better errors
 namespace VWA
 {
 
@@ -173,228 +174,239 @@ namespace VWA
         throw std::runtime_error("Invalid identifier");
     }
 
-    std::vector<Token> Tokenizer(File file)
+    std::vector<Token> Tokenizer(File file, ILogger &logger)
     {
         //TODO: use emplace_back
         std::vector<Token> tokens;
         for (auto &line : file)
         {
-            for (size_t pos = 0; pos < line.content.length(); ++pos)
+            auto lineBegin = tokens.size();
+            try
             {
-                switch (line.content[pos])
+                for (size_t pos = 0; pos < line.content.length(); ++pos)
                 {
-                case ' ':
-                case '\t':
-                    continue;
-                case '"':
-                    tokens.push_back(ParseString(line.content, pos));
-                    tokens.back().line = line.lineNumber;
-                    tokens.back().file = line.fileName;
-                    continue;
-                case '\'':
-                    tokens.push_back(ParseChar(line.content, pos));
-                    tokens.back().line = line.lineNumber;
-                    tokens.back().file = line.fileName;
-                    continue;
-                case '(':
-                    tokens.push_back(Token{.type = TokenType::lparen, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case ')':
-                    tokens.push_back(Token{.type = TokenType::rparen, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case '{':
-                    tokens.push_back(Token{.type = TokenType::lbrace, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case '}':
-                    tokens.push_back(Token{.type = TokenType::rbrace, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case '[':
-                    tokens.push_back(Token{.type = TokenType::lbracket, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case ']':
-                    tokens.push_back(Token{.type = TokenType::rbracket, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case ';':
-                    tokens.push_back(Token{.type = TokenType::semicolon, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case ',':
-                    tokens.push_back(Token{.type = TokenType::comma, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case ':':
-                    if (line.content.size() > pos + 1)
+                    switch (line.content[pos])
                     {
-                        if (line.content[pos + 1] == ':')
-                        {
-                            tokens.push_back(Token{.type = TokenType::double_colon, .file = line.fileName, .line = line.lineNumber});
-                            ++pos;
-                            continue;
-                        }
-                    }
-                    tokens.push_back(Token{.type = TokenType::colon, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case '+':
-                    tokens.push_back(Token{.type = TokenType::plus, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case '-':
-                    if (line.content.size() > pos + 1)
-                    {
-                        if (line.content[pos + 1] == '>')
-                        {
-                            tokens.push_back(Token{.type = TokenType::arrow_operator, .file = line.fileName, .line = line.lineNumber});
-                            ++pos;
-                            continue;
-                        }
-                    }
-                    tokens.push_back(Token{.type = TokenType::minus, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case '*':
-                    if (line.content.size() > pos + 1)
-                    {
-                        if (line.content[pos + 1] == '*')
-                        {
-                            tokens.push_back(Token{.type = TokenType::power, .file = line.fileName, .line = line.lineNumber});
-                            ++pos;
-                            continue;
-                        }
-                    }
-                    tokens.push_back(Token{.type = TokenType::star, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case '/':
-                    if (line.content.size() > pos + 1)
-                    {
-                        if (line.content[pos + 1] == '/')
-                        {
-                            goto OUTER_CONTINUE;
-                        }
-                    }
-                    tokens.push_back(Token{.type = TokenType::divide, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case '%':
-                    tokens.push_back(Token{.type = TokenType::mod, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case '&':
-                    if (line.content.size() > pos + 1)
-                    {
-                        if (line.content[pos + 1] == '&')
-                        {
-                            tokens.push_back(Token{.type = TokenType::and_, .file = line.fileName, .line = line.lineNumber});
-                            ++pos;
-                            continue;
-                        }
-                    }
-                    tokens.push_back(Token{.type = TokenType::ampersand, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case '|':
-                    if (line.content.size() > pos + 1)
-                    {
-                        if (line.content[pos + 1] == '|')
-                        {
-                            tokens.push_back(Token{.type = TokenType::or_, .file = line.fileName, .line = line.lineNumber});
-                            ++pos;
-                            continue;
-                        }
-                    }
-                    throw std::runtime_error("Invalid operator");
-                case '!':
-                    if (line.content.size() > pos + 1)
-                    {
-                        if (line.content[pos + 1] == '=')
-                        {
-                            tokens.push_back(Token{.type = TokenType::neq, .file = line.fileName, .line = line.lineNumber});
-                            ++pos;
-                            continue;
-                        }
-                    }
-                    tokens.push_back(Token{.type = TokenType::not_, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case '=':
-                    if (line.content.size() > pos + 1)
-                    {
-                        if (line.content[pos + 1] == '=')
-                        {
-                            tokens.push_back(Token{.type = TokenType::eq, .file = line.fileName, .line = line.lineNumber});
-                            ++pos;
-                            continue;
-                        }
-                    }
-                    tokens.push_back(Token{.type = TokenType::assign, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case '<':
-                    if (line.content.size() > pos + 1)
-                    {
-                        if (line.content[pos + 1] == '=')
-                        {
-                            tokens.push_back(Token{.type = TokenType::leq, .file = line.fileName, .line = line.lineNumber});
-                            ++pos;
-                            continue;
-                        }
-                    }
-                    tokens.push_back(Token{.type = TokenType::lt, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case '>':
-                    if (line.content.size() > pos + 1)
-                    {
-                        if (line.content[pos + 1] == '=')
-                        {
-                            tokens.push_back(Token{.type = TokenType::geq, .file = line.fileName, .line = line.lineNumber});
-                            ++pos;
-                            continue;
-                        }
-                    }
-                    tokens.push_back(Token{.type = TokenType::gt, .file = line.fileName, .line = line.lineNumber});
-                    continue;
-                case '.':
-                    if (!isdigit(line.content[pos + 1]))
-                    {
+                    case ' ':
+                    case '\t':
+                        continue;
+                    case '"':
+                        tokens.push_back(ParseString(line.content, pos));
+                        tokens.back().line = line.lineNumber;
+                        tokens.back().file = line.fileName;
+                        continue;
+                    case '\'':
+                        tokens.push_back(ParseChar(line.content, pos));
+                        tokens.back().line = line.lineNumber;
+                        tokens.back().file = line.fileName;
+                        continue;
+                    case '(':
+                        tokens.push_back(Token{.type = TokenType::lparen, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case ')':
+                        tokens.push_back(Token{.type = TokenType::rparen, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case '{':
+                        tokens.push_back(Token{.type = TokenType::lbrace, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case '}':
+                        tokens.push_back(Token{.type = TokenType::rbrace, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case '[':
+                        tokens.push_back(Token{.type = TokenType::lbracket, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case ']':
+                        tokens.push_back(Token{.type = TokenType::rbracket, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case ';':
+                        tokens.push_back(Token{.type = TokenType::semicolon, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case ',':
+                        tokens.push_back(Token{.type = TokenType::comma, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case ':':
                         if (line.content.size() > pos + 1)
                         {
-                            if (line.content[pos + 1] == '.')
+                            if (line.content[pos + 1] == ':')
                             {
-                                tokens.push_back(Token{.type = TokenType::range_operator, .file = line.fileName, .line = line.lineNumber});
+                                tokens.push_back(Token{.type = TokenType::double_colon, .file = line.fileName, .line = line.lineNumber});
                                 ++pos;
                                 continue;
                             }
                         }
-                        tokens.push_back(Token{.type = TokenType::dot, .file = line.fileName, .line = line.lineNumber});
+                        tokens.push_back(Token{.type = TokenType::colon, .file = line.fileName, .line = line.lineNumber});
                         continue;
-                    }
-                case '0':
-                case '1':
-                case '2':
-                case '3':
-                case '4':
-                case '5':
-                case '6':
-                case '7':
-                case '8':
-                case '9':
-                    tokens.push_back(ParseNumber(line.content, pos));
-                    tokens.back().line = line.lineNumber;
-                    tokens.back().file = line.fileName;
-                    continue;
-                default:
-                    auto identifier = ParseIdentifier(line.content, pos);
-                    if (auto it = keywords.find(identifier); it != keywords.end())
-                    {
-                        if (it->first == "true")
+                    case '+':
+                        tokens.push_back(Token{.type = TokenType::plus, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case '-':
+                        if (line.content.size() > pos + 1)
                         {
-                            tokens.push_back(Token{.type = TokenType::bool_, .value = true, .file = line.fileName, .line = line.lineNumber});
+                            if (line.content[pos + 1] == '>')
+                            {
+                                tokens.push_back(Token{.type = TokenType::arrow_operator, .file = line.fileName, .line = line.lineNumber});
+                                ++pos;
+                                continue;
+                            }
                         }
-                        else if (it->first == "false")
+                        tokens.push_back(Token{.type = TokenType::minus, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case '*':
+                        if (line.content.size() > pos + 1)
                         {
-                            tokens.push_back(Token{.type = TokenType::bool_, .value = false, .file = line.fileName, .line = line.lineNumber});
+                            if (line.content[pos + 1] == '*')
+                            {
+                                tokens.push_back(Token{.type = TokenType::power, .file = line.fileName, .line = line.lineNumber});
+                                ++pos;
+                                continue;
+                            }
+                        }
+                        tokens.push_back(Token{.type = TokenType::star, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case '/':
+                        if (line.content.size() > pos + 1)
+                        {
+                            if (line.content[pos + 1] == '/')
+                            {
+                                goto OUTER_CONTINUE;
+                            }
+                        }
+                        tokens.push_back(Token{.type = TokenType::divide, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case '%':
+                        tokens.push_back(Token{.type = TokenType::mod, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case '&':
+                        if (line.content.size() > pos + 1)
+                        {
+                            if (line.content[pos + 1] == '&')
+                            {
+                                tokens.push_back(Token{.type = TokenType::and_, .file = line.fileName, .line = line.lineNumber});
+                                ++pos;
+                                continue;
+                            }
+                        }
+                        tokens.push_back(Token{.type = TokenType::ampersand, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case '|':
+                        if (line.content.size() > pos + 1)
+                        {
+                            if (line.content[pos + 1] == '|')
+                            {
+                                tokens.push_back(Token{.type = TokenType::or_, .file = line.fileName, .line = line.lineNumber});
+                                ++pos;
+                                continue;
+                            }
+                        }
+                        throw std::runtime_error("Invalid operator");
+                    case '!':
+                        if (line.content.size() > pos + 1)
+                        {
+                            if (line.content[pos + 1] == '=')
+                            {
+                                tokens.push_back(Token{.type = TokenType::neq, .file = line.fileName, .line = line.lineNumber});
+                                ++pos;
+                                continue;
+                            }
+                        }
+                        tokens.push_back(Token{.type = TokenType::not_, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case '=':
+                        if (line.content.size() > pos + 1)
+                        {
+                            if (line.content[pos + 1] == '=')
+                            {
+                                tokens.push_back(Token{.type = TokenType::eq, .file = line.fileName, .line = line.lineNumber});
+                                ++pos;
+                                continue;
+                            }
+                        }
+                        tokens.push_back(Token{.type = TokenType::assign, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case '<':
+                        if (line.content.size() > pos + 1)
+                        {
+                            if (line.content[pos + 1] == '=')
+                            {
+                                tokens.push_back(Token{.type = TokenType::leq, .file = line.fileName, .line = line.lineNumber});
+                                ++pos;
+                                continue;
+                            }
+                        }
+                        tokens.push_back(Token{.type = TokenType::lt, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case '>':
+                        if (line.content.size() > pos + 1)
+                        {
+                            if (line.content[pos + 1] == '=')
+                            {
+                                tokens.push_back(Token{.type = TokenType::geq, .file = line.fileName, .line = line.lineNumber});
+                                ++pos;
+                                continue;
+                            }
+                        }
+                        tokens.push_back(Token{.type = TokenType::gt, .file = line.fileName, .line = line.lineNumber});
+                        continue;
+                    case '.':
+                        if (!isdigit(line.content[pos + 1]))
+                        {
+                            if (line.content.size() > pos + 1)
+                            {
+                                if (line.content[pos + 1] == '.')
+                                {
+                                    tokens.push_back(Token{.type = TokenType::range_operator, .file = line.fileName, .line = line.lineNumber});
+                                    ++pos;
+                                    continue;
+                                }
+                            }
+                            tokens.push_back(Token{.type = TokenType::dot, .file = line.fileName, .line = line.lineNumber});
+                            continue;
+                        }
+                    case '0':
+                    case '1':
+                    case '2':
+                    case '3':
+                    case '4':
+                    case '5':
+                    case '6':
+                    case '7':
+                    case '8':
+                    case '9':
+                        tokens.push_back(ParseNumber(line.content, pos));
+                        tokens.back().line = line.lineNumber;
+                        tokens.back().file = line.fileName;
+                        continue;
+                    default:
+                        auto identifier = ParseIdentifier(line.content, pos);
+                        if (auto it = keywords.find(identifier); it != keywords.end())
+                        {
+                            if (it->first == "true")
+                            {
+                                tokens.push_back(Token{.type = TokenType::bool_, .value = true, .file = line.fileName, .line = line.lineNumber});
+                            }
+                            else if (it->first == "false")
+                            {
+                                tokens.push_back(Token{.type = TokenType::bool_, .value = false, .file = line.fileName, .line = line.lineNumber});
+                            }
+                            else
+                                tokens.push_back(Token{.type = it->second, .file = line.fileName, .line = line.lineNumber});
                         }
                         else
-                            tokens.push_back(Token{.type = it->second, .file = line.fileName, .line = line.lineNumber});
-                    }
-                    else
-                    {
-                        tokens.push_back(Token{.type = TokenType::identifier, .value = std::move(identifier), .file = line.fileName, .line = line.lineNumber});
+                        {
+                            tokens.push_back(Token{.type = TokenType::identifier, .value = std::move(identifier), .file = line.fileName, .line = line.lineNumber});
+                        }
                     }
                 }
+            OUTER_CONTINUE:
+                continue;
             }
-        OUTER_CONTINUE:
-            continue;
+            catch (const std::runtime_error &e)
+            {
+                logger << ILogger::Error;
+                logger.AtPos(line) << "Lexing error: " << e.what() << "\nDiscarding  line" << ILogger::FlushNewLine;
+                for (; lineBegin < tokens.size(); ++lineBegin)
+                    tokens.pop_back();
+            }
         }
         tokens.push_back(Token{.type = TokenType::eof, .file = tokens.back().file, .line = tokens.back().line});
         return tokens;
