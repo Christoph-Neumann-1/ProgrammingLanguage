@@ -60,18 +60,19 @@ namespace VWA::Imports
         switch (instr->byteCode)
         {
             using namespace instruction;
+        case PushConstN:
+            instr += *reinterpret_cast<uint64_t *>(instr + 1);
+        case PopMiddle:
+        case Dup:
         case JumpFFI:
         case JumpFunc:
         case FCall:
-        case Dup:
-        case PopMiddle:
-        case PushConstN:
-            instr += *reinterpret_cast<uint64_t *>(instr + 1);
-        case Return:
         case ReadLocal:
         case WriteLocal:
         case ReadGlobal:
         case WriteGlobal:
+            instr += sizeof(uint64_t);
+        case Return:
         case Push:
         case Pop:
         case PushConst64:
