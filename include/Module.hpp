@@ -16,28 +16,40 @@ namespace VWA
     template <typename R, typename... Args>
     requires(!std::is_void_v<R>) void WrapFunc(Stack *stack, R (*func)(Args...))
     {
-        stack->pushVal(func(stack->popVal<Args>()...));
+        stack->pop((sizeof(Args) + ... + 0));
+        auto argBegin = stack->getData() + stack->getTop();
+        stack->pushVal(func((*(Args *)((argBegin += sizeof(Args)) - sizeof(Args)))...));
     }
 
     template <typename R, typename... Args>
     requires std::is_void_v<R>
     void WrapFunc(Stack *stack, R (*func)(Args...))
     {
-        func(stack->popVal<Args>()...);
+        stack->pop((sizeof(Args) + ... + 0));
+        auto argBegin = stack->getData() + stack->getTop();
+        func((*(Args *)((argBegin += sizeof(Args)) - sizeof(Args)))...);
     }
 
     template <typename R, typename... Args>
     requires(!std::is_void_v<R>) void WrapFunc(Stack *stack, VM::VM *vm, R (*func)(Stack *, VM::VM *, Args...))
     {
-        stack->pushVal(func(stack, vm, stack->popVal<Args>()...));
+        stack->pop((sizeof(Args) + ... + 0));
+        auto argBegin = stack->getData() + stack->getTop();
+        stack->pushVal(func(stack, vm, (*(Args *)((argBegin += sizeof(Args)) - sizeof(Args)))...));
     }
 
     template <typename R, typename... Args>
     requires std::is_void_v<R>
     void WrapFunc(Stack *stack, VM::VM *vm, R (*func)(Stack *, VM::VM *, Args...))
     {
-        func(stack, vm, stack->popVal<Args>()...);
+        stack->pop((sizeof(Args) + ... + 0));
+        auto argBegin = stack->getData() + stack->getTop();
+        func(stack, vm, (*(Args *)((argBegin += sizeof(Args)) - sizeof(Args)))...);
     }
+
+//Note: You need to declare all structs yourself, you can't import them. Maybe I'll make a code generator for this
+//You also need to manually specify the structs you export and import. It is your responsibility to make sure they match the structs in your code.
+#define FFI_STRUCT struct __attribute__((__packed__))
 }
 
 //TODO: structs
