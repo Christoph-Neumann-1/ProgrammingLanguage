@@ -111,6 +111,8 @@ int main(int argc, char *argv[])
     VWA::Compiler compiler(manager);
     compiler.compile(tree);
     VWA::VM::VM vm;
-    std::cout << "Ran vm with code " << vm.run(manager.getMain()) << '\n';
+    std::cout << "Running" << std::endl;
+    auto rval = vm.run(manager.getMain());
+    std::cout << "Ran vm with code " << rval << '\n';
     return 0;
 }

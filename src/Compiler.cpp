@@ -275,17 +275,28 @@ namespace VWA
                 definition = &f->second;
             }
             TypeInfo rtype;
-            if (definition->returnType != "int")
+            if (definition->returnType == "int")
+                rtype = {VarType::INT, false, nullptr};
+            else if (definition->returnType == "void")
+                rtype = {VarType::VOID, false, nullptr};
+            else
                 throw std::runtime_error("Function return type not supported");
-            rtype = {VarType::INT, false, nullptr};
             if (definition->parameters.size() != vec.size() - 1)
                 throw std::runtime_error("Function parameter count mismatch");
             for (int i = 1; i < vec.size(); i++)
             {
                 auto &arg = vec[i];
                 auto argType = compileNode(arg, func, scope);
-                if (argType.type != rtype.type)
-                    CastToType(argType, rtype);
+                auto &expectedTypeName = definition->parameters[i - 1].typeName;
+                TypeInfo expectedType;
+                if (expectedTypeName == "int")
+                    expectedType = {VarType::INT, false, nullptr};
+                else if (expectedTypeName == "void")
+                    expectedType = {VarType::VOID, false, nullptr};
+                else
+                    throw std::runtime_error("Function parameter type not supported");
+                if (argType.type != expectedType.type)
+                    CastToType(argType, expectedType);
             }
             auto argSize = sizeof(int) * (vec.size() - 1);
             if (definition->isC)
