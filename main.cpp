@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
     //     fileData.main=0;
     //     fileData.hasMain=true;
     VWA::Imports::ImportManager manager;
-    auto handle = dlopen("./libstdlib.so", RTLD_LAZY);
+    auto handle = dlopen("modules/bin/libstdlib.so", RTLD_LAZY);
     if (!handle)
     {
         std::cout << dlerror() << std::endl;

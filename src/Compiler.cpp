@@ -293,6 +293,8 @@ namespace VWA
                     expectedType = {VarType::INT, false, nullptr};
                 else if (expectedTypeName == "void")
                     expectedType = {VarType::VOID, false, nullptr};
+                else if (expectedTypeName == "char")
+                    expectedType = {VarType::CHAR, false, nullptr};
                 else
                     throw std::runtime_error("Function parameter type not supported");
                 if (argType.type != expectedType.type)
