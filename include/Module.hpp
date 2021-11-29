@@ -16,7 +16,7 @@ namespace VWA
     template <typename R, typename... Args>
     requires(!std::is_void_v<R>) void WrapFunc(Stack *stack, R (*func)(Args...))
     {
-        stack->pop((sizeof(Args) + ... + 0));
+        stack->pop((sizeof(Args) + ...));
         auto argBegin = stack->getData() + stack->getTop();
         stack->pushVal(func((*(Args *)((argBegin += sizeof(Args)) - sizeof(Args)))...));
     }
@@ -25,7 +25,7 @@ namespace VWA
     requires std::is_void_v<R>
     void WrapFunc(Stack *stack, R (*func)(Args...))
     {
-        stack->pop((sizeof(Args) + ... + 0));
+        stack->pop((sizeof(Args) + ...));
         auto argBegin = stack->getData() + stack->getTop();
         func((*(Args *)((argBegin += sizeof(Args)) - sizeof(Args)))...);
     }
@@ -33,7 +33,7 @@ namespace VWA
     template <typename R, typename... Args>
     requires(!std::is_void_v<R>) void WrapFunc(Stack *stack, VM::VM *vm, R (*func)(Stack *, VM::VM *, Args...))
     {
-        stack->pop((sizeof(Args) + ... + 0));
+        stack->pop((sizeof(Args) + ...));
         auto argBegin = stack->getData() + stack->getTop();
         stack->pushVal(func(stack, vm, (*(Args *)((argBegin += sizeof(Args)) - sizeof(Args)))...));
     }
@@ -42,7 +42,7 @@ namespace VWA
     requires std::is_void_v<R>
     void WrapFunc(Stack *stack, VM::VM *vm, R (*func)(Stack *, VM::VM *, Args...))
     {
-        stack->pop((sizeof(Args) + ... + 0));
+        stack->pop((sizeof(Args) + ...));
         auto argBegin = stack->getData() + stack->getTop();
         func(stack, vm, (*(Args *)((argBegin += sizeof(Args)) - sizeof(Args)))...);
     }
