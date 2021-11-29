@@ -279,6 +279,8 @@ namespace VWA
                 rtype = {VarType::INT, false, nullptr};
             else if (definition->returnType == "void")
                 rtype = {VarType::VOID, false, nullptr};
+            else if (definition->returnType == "char")
+                rtype = {VarType::CHAR, false, nullptr};
             else
                 throw std::runtime_error("Function return type not supported");
             if (definition->parameters.size() != vec.size() - 1)
