@@ -5,6 +5,8 @@
 #include <vector>
 #include <memory>
 #include <ByteCode.hpp>
+#include <iostream>
+#include <filesystem>
 //TODO: map of all imported symbols
 namespace VWA
 {
@@ -139,6 +141,8 @@ namespace VWA::Imports
         std::vector<DLHandle> dlHandles;
         std::vector<std::unique_ptr<instruction::ByteCodeElement[]>> byteCodes;
 
+        std::vector<std::string> includePaths;
+
         void TransferContents()
         {
             for (auto &[_, file] : importedFiles)
@@ -150,21 +154,68 @@ namespace VWA::Imports
             }
         }
 
+        //The pointers returned by the following functions are non-owning
+
+        ImportedFileData *LoadNativeModule(const std::string &path, const std::string &name)
+        {
+            auto handle = dlopen(path.c_str(), RTLD_LAZY);
+            if (!handle)
+                throw std::runtime_error("Could not load native module: " + std::string(dlerror()));
+            auto func = reinterpret_cast<VWA::Imports::ImportedFileData (*)(VWA::Imports::ImportManager * manager)>(dlsym(handle, "MODULE_ENTRY_POINT"));
+            if (!func)
+            {
+                std::cerr << dlerror() << std::endl;
+                throw std::runtime_error("Could not find MODULE_ENTRY_POINT in native module: " + path);
+            }
+            auto module = func(this);
+            module.dlHandle.handle = handle;
+            return makeModuleAvailable(name, std::move(module));
+        }
+
+        ImportedFileData *LoadInterfaceFile(const std::string &name)
+        {
+        }
+
+        ImportedFileData *LoadCompiledFile(const std::string &name)
+        {
+        }
+
+        ImportedFileData *LoadModuleFromFile(const std::string &fname)
+        {
+            //Find the file, to do this check all directories in the include path, starting with native modules, continuing with interfaces and ending with
+            //compiled modules. I might implement a mechanism to parse a file directly later.
+            //TODO: support modules
+            for (auto &path : includePaths)
+            {
+                auto fullName = path + "/" + fname + ".native";
+                if (std::filesystem::exists(fullName))
+                {
+                    return LoadNativeModule(fullName, fname);
+                }
+            }
+            throw std::runtime_error("Could not find module: " + fname);
+        }
+
     public:
         ImportManager()
         {
+        }
+        //Ideally provide a absolute path
+        void AddIncludePath(const std::string &path)
+        {
+            includePaths.emplace_back(path);
         }
         ImportedFileData *getModule(const std::string &moduleName)
         {
             auto it = importedFiles.find(moduleName);
             if (it == importedFiles.end())
             {
-                //TODO: load file.
+                return LoadModuleFromFile(moduleName);
             }
             return &it->second;
         }
         //TODO: ability to tell it not to set anything up.
-        void makeModuleAvailable(const std::string &moduleName, ImportedFileData &&file)
+        ImportedFileData *makeModuleAvailable(const std::string &moduleName, ImportedFileData &&file)
         {
             auto [f, _] = importedFiles.emplace(std::make_pair(moduleName, std::move(file)));
             f->second.Setup(this);
@@ -174,6 +225,7 @@ namespace VWA::Imports
                     throw std::runtime_error("Main function already defined");
                 main = f->second.main;
             }
+            return &f->second;
         }
         void compact()
         {

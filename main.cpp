@@ -93,21 +93,7 @@ int main(int argc, char *argv[])
     //     fileData.main=0;
     //     fileData.hasMain=true;
     VWA::Imports::ImportManager manager;
-    auto handle = dlopen("modules/bin/libstdlib.so", RTLD_LAZY);
-    if (!handle)
-    {
-        std::cout << dlerror() << std::endl;
-        return -1;
-    }
-    auto func = reinterpret_cast<VWA::Imports::ImportedFileData (*)(VWA::Imports::ImportManager * manager)>(dlsym(handle, "MODULE_ENTRY_POINT"));
-    if (!func)
-    {
-        std::cout << dlerror() << std::endl;
-        return -1;
-    }
-    auto module = func(&manager);
-    module.dlHandle.handle = handle;
-    manager.makeModuleAvailable("stdlib", std::move(module));
+    manager.AddIncludePath("modules/bin");
     VWA::Compiler compiler(manager);
     compiler.compile(tree);
     VWA::VM::VM vm;
