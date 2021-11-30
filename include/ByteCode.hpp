@@ -7,7 +7,7 @@ namespace VWA
         enum instruction : uint8_t
         {
             //Special control instructions
-            Exit,         //Stop execution. Args: 32bit int (exit code)
+            Exit, //Stop execution. Args: 32bit int (exit code)
             AddF,
             SubtractF,
             MultiplyF,
@@ -83,30 +83,30 @@ namespace VWA
             EqualL,
             NotEqualL,
             //stack manipulation instructions. Btw the stack pointer should be in a global somewhere.
-            
-            ReadLocal,//Reads data at an offset from the base pointer.
-            WriteLocal, 
-            ReadGlobal,//These instructions read data from a pointer, provided on the stack.
+
+            ReadLocal, //Reads data at an offset from the base pointer.
+            WriteLocal,
+            ReadGlobal, //These instructions read data from a pointer, provided on the stack.
             WriteGlobal,
             //TODO: direct copy
-            Push,//Increment the stack pointer. This does not allow for intialization of the value, use read or ConstPush for that.
+            Push, //Increment the stack pointer. This does not allow for intialization of the value, use read or ConstPush for that.
             Pop,
-            Dup,//Duplicate relative to the stack pointer. args: 64bit uint offset, 64bit uint size Probably not needed
-            PopMiddle,//take n bytes from the stack, the remove the next n bytes and put them back.
-            PushConst8,//Push a constant value onto the stack.
+            Dup,        //Duplicate relative to the stack pointer. args: 64bit uint offset, 64bit uint size Probably not needed
+            PopMiddle,  //take n bytes from the stack, the remove the next n bytes and put them back.
+            PushConst8, //Push a constant value onto the stack.
             PushConst32,
             PushConst64,
-            PushConstN,//This instruction takes the number of bytes as the first argument.
+            PushConstN, //This instruction takes the number of bytes as the first argument.
             //Control flow
             //The addresses are indices to an array containing the instructions.
             //Later, when I add support for multiple dynamically linkes files, the instruction tables will just be appended.
             Jump,        //continue with the instruction at the given address. Args: 64bit uint (address) Example: function call
             JumpIfFalse, //continue with the instruction at the given address if the top of the stack is false. Args: 64bit uint (address)
             JumpIfTrue,  //continue with the instruction at the given address if the top of the stack is true. Args: 64bit uint (address)
-            JumpFunc,//Jump to the address, while setting the base pointer and return address. Args: 64bit uint (address), 64bit uint (nBytes for args)
-            JumpFFI,//Jump to the ffi function at the given address.
-            FCall,//This symbol is only used by the linker. It gets replaced by either JumpFunc or JumpFFI.
-            Return,//Return from a function and restore base pointer and stack. Args: 64bit uint (nBytes for rval            
+            JumpFunc,    //Jump to the address, while setting the base pointer and return address. Args: 64bit uint (address), 64bit uint (nBytes for args)
+            JumpFFI,     //Jump to the ffi function at the given address.
+            FCall,       //This symbol is only used by the linker. It gets replaced by either JumpFunc or JumpFFI.
+            Return,      //Return from a function and restore base pointer and stack. Args: 64bit uint (nBytes for rval
         };
 
         union ByteCodeElement
@@ -116,4 +116,7 @@ namespace VWA
         };
     }
 
+    //TODO:
+    // std::string instructionToString(instruction::instruction instr);
+    // std::string ByteCodeToString(instruction::instruction *bc, size_t lenght) {}
 }

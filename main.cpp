@@ -15,6 +15,7 @@
 
 //TODO proper interface
 //TODO try different format styles
+//TODO some kind of human readable assembly
 int main(int argc, char *argv[])
 {
     CLI::App app{"VWA Programming language"};
@@ -97,8 +98,10 @@ int main(int argc, char *argv[])
     VWA::Compiler compiler(manager);
     compiler.compile(tree);
     VWA::VM::VM vm;
+    manager.compact();
     std::cout << "Running" << std::endl;
     auto rval = vm.run(manager.getMain());
     std::cout << "Ran vm with code " << rval << '\n';
+
     return 0;
 }

@@ -87,13 +87,12 @@ namespace VWA::VM
             {
                 auto where = ReadInstructionArg<ByteCodeElement *>(instruction + 1);
                 auto argSize = ReadInstructionArg<uint64_t>(instruction + 1 + sizeof(ByteCodeElement *));
-                std::unique_ptr<uint8_t[]> args{new uint8_t[argSize]};
-                std::memcpy(args.get(), mmu.stack.getData() + mmu.stack.getTop() - argSize, argSize);
-                mmu.stack.pop(argSize);
-                mmu.stack.pushVal<uint8_t *>(stackBase);
-                stackBase = mmu.stack.getData() + mmu.stack.getTop() - sizeof(uint8_t *);
-                mmu.stack.pushVal<ByteCodeElement *>(instruction + 1 + sizeof(ByteCodeElement *) + sizeof(uint64_t));
-                mmu.stack.PushN(argSize, args.get());
+                auto argBegin = mmu.stack.getData() + mmu.stack.getTop() - argSize;
+                mmu.stack.push(2 * sizeof(uint8_t *));
+                std::memmove(argBegin + 2 * sizeof(void *), argBegin, argSize);
+                *reinterpret_cast<uint8_t **>(argBegin) = stackBase;
+                stackBase = argBegin;
+                *reinterpret_cast<ByteCodeElement **>(argBegin + sizeof(uint8_t *)) = instruction + 1 + sizeof(ByteCodeElement *) + sizeof(uint64_t);
                 instruction = where;
                 break;
             }
@@ -103,11 +102,11 @@ namespace VWA::VM
             {
                 auto argSize = ReadInstructionArg<uint64_t>(instruction + 1);
                 instruction = *reinterpret_cast<ByteCodeElement **>(stackBase + sizeof(uint8_t *));
-                std::unique_ptr<uint8_t[]> buffer{new uint8_t[argSize]};
-                std::memcpy(buffer.get(), mmu.stack.getData() + mmu.stack.getTop() - argSize, argSize);
-                mmu.stack.pop(mmu.stack.getData() + mmu.stack.getTop() - stackBase);
+                auto argBegin = mmu.stack.getData() + mmu.stack.getTop() - argSize;
+                mmu.stack.pop(mmu.stack.getData() + mmu.stack.getTop() - stackBase - argSize);
+                auto oldBase = stackBase;
                 stackBase = *reinterpret_cast<uint8_t **>(stackBase);
-                mmu.stack.PushN(argSize, buffer.get());
+                std::memmove(oldBase, argBegin, argSize);
                 if (instruction == nullptr)
                     return;
                 break;

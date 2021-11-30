@@ -1,6 +1,7 @@
 #include <Compiler.hpp>
 #include <cstring>
 //TODO: panic mode
+//TODO: implicit return for void functions
 
 #define BinaryMathOp(name)                                                                  \
     {                                                                                       \
@@ -46,6 +47,7 @@
     }
 namespace VWA
 {
+    //TODO: linking really shouldn't be done in here, it makes saving the bytecode nearly impossible
     void Compiler::compile(const AST &ast)
     {
         data.internalStart = data.importedFunctions.size();
@@ -336,6 +338,20 @@ namespace VWA
             compileNode(std::get<std::vector<ASTNode>>(node.data)[1], func, scope);
             bytecode.push_back({instruction::LessThanI});
             break;
+        }
+        case NodeType::EQ:
+        {
+            compileNode(std::get<std::vector<ASTNode>>(node.data)[0], func, scope);
+            compileNode(std::get<std::vector<ASTNode>>(node.data)[1], func, scope);
+            bytecode.push_back({instruction::EqualI});
+            return {VarType::BOOL, false, nullptr};
+        }
+        case NodeType::OR:
+        {
+            compileNode(std::get<std::vector<ASTNode>>(node.data)[0], func, scope);
+            compileNode(std::get<std::vector<ASTNode>>(node.data)[1], func, scope);
+            bytecode.push_back({instruction::Or});
+            return {VarType::BOOL, false, nullptr};
         }
         case NodeType::NOT:
         {
