@@ -7,11 +7,11 @@ namespace VWA::Imports
         performFunctionOffsets();
         for (auto &func : importedFunctions)
         {
-            auto module = manager->getModule(func.first);
-            if (!module)
+            auto mod = manager->getModule(func.first);
+            if (!mod)
                 throw std::runtime_error("Module not found");
-            auto funcDecl = module->exportedFunctions.find(func.first);
-            if (funcDecl == module->exportedFunctions.end())
+            auto funcDecl = mod->exportedFunctions.find(func.first);
+            if (funcDecl == mod->exportedFunctions.end())
                 throw std::runtime_error("Function not found");
             if (funcDecl->second != func.second)
                 throw std::runtime_error("Function signature mismatch");
@@ -26,11 +26,11 @@ namespace VWA::Imports
         }
         for (auto &struct_ : importedStructs)
         {
-            auto module = manager->getModule(struct_.first);
-            if (!module)
+            auto mod = manager->getModule(struct_.first);
+            if (!mod)
                 throw std::runtime_error("Module not found");
-            auto structDecl = module->exportedStructs.find(struct_.first);
-            if (structDecl == module->exportedStructs.end())
+            auto structDecl = mod->exportedStructs.find(struct_.first);
+            if (structDecl == mod->exportedStructs.end())
                 throw std::runtime_error("Struct not found");
             if (structDecl->second != struct_.second)
                 throw std::runtime_error("Struct signature mismatch");
