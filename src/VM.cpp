@@ -16,11 +16,11 @@ namespace VWA::VM
             case Push:
                 mmu.stack.push(ReadInstructionArg<uint64_t>(instruction + 1));
                 instruction += 1 + sizeof(uint64_t);
-                break;
+                continue;
             case Pop:
                 mmu.stack.pop(ReadInstructionArg<uint64_t>(instruction + 1));
                 instruction += 1 + sizeof(uint64_t);
-                break;
+                continue;
             case Dup:
             {
                 auto offset = ReadInstructionArg<uint64_t>(instruction + 1);
@@ -28,7 +28,7 @@ namespace VWA::VM
                 std::memcpy(mmu.stack.getData() + mmu.stack.getTop(), mmu.stack.getData() + mmu.stack.getTop() - offset, size);
                 mmu.stack.push(size);
                 instruction += 1 + 2 * sizeof(uint64_t);
-                break;
+                continue;
             }
             case PopMiddle:
             {
@@ -37,33 +37,33 @@ namespace VWA::VM
                 std::memmove(mmu.stack.getData() + mmu.stack.getTop() - size - length, mmu.stack.getData() + mmu.stack.getTop() - size, size);
                 mmu.stack.pop(length);
                 instruction += 1 + 2 * sizeof(uint64_t);
-                break;
+                continue;
             }
             case PushConst8:
                 mmu.stack.pushVal(ReadInstructionArg<uint8_t>(instruction + 1));
                 instruction += 1 + sizeof(uint8_t);
-                break;
+                continue;
             case PushConst32:
                 mmu.stack.pushVal(ReadInstructionArg<int32_t>(instruction + 1));
                 instruction += 1 + sizeof(uint32_t);
-                break;
+                continue;
             case PushConst64:
                 mmu.stack.pushVal(ReadInstructionArg<int64_t>(instruction + 1));
                 instruction += 1 + sizeof(uint64_t);
-                break;
+                continue;
             case PushConstN:
             {
                 auto size = ReadInstructionArg<uint64_t>(instruction + 1);
                 instruction += 1 + sizeof(uint64_t);
                 mmu.stack.PushN(size, &instruction->value);
                 instruction += size;
-                break;
+                continue;
             }
             case Jump:
             {
                 auto where = ReadInstructionArg<ByteCodeElement *>(instruction + 1);
                 instruction = where;
-                break;
+                continue;
             }
             case JumpIfFalse:
             {
@@ -72,7 +72,7 @@ namespace VWA::VM
                     instruction = where;
                 else
                     instruction += 1 + sizeof(ByteCodeElement *);
-                break;
+                continue;
             }
             case JumpIfTrue:
             {
@@ -81,7 +81,7 @@ namespace VWA::VM
                     instruction = where;
                 else
                     instruction += 1 + sizeof(ByteCodeElement *);
-                break;
+                continue;
             }
             case JumpFunc:
             {
@@ -94,7 +94,7 @@ namespace VWA::VM
                 stackBase = argBegin;
                 *reinterpret_cast<ByteCodeElement **>(argBegin + sizeof(uint8_t *)) = instruction + 1 + sizeof(ByteCodeElement *) + sizeof(uint64_t);
                 instruction = where;
-                break;
+                continue;
             }
             case FCall:
                 throw std::runtime_error("Unlinked symbol");
@@ -109,7 +109,7 @@ namespace VWA::VM
                 std::memmove(oldBase, argBegin, argSize);
                 if (instruction == nullptr)
                     return;
-                break;
+                continue;
             }
             case JumpFFI:
             {
@@ -117,7 +117,7 @@ namespace VWA::VM
                 auto argSize = ReadInstructionArg<uint64_t>(instruction + 1 + sizeof(FFIFunc));
                 where(&mmu.stack, this);
                 instruction += 1 + sizeof(FFIFunc) + sizeof(uint64_t);
-                break;
+                continue;
             }
             case ReadLocal:
             {
@@ -125,7 +125,7 @@ namespace VWA::VM
                 auto addr = ReadInstructionArg<uint64_t>(instruction + 1 + sizeof(uint64_t));
                 mmu.stack.PushN(size, stackBase + addr);
                 instruction += 1 + 2 * sizeof(uint64_t);
-                break;
+                continue;
             }
             case WriteLocal:
             {
@@ -134,7 +134,7 @@ namespace VWA::VM
                 std::memcpy(stackBase + addr, mmu.stack.getData() + mmu.stack.getTop() - size, size);
                 mmu.stack.pop(size);
                 instruction += 1 + 2 * sizeof(uint64_t);
-                break;
+                continue;
             }
             case ReadGlobal:
             {
@@ -142,7 +142,7 @@ namespace VWA::VM
                 auto addr = ReadInstructionArg<uint8_t *>(instruction + 1 + sizeof(uint64_t));
                 mmu.stack.PushN(size, addr);
                 instruction += 1 + sizeof(uint64_t) + sizeof(uint8_t *);
-                break;
+                continue;
             }
             case WriteGlobal:
             {
@@ -152,220 +152,220 @@ namespace VWA::VM
                 std::memcpy(addr, src, size);
                 mmu.stack.pop(size);
                 instruction += 1 + sizeof(uint64_t) + sizeof(uint8_t *);
-                break;
+                continue;
             }
             case FtoD:
                 mmu.stack.pushVal<double>(mmu.stack.popVal<float>());
                 instruction++;
-                break;
+                continue;
             case FtoI:
                 mmu.stack.pushVal<int32_t>(mmu.stack.popVal<float>());
                 instruction++;
-                break;
+                continue;
             case FtoL:
                 mmu.stack.pushVal<int64_t>(mmu.stack.popVal<float>());
                 instruction++;
-                break;
+                continue;
             case FtoC:
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<float>());
                 instruction++;
-                break;
+                continue;
             case DtoF:
                 mmu.stack.pushVal<float>(mmu.stack.popVal<double>());
                 instruction++;
-                break;
+                continue;
             case DtoI:
                 mmu.stack.pushVal<int32_t>(mmu.stack.popVal<double>());
                 instruction++;
-                break;
+                continue;
             case DtoL:
                 mmu.stack.pushVal<int64_t>(mmu.stack.popVal<double>());
                 instruction++;
-                break;
+                continue;
             case DtoC:
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<double>());
                 instruction++;
-                break;
+                continue;
             case ItoF:
                 mmu.stack.pushVal<float>(mmu.stack.popVal<int32_t>());
                 instruction++;
-                break;
+                continue;
             case ItoD:
                 mmu.stack.pushVal<double>(mmu.stack.popVal<int32_t>());
                 instruction++;
-                break;
+                continue;
             case ItoL:
                 mmu.stack.pushVal<int64_t>(mmu.stack.popVal<int32_t>());
                 instruction++;
-                break;
+                continue;
             case ItoC:
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<int32_t>());
                 instruction++;
-                break;
+                continue;
             case LtoF:
                 mmu.stack.pushVal<float>(mmu.stack.popVal<int64_t>());
                 instruction++;
-                break;
+                continue;
             case LtoD:
                 mmu.stack.pushVal<double>(mmu.stack.popVal<int64_t>());
                 instruction++;
-                break;
+                continue;
             case LtoI:
                 mmu.stack.pushVal<int32_t>(mmu.stack.popVal<int64_t>());
                 instruction++;
-                break;
+                continue;
             case LtoC:
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<int64_t>());
                 instruction++;
-                break;
+                continue;
             case CtoF:
                 mmu.stack.pushVal<float>(mmu.stack.popVal<uint8_t>());
                 instruction++;
-                break;
+                continue;
             case CtoD:
                 mmu.stack.pushVal<double>(mmu.stack.popVal<uint8_t>());
                 instruction++;
-                break;
+                continue;
             case CtoI:
                 mmu.stack.pushVal<int32_t>(mmu.stack.popVal<uint8_t>());
                 instruction++;
-                break;
+                continue;
             case CtoL:
                 mmu.stack.pushVal<int64_t>(mmu.stack.popVal<uint8_t>());
                 instruction++;
-                break;
+                continue;
             case AddF:
             {
                 auto rhs = mmu.stack.popVal<float>();
                 mmu.stack.pushVal<float>(mmu.stack.popVal<float>() + rhs);
                 instruction++;
-                break;
+                continue;
             }
             case AddD:
             {
                 auto rhs = mmu.stack.popVal<double>();
                 mmu.stack.pushVal<double>(mmu.stack.popVal<double>() + rhs);
                 instruction++;
-                break;
+                continue;
             }
             case AddI:
             {
                 auto rhs = mmu.stack.popVal<int32_t>();
                 mmu.stack.pushVal<int32_t>(mmu.stack.popVal<int32_t>() + rhs);
                 instruction++;
-                break;
+                continue;
             }
             case AddL:
             {
                 auto rhs = mmu.stack.popVal<int64_t>();
                 mmu.stack.pushVal<int64_t>(mmu.stack.popVal<int64_t>() + rhs);
                 instruction++;
-                break;
+                continue;
             }
             case SubtractF:
             {
                 auto rhs = mmu.stack.popVal<float>();
                 mmu.stack.pushVal<float>(mmu.stack.popVal<float>() - rhs);
                 instruction++;
-                break;
+                continue;
             }
             case SubtractD:
             {
                 auto rhs = mmu.stack.popVal<double>();
                 mmu.stack.pushVal<double>(mmu.stack.popVal<double>() - rhs);
                 instruction++;
-                break;
+                continue;
             }
             case SubtractI:
             {
                 auto rhs = mmu.stack.popVal<int32_t>();
                 mmu.stack.pushVal<int32_t>(mmu.stack.popVal<int32_t>() - rhs);
                 instruction++;
-                break;
+                continue;
             }
             case SubtractL:
             {
                 auto rhs = mmu.stack.popVal<int64_t>();
                 mmu.stack.pushVal<int64_t>(mmu.stack.popVal<int64_t>() - rhs);
                 instruction++;
-                break;
+                continue;
             }
             case MultiplyF:
             {
                 auto rhs = mmu.stack.popVal<float>();
                 mmu.stack.pushVal<float>(mmu.stack.popVal<float>() * rhs);
                 instruction++;
-                break;
+                continue;
             }
             case MultiplyD:
             {
                 auto rhs = mmu.stack.popVal<double>();
                 mmu.stack.pushVal<double>(mmu.stack.popVal<double>() * rhs);
                 instruction++;
-                break;
+                continue;
             }
             case MultiplyI:
             {
                 auto rhs = mmu.stack.popVal<int32_t>();
                 mmu.stack.pushVal<int32_t>(mmu.stack.popVal<int32_t>() * rhs);
                 instruction++;
-                break;
+                continue;
             }
             case MultiplyL:
             {
                 auto rhs = mmu.stack.popVal<int64_t>();
                 mmu.stack.pushVal<int64_t>(mmu.stack.popVal<int64_t>() * rhs);
                 instruction++;
-                break;
+                continue;
             }
             case DivideF:
             {
                 auto rhs = mmu.stack.popVal<float>();
                 mmu.stack.pushVal<float>(mmu.stack.popVal<float>() / rhs);
                 instruction++;
-                break;
+                continue;
             }
             case DivideD:
             {
                 auto rhs = mmu.stack.popVal<double>();
                 mmu.stack.pushVal<double>(mmu.stack.popVal<double>() / rhs);
                 instruction++;
-                break;
+                continue;
             }
             case DivideI:
             {
                 auto rhs = mmu.stack.popVal<int32_t>();
                 mmu.stack.pushVal<int32_t>(mmu.stack.popVal<int32_t>() / rhs);
                 instruction++;
-                break;
+                continue;
             }
             case DivideL:
             {
                 auto rhs = mmu.stack.popVal<int64_t>();
                 mmu.stack.pushVal<int64_t>(mmu.stack.popVal<int64_t>() / rhs);
                 instruction++;
-                break;
+                continue;
             }
             case ModuloI:
             {
                 auto rhs = mmu.stack.popVal<int32_t>();
                 mmu.stack.pushVal<int32_t>(mmu.stack.popVal<int32_t>() % rhs);
                 instruction++;
-                break;
+                continue;
             }
             case ModuloL:
             {
                 auto rhs = mmu.stack.popVal<int64_t>();
                 mmu.stack.pushVal<int64_t>(mmu.stack.popVal<int64_t>() % rhs);
                 instruction++;
-                break;
+                continue;
             }
             case PowerF:
             {
                 auto rhs = mmu.stack.popVal<float>();
                 mmu.stack.pushVal<float>(powf(mmu.stack.popVal<float>(), rhs));
                 instruction++;
-                break;
+                continue;
             }
             case PowerD:
             {
@@ -381,7 +381,7 @@ namespace VWA::VM
                     lhs *= lhs;
                 mmu.stack.pushVal<int32_t>(lhs);
                 instruction++;
-                break;
+                continue;
             }
             case PowerL:
             {
@@ -391,333 +391,165 @@ namespace VWA::VM
                     lhs *= lhs;
                 mmu.stack.pushVal<int64_t>(lhs);
                 instruction++;
-                break;
+                continue;
             }
             case And:
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<uint8_t>() && mmu.stack.popVal<uint8_t>());
                 instruction++;
-                break;
+                continue;
             case Or:
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<uint8_t>() || mmu.stack.popVal<uint8_t>());
                 instruction++;
-                break;
+                continue;
             case Not:
                 mmu.stack.pushVal<uint8_t>(!mmu.stack.popVal<uint8_t>());
                 instruction++;
-                break;
+                continue;
             case EqualF:
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<float>() == mmu.stack.popVal<float>());
                 instruction++;
-                break;
+                continue;
             case EqualD:
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<double>() == mmu.stack.popVal<double>());
                 instruction++;
-                break;
+                continue;
             case EqualI:
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<int32_t>() == mmu.stack.popVal<int32_t>());
                 instruction++;
-                break;
+                continue;
             case EqualL:
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<int64_t>() == mmu.stack.popVal<int64_t>());
                 instruction++;
-                break;
+                continue;
             case NotEqualF:
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<float>() != mmu.stack.popVal<float>());
                 instruction++;
-                break;
+                continue;
             case NotEqualD:
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<double>() != mmu.stack.popVal<double>());
                 instruction++;
-                break;
+                continue;
             case NotEqualI:
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<int32_t>() != mmu.stack.popVal<int32_t>());
                 instruction++;
-                break;
+                continue;
             case NotEqualL:
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<int64_t>() != mmu.stack.popVal<int64_t>());
                 instruction++;
-                break;
+                continue;
             case LessThanF:
             {
                 auto rhs = mmu.stack.popVal<float>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<float>() < rhs);
                 instruction++;
-                break;
+                continue;
             }
             case LessThanD:
             {
                 auto rhs = mmu.stack.popVal<double>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<double>() < rhs);
                 instruction++;
-                break;
+                continue;
             }
             case LessThanI:
             {
                 auto rhs = mmu.stack.popVal<int32_t>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<int32_t>() < rhs);
                 instruction++;
-                break;
+                continue;
             }
             case LessThanL:
             {
                 auto rhs = mmu.stack.popVal<int64_t>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<int64_t>() < rhs);
                 instruction++;
-                break;
+                continue;
             }
             case GreaterThanF:
             {
                 auto rhs = mmu.stack.popVal<float>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<float>() > rhs);
                 instruction++;
-                break;
+                continue;
             }
             case GreaterThanD:
             {
                 auto rhs = mmu.stack.popVal<double>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<double>() > rhs);
                 instruction++;
-                break;
+                continue;
             }
             case GreaterThanI:
             {
                 auto rhs = mmu.stack.popVal<int32_t>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<int32_t>() > rhs);
                 instruction++;
-                break;
+                continue;
             }
             case GreaterThanL:
             {
                 auto rhs = mmu.stack.popVal<int64_t>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<int64_t>() > rhs);
                 instruction++;
-                break;
+                continue;
             }
             case LessThanOrEqualF:
             {
                 auto rhs = mmu.stack.popVal<float>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<float>() <= rhs);
                 instruction++;
-                break;
+                continue;
             }
             case LessThanOrEqualD:
             {
                 auto rhs = mmu.stack.popVal<double>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<double>() <= rhs);
                 instruction++;
-                break;
+                continue;
             }
             case LessThanOrEqualI:
             {
                 auto rhs = mmu.stack.popVal<int32_t>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<int32_t>() <= rhs);
                 instruction++;
-                break;
+                continue;
             }
             case LessThanOrEqualL:
             {
                 auto rhs = mmu.stack.popVal<int64_t>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<int64_t>() <= rhs);
                 instruction++;
-                break;
+                continue;
             }
             case GreaterThanOrEqualF:
             {
                 auto rhs = mmu.stack.popVal<float>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<float>() >= rhs);
                 instruction++;
-                break;
+                continue;
             }
             case GreaterThanOrEqualD:
             {
                 auto rhs = mmu.stack.popVal<double>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<double>() >= rhs);
                 instruction++;
-                break;
+                continue;
             }
             case GreaterThanOrEqualI:
             {
                 auto rhs = mmu.stack.popVal<int32_t>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<int32_t>() >= rhs);
                 instruction++;
-                break;
+                continue;
             }
             case GreaterThanOrEqualL:
             {
                 auto rhs = mmu.stack.popVal<int64_t>();
                 mmu.stack.pushVal<uint8_t>(mmu.stack.popVal<int64_t>() >= rhs);
                 instruction++;
-                break;
+                continue;
             }
             }
         }
     }
-
-    // void VM::PerformByteCodeOffsets(FileInfo &file)
-    // {
-    //     for (auto position = file.bc.get(); position < file.bc.get() + file.bcSize;)
-    //     {
-    //         switch (position->byteCode)
-    //         {
-    //             using namespace instruction;
-    //         case JumpFFI:
-    //             throw std::runtime_error("JumpFFI before linking");
-    //         case Jump:
-    //         case JumpIfFalse:
-    //         case JumpIfTrue:
-    //         {
-    //             auto address = reinterpret_cast<ByteCodeElement **>(position + 1);
-    //             *address += (uint64_t)file.bc.get();
-    //             position += sizeof(ByteCodeElement *) + 1;
-    //             break;
-    //         }
-    //         case JumpFunc:
-    //         {
-    //             auto address = reinterpret_cast<ByteCodeElement **>(position + 1);
-    //             *address += (uint64_t)file.bc.get();
-    //             position += sizeof(ByteCodeElement *) + 1 + sizeof(uint64_t);
-    //             break;
-    //         }
-    //         case JumpExternal:
-    //         {
-    //             auto index = reinterpret_cast<uint64_t *>(position + 1);
-    //             auto &function = file.importedFunctions[*index];
-    //             if (function.isC)
-    //             {
-    //                 auto addr = reinterpret_cast<FFIFunc *>(index);
-    //                 *addr = function.declaration->func;
-    //                 position->byteCode = JumpFFI;
-    //                 position += 2 * sizeof(uint64_t) + 1;
-    //                 break;
-    //             }
-    //             else
-    //             {
-    //                 auto addr = reinterpret_cast<ByteCodeElement **>(position + 1);
-    //                 *addr = function.declaration->bc;
-    //                 position->byteCode = JumpFunc;
-    //                 position += 2 * sizeof(ByteCodeElement *) + 1;
-    //                 break;
-    //             }
-    //         }
-    //         case PushConstN:
-    //         case Return:
-    //             position += ReadInstructionArg<uint64_t>(position + 1);
-    //         case ReadLocal:
-    //         case WriteLocal:
-    //         case ReadGlobal:
-    //         case WriteGlobal:
-    //         case Push:
-    //         case Pop:
-    //         case PushConst64:
-    //             position += sizeof(uint32_t);
-    //         case PushConst32:
-    //             position += 3 * sizeof(uint8_t);
-    //         case PushConst8:
-    //             position += sizeof(uint8_t);
-    //         default:
-    //             position++;
-    //             break;
-    //         }
-    //     }
-    // }
-
-    // void VM::ValidateLinkage()
-    // {
-    //     for (auto &func : functions)
-    //     {
-    //         if (!func.second.hasBeenDeclared)
-    //         {
-    //             throw std::runtime_error("Function " + func.first + " has not been declared");
-    //         }
-    //     }
-    //     for (auto &struct_ : structs)
-    //     {
-    //         if (!struct_.second.hasBeenDeclared)
-    //         {
-    //             throw std::runtime_error("Struct " + struct_.first + " has not been declared");
-    //         }
-    //     }
-    // }
-
-    // void VM::ProcessFile(FileInfo &file, std::list<FileInfo> &files)
-    // {
-    //     for (auto &exported : file.exportedFunctions)
-    //     {
-    //         auto it = functions.find(exported.name);
-    //         if (it == functions.end())
-    //         {
-    //             exported.hasBeenDeclared = true; //This should probably be done before
-    //             exported.bc = exported.localIndex + file.bc.get();
-    //             //TODO: check if this move works
-    //             functions[exported.name] = std::move(exported);
-    //         }
-    //         else
-    //         {
-    //             //Verify that the types match.
-    //             if (it->second.hasBeenDeclared)
-    //             {
-    //                 throw std::runtime_error("Function " + exported.name + " has already been declared");
-    //             }
-    //             if (it->second != exported)
-    //             {
-    //                 throw std::runtime_error("Function " + exported.name + " has already been declared with different types");
-    //             }
-    //             it->second.hasBeenDeclared = true;
-    //             it->second.bc = exported.localIndex + file.bc.get();
-    //         }
-    //     }
-    //     for (auto &imported : file.importedFunctions)
-    //     {
-    //         auto it = functions.find(imported.name);
-    //         if (it == functions.end())
-    //         {
-    //             functions[imported.name] = std::move(imported); //TODO: avoid double lookup
-    //             imported.declaration = &functions[imported.name];
-    //         }
-    //         else
-    //         {
-    //             imported.declaration = &it->second;
-    //         }
-    //     }
-    //     for (auto &exported : file.exportedStructs)
-    //     {
-    //         auto it = structs.find(exported.name);
-    //         if (it == structs.end())
-    //         {
-    //             exported.hasBeenDeclared = true; //This should probably be done before
-    //             structs[exported.name] = std::move(exported);
-    //         }
-    //         else
-    //         {
-    //             if (it->second.hasBeenDeclared)
-    //             {
-    //                 throw std::runtime_error("Struct " + exported.name + " has already been declared");
-    //             }
-    //             if (exported != it->second)
-    //             {
-    //                 throw std::runtime_error("Struct " + exported.name + " has already been declared with different types");
-    //             }
-    //             it->second.hasBeenDeclared = true;
-    //         }
-    //     }
-    //     for (auto &imported : file.importedStructs)
-    //     {
-    //         auto it = structs.find(imported.name);
-    //         if (it == structs.end())
-    //         {
-    //             structs[imported.name] = std::move(imported); //TODO: avoid double lookup
-    //         }
-    //         else
-    //         {
-    //             if (imported != it->second)
-    //             {
-    //                 throw std::runtime_error("Struct " + imported.name + " has already been declared with different types");
-    //             }
-    //         }
-    //     }
-    //     for (auto &importFile : file.importedFiles)
-    //     {
-    //         //TODO:
-    //     }
-    // }
 }
