@@ -61,7 +61,8 @@ namespace VWA::Imports
         {
             using namespace instruction;
         case PushConstN:
-            instr += *reinterpret_cast<uint64_t *>(instr + 1);
+            instr += *reinterpret_cast<uint64_t *>(instr + 1) + 1 + sizeof(uint64_t);
+            return;
         case PopMiddle:
         case Dup:
         case JumpFFI:
@@ -69,9 +70,9 @@ namespace VWA::Imports
         case FCall:
         case ReadLocal:
         case WriteLocal:
+            instr += sizeof(uint64_t);
         case ReadGlobal:
         case WriteGlobal:
-            instr += sizeof(uint64_t);
         case Return:
         case Push:
         case Pop:
@@ -86,7 +87,7 @@ namespace VWA::Imports
             instr += sizeof(uint8_t);
         default:
             instr++;
-            break;
+            return;
         }
     }
 
@@ -123,6 +124,7 @@ namespace VWA::Imports
         }
         uint64_t offset = (uint64_t)bc.get();
 
+        //TODO: check this
         for (auto position = bc.get(); position < bc.get() + bcSize;)
         {
             switch (position->byteCode)
@@ -130,7 +132,7 @@ namespace VWA::Imports
                 using namespace instruction;
             case JumpFFI:
                 position += sizeof(FFIFunc) + sizeof(uint64_t) + 1;
-                break;
+                continue;
                 //TODO: add this back.
                 // throw std::runtime_error("JumpFFI before linking");
             case Jump:
@@ -140,14 +142,14 @@ namespace VWA::Imports
                 auto address = reinterpret_cast<ByteCodeElement **>(position + 1);
                 *address += offset;
                 position += sizeof(ByteCodeElement *) + 1;
-                break;
+                continue;
             }
             case JumpFunc:
             {
                 auto address = reinterpret_cast<ByteCodeElement **>(position + 1);
                 *address += offset;
                 position += sizeof(ByteCodeElement *) + 1 + sizeof(uint64_t);
-                break;
+                continue;
             }
             case FCall:
             {
@@ -159,7 +161,7 @@ namespace VWA::Imports
                     *addr = function.func;
                     position->byteCode = JumpFFI;
                     position += 2 * sizeof(uint64_t) + 1;
-                    break;
+                    continue;
                 }
                 else
                 {
@@ -167,14 +169,18 @@ namespace VWA::Imports
                     *addr = function.bc;
                     position->byteCode = JumpFunc;
                     position += 2 * sizeof(ByteCodeElement *) + 1;
-                    break;
+                    continue;
                 }
             }
             case PushConstN:
-                position += *reinterpret_cast<uint64_t *>(position + 1);
-            case Return:
+                position += *reinterpret_cast<uint64_t *>(position + 1) + 1 + sizeof(uint64_t);
+                continue;
             case ReadLocal:
             case WriteLocal:
+                position += sizeof(uint64_t);
+            case PopMiddle:
+            case Dup:
+            case Return:
             case ReadGlobal:
             case WriteGlobal:
             case Push:
@@ -187,7 +193,7 @@ namespace VWA::Imports
                 position += sizeof(uint8_t);
             default:
                 position++;
-                break;
+                continue;
             }
         }
     }

@@ -139,19 +139,17 @@ namespace VWA::VM
             case ReadGlobal:
             {
                 auto size = ReadInstructionArg<uint64_t>(instruction + 1);
-                auto addr = ReadInstructionArg<uint8_t *>(instruction + 1 + sizeof(uint64_t));
-                mmu.stack.PushN(size, addr);
-                instruction += 1 + sizeof(uint64_t) + sizeof(uint8_t *);
+                mmu.stack.PushN(size, mmu.stack.popVal<uint8_t *>());
+                instruction += 1 + sizeof(uint64_t);
                 continue;
             }
             case WriteGlobal:
             {
                 auto size = ReadInstructionArg<uint64_t>(instruction + 1);
-                auto addr = ReadInstructionArg<uint8_t *>(instruction + 1 + sizeof(uint64_t));
                 auto src = mmu.stack.getData() + mmu.stack.getTop() - size;
-                std::memcpy(addr, src, size);
+                std::memcpy(mmu.stack.popVal<uint8_t *>(), src, size);
                 mmu.stack.pop(size);
-                instruction += 1 + sizeof(uint64_t) + sizeof(uint8_t *);
+                instruction += 1 + sizeof(uint64_t);
                 continue;
             }
             case FtoD:
