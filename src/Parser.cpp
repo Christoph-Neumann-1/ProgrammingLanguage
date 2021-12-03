@@ -14,18 +14,25 @@ namespace VWA
 {
 #pragma region Expression Parsing
 
-    ErrorOr<ParseTreeNode> parseExpression(const std::vector<Token> &tokens, size_t &start);
-    ErrorOr<ParseTreeNode> parseComparison(const std::vector<Token> &tokens, size_t &start);
-    ErrorOr<ParseTreeNode> parseAddition(const std::vector<Token> &tokens, size_t &start);
-    ErrorOr<ParseTreeNode> parseMultiplication(const std::vector<Token> &tokens, size_t &start);
-    ErrorOr<ParseTreeNode> parseUnary(const std::vector<Token> &tokens, size_t &start);
-    ErrorOr<ParseTreeNode> parsePower(const std::vector<Token> &tokens, size_t &start);
-    ErrorOr<ParseTreeNode> parsePrimary(const std::vector<Token> &tokens, size_t &start);
-    ErrorOr<ParseTreeNode> parseDot(const std::vector<Token> &tokens, size_t &start);
-    ErrorOr<ParseTreeNode> parseFuncCall(const std::vector<Token> &tokens, size_t &start);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseExpression(const std::vector<Token> &tokens, size_t &start);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseComparison(const std::vector<Token> &tokens, size_t &start);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseAddition(const std::vector<Token> &tokens, size_t &start);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseMultiplication(const std::vector<Token> &tokens, size_t &start);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseUnary(const std::vector<Token> &tokens, size_t &start);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parsePower(const std::vector<Token> &tokens, size_t &start);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parsePrimary(const std::vector<Token> &tokens, size_t &start);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseDot(const std::vector<Token> &tokens, size_t &start);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseFuncCall(const std::vector<Token> &tokens, size_t &start);
+
+    //TODO: This should parse the type of a variable of function return, checking for arrays and such.
+    //To do so, I need to change the way I store variable types.
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseType(const std::vector<Token> &tokens, size_t &start)
+    {
+        throw std::runtime_error("Not implemented");
+    }
 
     //TODO: move the bracket pairing in here and return the end as well
-    ErrorOr<ParseTreeNode> parseExpression(const std::vector<Token> &tokens, size_t &start)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseExpression(const std::vector<Token> &tokens, size_t &start)
     {
         auto node = TRY(parseComparison(tokens, start));
         while (1)
@@ -42,7 +49,7 @@ namespace VWA
             }
     }
 
-    ErrorOr<ParseTreeNode> parseComparison(const std::vector<Token> &tokens, size_t &start)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseComparison(const std::vector<Token> &tokens, size_t &start)
     {
         auto node = TRY(parseAddition(tokens, start));
         //Should I allow chained comparisons?
@@ -64,7 +71,7 @@ namespace VWA
             }
     }
 
-    ErrorOr<ParseTreeNode> parseAddition(const std::vector<Token> &tokens, size_t &start)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseAddition(const std::vector<Token> &tokens, size_t &start)
     {
         auto node = TRY(parseMultiplication(tokens, start));
         while (1)
@@ -81,7 +88,7 @@ namespace VWA
             }
     }
 
-    ErrorOr<ParseTreeNode> parseMultiplication(const std::vector<Token> &tokens, size_t &start)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseMultiplication(const std::vector<Token> &tokens, size_t &start)
     {
         auto node = TRY(parseUnary(tokens, start));
         while (1)
@@ -100,7 +107,7 @@ namespace VWA
     }
 
     //TODO: should the priority of this be higher or lower than parsePower?
-    ErrorOr<ParseTreeNode> parseUnary(const std::vector<Token> &tokens, size_t &start)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseUnary(const std::vector<Token> &tokens, size_t &start)
     {
         switch (tokens[start].type)
         {
@@ -115,7 +122,7 @@ namespace VWA
         }
     }
 
-    ErrorOr<ParseTreeNode> parsePower(const std::vector<Token> &tokens, size_t &start)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parsePower(const std::vector<Token> &tokens, size_t &start)
     {
         auto lhs = TRY(parsePrimary(tokens, start));
         if (tokens[start].type != TokenType::power)
@@ -126,7 +133,7 @@ namespace VWA
     }
 
     //TODO: sizeof
-    ErrorOr<ParseTreeNode> parsePrimary(const std::vector<Token> &tokens, size_t &start)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parsePrimary(const std::vector<Token> &tokens, size_t &start)
     {
         switch (tokens[start].type)
         {
@@ -180,7 +187,7 @@ namespace VWA
         }
     }
 
-    ErrorOr<ParseTreeNode> parseFuncCall(const std::vector<Token> &tokens, size_t &start)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseFuncCall(const std::vector<Token> &tokens, size_t &start)
     {
         ParseTreeNode node{{TokenType::function_call, tokens[start].value}};
         start += 2;
@@ -201,7 +208,7 @@ namespace VWA
     }
 
     //Returns either a tree of dot operators or just and identifier
-    ErrorOr<ParseTreeNode> parseDot(const std::vector<Token> &tokens, size_t &start)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseDot(const std::vector<Token> &tokens, size_t &start)
     {
         //I have decided on this format for the dot operator:
         //dot is the root node, the children are the identifiers in the correct order
@@ -275,7 +282,7 @@ namespace VWA
     // }
 
     //TODO: default values
-    ErrorOr<ParseTreeNode> parseParameterDeclaration(const std::vector<Token> &tokens, size_t &start)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseParameterDeclaration(const std::vector<Token> &tokens, size_t &start)
     {
         ParseTreeNode node{Token{TokenType::variable_declaration}};
         switch (tokens[start].type)
@@ -302,18 +309,18 @@ namespace VWA
         node.children.emplace_back(tokens[start++]); //type
         return node;
     }
-    ErrorOr<ParseTreeNode> parseStatement(const std::vector<Token> &tokens, size_t &pos);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseStatement(const std::vector<Token> &tokens, size_t &pos);
 
 #pragma region Statement Parsing
-    ErrorOr<ParseTreeNode> parseStatement(const std::vector<Token> &tokens, size_t &pos);
-    ErrorOr<ParseTreeNode> parseBlock(const std::vector<Token> &tokens, size_t &pos);
-    ErrorOr<ParseTreeNode> parseIf(const std::vector<Token> &tokens, size_t &pos);
-    ErrorOr<ParseTreeNode> parseWhile(const std::vector<Token> &tokens, size_t &pos);
-    ErrorOr<ParseTreeNode> parseFor(const std::vector<Token> &tokens, size_t &pos);
-    ErrorOr<ParseTreeNode> parseDecl(const std::vector<Token> &tokens, size_t &pos);
-    ErrorOr<ParseTreeNode> parseAssign(const std::vector<Token> &tokens, size_t &pos);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseStatement(const std::vector<Token> &tokens, size_t &pos);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseBlock(const std::vector<Token> &tokens, size_t &pos);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseIf(const std::vector<Token> &tokens, size_t &pos);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseWhile(const std::vector<Token> &tokens, size_t &pos);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseFor(const std::vector<Token> &tokens, size_t &pos);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseDecl(const std::vector<Token> &tokens, size_t &pos);
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseAssign(const std::vector<Token> &tokens, size_t &pos);
 
-    ErrorOr<ParseTreeNode> parseStatement(const std::vector<Token> &tokens, size_t &pos)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseStatement(const std::vector<Token> &tokens, size_t &pos)
     {
         switch (tokens[pos].type)
         {
@@ -394,7 +401,7 @@ namespace VWA
         }
     }
 
-    ErrorOr<ParseTreeNode> parseBlock(const std::vector<Token> &tokens, size_t &pos)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseBlock(const std::vector<Token> &tokens, size_t &pos)
     {
         ParseTreeNode node{Token{TokenType::compound}};
         if (tokens[pos++].type != TokenType::lbrace)
@@ -409,7 +416,7 @@ namespace VWA
         return node;
     }
 
-    ErrorOr<ParseTreeNode> parseDecl(const std::vector<Token> &tokens, size_t &pos)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseDecl(const std::vector<Token> &tokens, size_t &pos)
     {
         ParseTreeNode node{Token{TokenType::variable_declaration}};
         if (tokens[++pos].type == TokenType::mutable_)
@@ -442,7 +449,7 @@ namespace VWA
         }
     }
 
-    ErrorOr<ParseTreeNode> parseAssign(const std::vector<Token> &tokens, size_t &pos)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseAssign(const std::vector<Token> &tokens, size_t &pos)
     {
         ParseTreeNode node{{TokenType::assign}, {{tokens[pos++]}, {TRY(parseExpression(tokens, ++pos))}}};
         if (tokens[pos++].type != TokenType::semicolon)
@@ -452,7 +459,7 @@ namespace VWA
         return node;
     }
 
-    ErrorOr<ParseTreeNode> parseIf(const std::vector<Token> &tokens, size_t &pos)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseIf(const std::vector<Token> &tokens, size_t &pos)
     {
         ParseTreeNode node{Token{TokenType::if_}};
         if (tokens[pos++].type != TokenType::if_)
@@ -476,7 +483,7 @@ namespace VWA
         return node;
     }
 
-    ErrorOr<ParseTreeNode> parseWhile(const std::vector<Token> &tokens, size_t &pos)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseWhile(const std::vector<Token> &tokens, size_t &pos)
     {
         ParseTreeNode node{Token{TokenType::while_}};
         if (tokens[pos++].type != TokenType::while_)
@@ -496,7 +503,7 @@ namespace VWA
         return node;
     }
 
-    ErrorOr<ParseTreeNode> parseFor(const std::vector<Token> &tokens, size_t &pos)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseFor(const std::vector<Token> &tokens, size_t &pos)
     {
         ParseTreeNode node{Token{TokenType::for_}};
         if (tokens[pos++].type != TokenType::for_)
@@ -528,7 +535,7 @@ namespace VWA
     }
 #pragma endregion Statement Parsing
 
-    ErrorOr<ParseTreeNode> parseFunction(const std::vector<Token> &tokens, size_t &pos)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseFunction(const std::vector<Token> &tokens, size_t &pos)
     {
         //A consists of the func token, the name(identifier), the return type, the body, and the args are at the end,  so we can get their number easily
         ParseTreeNode root{Token{TokenType::function_definition}};
@@ -572,7 +579,7 @@ namespace VWA
         return root;
     }
 
-    ErrorOr<ParseTreeNode> parseStruct(const std::vector<Token> &tokens, size_t &pos)
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseStruct(const std::vector<Token> &tokens, size_t &pos)
     {
         ++pos;
         if (tokens[pos].type != TokenType::identifier)
@@ -596,7 +603,7 @@ namespace VWA
         return root;
     }
 
-    ErrorOr<ParseTreeNode> generateParseTree(const std::vector<VWA::Token> &tokens)
+    [[nodiscard]] ErrorOr<ParseTreeNode> generateParseTree(const std::vector<VWA::Token> &tokens)
     {
         //There are two types of top level definitions: functions and structs
         //Depending on the type call the appropriate function
@@ -624,22 +631,22 @@ namespace VWA
     }
 
     template <typename T>
-    std::string getTokenValueAsString(const T &val)
+    [[nodiscard]] std::string getTokenValueAsString(const T &val)
     {
         return std::to_string(val);
     }
     template <>
-    std::string getTokenValueAsString<std::string>(const std::string &val)
+    [[nodiscard]] std::string getTokenValueAsString<std::string>(const std::string &val)
     {
         return val;
     }
     template <>
-    std::string getTokenValueAsString<char>(const char &val)
+    [[nodiscard]] std::string getTokenValueAsString<char>(const char &val)
     {
         return std::string(1, val);
     }
     template <>
-    std::string getTokenValueAsString<std::monostate>(const std::monostate &val)
+    [[nodiscard]] std::string getTokenValueAsString<std::monostate>(const std::monostate &val)
     {
         return "";
     }
@@ -652,7 +659,7 @@ namespace VWA
     template <class... Ts>
     overloaded(Ts...) -> overloaded<Ts...>;
 
-    std::string TreeToString(const ParseTreeNode &root, int indent)
+    [[nodiscard]] std::string TreeToString(const ParseTreeNode &root, int indent)
     {
         std::stringstream ss;
         ss << std::string(indent, ' ') << root.value.toString() << " " << std::visit(overloaded{[](const char c)
