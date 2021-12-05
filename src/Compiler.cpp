@@ -283,6 +283,12 @@ namespace VWA
                 rtype = {VarType::VOID, false, nullptr};
             else if (definition->returnType == "char")
                 rtype = {VarType::CHAR, false, nullptr};
+            else if (definition->returnType == "float")
+                rtype = {VarType::FLOAT, false, nullptr};
+            else if (definition->returnType == "long")
+                rtype = {VarType::LONG, false, nullptr};
+            else if (definition->returnType == "double")
+                rtype = {VarType::DOUBLE, false, nullptr};
             else
                 throw std::runtime_error("Function return type not supported");
             if (definition->parameters.size() != vec.size() - 1)
@@ -299,6 +305,8 @@ namespace VWA
                     expectedType = {VarType::VOID, false, nullptr};
                 else if (expectedTypeName == "char")
                     expectedType = {VarType::CHAR, false, nullptr};
+                else if (expectedTypeName == "long")
+                    expectedType = {VarType::LONG, false, nullptr};
                 else
                     throw std::runtime_error("Function parameter type not supported");
                 if (argType.type != expectedType.type)

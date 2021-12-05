@@ -395,7 +395,7 @@ namespace VWA
         //These two need to wait until I implement pointers
         case TokenType::new_:
         case TokenType::delete_:
-            return Error{.message = "Pointers not implemented yet"};
+            return ParseTreeNode{tokens[pos++], {TRY(parseType(tokens, pos))}};
         default:
             return Error{.message = "Expected statement found " + tokens[pos].toString()};
         }

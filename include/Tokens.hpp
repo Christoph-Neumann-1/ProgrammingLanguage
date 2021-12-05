@@ -11,6 +11,7 @@ namespace VWA
     enum class TokenType
     {
         null,
+        array,
         compound, //TODO: use for paramaters
         //brackets
         lparen,
@@ -73,7 +74,7 @@ namespace VWA
         export_,
         import_,
         //other keywords
-        comptime,
+        constexpr_,
         tailrec,
         mutable_,
         return_,
@@ -102,7 +103,7 @@ namespace VWA
         {"new", TokenType::new_},
         {"delete", TokenType::delete_},
         {"export", TokenType::export_},
-        {"comptime", TokenType::comptime},
+        {"constexpr", TokenType::constexpr_},
         {"tailrec", TokenType::tailrec},
         {"import", TokenType::import_},
     };
@@ -126,6 +127,5 @@ namespace VWA
         int line = -1;
         //TODO: use the same map used to find the tokens in the first place. For values simply use std::to_string(value).
         std::string toString() const;
-
     };
 }

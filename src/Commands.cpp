@@ -1,6 +1,8 @@
 #include <Commands.hpp>
 #include <Preprocessor.hpp>
 
+//TODO write tests for this
+
 namespace VWA
 {
     std::unordered_map<std::string, std::unique_ptr<PreprocessorCommand>> &GetDefaultCommands()

@@ -110,8 +110,8 @@ namespace VWA
             return "delete";
         case TokenType::power:
             return "**";
-        case TokenType::comptime:
-            return "comptime";
+        case TokenType::constexpr_:
+            return "constexpr_";
         case TokenType::export_:
             return "export";
         case TokenType::tailrec:
