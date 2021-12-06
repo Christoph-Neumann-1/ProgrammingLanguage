@@ -1,6 +1,8 @@
 #include <Module.hpp>
 #include <functional>
 
+static int64_t begin;
+
 FFI_STRUCT inp
 {
     int a, b;
@@ -19,6 +21,13 @@ int addUsingStruct(inp in)
 void printN(int n)
 {
     printf("%i\n", n);
+}
+
+int getN()
+{
+    int n;
+    scanf("%i", &n);
+    return n;
 }
 
 void printC(char c)
@@ -42,6 +51,17 @@ char mread(long addr)
 {
     return *(char *)addr;
 }
+
+long now()
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - begin;
+}
+
+void printL(long n)
+{
+    printf("%li\n", n);
+}
+
 template <typename T>
 concept FFIType = requires(T t)
 {
@@ -80,12 +100,15 @@ MODULE_ENTRY_POINT(VWA::Imports::ImportManager *manager)
     VWA::Imports::ImportedFileData data;
     data.exportedFunctions.emplace("add", VWA::Imports::ImportedFileData::FuncDef{.name = "add", .returnType = "int", .parameters = {{"int", true}, {"int", true}}, .func = WRAP_FUNC(addUsingStruct), .isC = true});
     data.exportedFunctions.emplace("printN", VWA::Imports::ImportedFileData::FuncDef{.name = "printN", .returnType = "void", .parameters = {{"int", true}}, .func = WRAP_FUNC(printN), .isC = true});
+    data.exportedFunctions.emplace("getN", VWA::Imports::ImportedFileData::FuncDef{.name = "getN", .returnType = "int", .parameters = {}, .func = WRAP_FUNC(getN), .isC = true});
     data.exportedFunctions.emplace("printC", VWA::Imports::ImportedFileData::FuncDef{.name = "printC", .returnType = "void", .parameters = {{"char", true}}, .func = WRAP_FUNC(printC), .isC = true});
     data.exportedFunctions.emplace("getC", VWA::Imports::ImportedFileData::FuncDef{.name = "getC", .returnType = "char", .func = WRAP_FUNC(getC), .isC = true});
     data.exportedFunctions.emplace("mwrite", VWA::Imports::ImportedFileData::FuncDef{.name = "mwrite", .returnType = "void", .parameters = {{"long", true}, {"char", true}}, .func = WRAP_FUNC(mwrite), .isC = true});
     data.exportedFunctions.emplace("malloc", VWA::Imports::ImportedFileData::FuncDef{.name = "malloc", .returnType = "long", .parameters = {{"long", true}}, .func = WRAP_FUNC(malloc), .isC = true});
     data.exportedFunctions.emplace("free", VWA::Imports::ImportedFileData::FuncDef{.name = "free", .returnType = "void", .parameters = {{"long", true}}, .func = WRAP_FUNC(free), .isC = true});
     data.exportedFunctions.emplace("mread", VWA::Imports::ImportedFileData::FuncDef{.name = "mread", .returnType = "char", .parameters = {{"long", true}}, .func = WRAP_FUNC(mread), .isC = true});
-
+    data.exportedFunctions.emplace("now", VWA::Imports::ImportedFileData::FuncDef{.name = "now", .returnType = "long", .parameters = {}, .func = WRAP_FUNC(now), .isC = true});
+    data.exportedFunctions.emplace("printL", VWA::Imports::ImportedFileData::FuncDef{.name = "printL", .returnType = "void", .parameters = {{"long", true}}, .func = WRAP_FUNC(printL), .isC = true});
+    begin = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     return data;
 }
