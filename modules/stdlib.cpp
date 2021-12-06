@@ -156,6 +156,7 @@ MODULE_ENTRY_POINT(VWA::Imports::ImportManager *manager)
     VWA::Imports::ImportedFileData data;
     EXPORT_F(add);
     EXPORT_F(printN);
+    EXPORT_F(getN);
     EXPORT_F(printC);
     EXPORT_F(getC);
     EXPORT_F(mwrite);
