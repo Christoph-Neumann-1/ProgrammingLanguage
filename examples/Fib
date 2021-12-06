@@ -1,0 +1,48 @@
+func main() -> int{
+    printC('E');
+    printC('n');
+    printC('t');
+    printC('e');
+    printC('r');
+    printC(' ');
+    printC('n');
+    printC('u');
+    printC('m');
+    printC('b');
+    printC('e');
+    printC('r');
+    printC(':');
+    printC(' ');
+    let mut n:int=getN();
+    printC('a');
+    printC('\n');
+    let begin:long=now();
+    printN(fib_a(n));
+    printL(now()-begin);
+    printC('b');
+    printC('\n');
+    begin=now();
+    printN(fib_b(n));
+    printL(now()-begin);    
+}
+
+func fib_a(n:int) -> int{
+    if (n == 0)
+        return 0;
+    if (n == 1)
+        return 1;
+    return fib_a(n-1) + fib_a(n-2);
+}
+
+func fib_b(n:int) -> int{
+    let begin:long=now();
+    let a:int = 0;
+    let b:int = 1;
+    for(let mut i:int=0; i<n; i=i+1;){
+        let temp:int = a;
+        a = b;
+        b = temp + b;
+    }
+    printL(now()-begin);
+    return a;
+}
