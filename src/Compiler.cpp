@@ -244,14 +244,20 @@ namespace VWA
         case NodeType::BLOCK:
         {
             auto nextScope = &scope->children[counter++];
-            bytecode.push_back({instruction::Push});
-            writeBytes(nextScope->stackSize);
+            if (nextScope->stackSize)
+            {
+                bytecode.push_back({instruction::Push});
+                writeBytes(nextScope->stackSize);
+            }
             for (auto &child : std::get<std::vector<ASTNode>>(node.data))
             {
                 compileNode(child, func, nextScope);
             }
-            bytecode.push_back({instruction::Pop});
-            writeBytes(nextScope->stackSize);
+            if (nextScope->stackSize)
+            {
+                bytecode.push_back({instruction::Pop});
+                writeBytes(nextScope->stackSize);
+            }
             break;
         }
         case NodeType::FUNC_CALL:
@@ -398,8 +404,11 @@ namespace VWA
         {
             auto &vec = std::get<std::vector<ASTNode>>(node.data);
             auto nextScope = &scope->children[counter++];
-            bytecode.push_back({instruction::Push});
-            writeBytes(nextScope->stackSize);
+            if (nextScope->stackSize)
+            {
+                bytecode.push_back({instruction::Push});
+                writeBytes(nextScope->stackSize);
+            }
             compileNode(vec[0], func, nextScope);
             auto condAddr = bytecode.size();
             compileNode(vec[1], func, nextScope);
@@ -412,8 +421,11 @@ namespace VWA
             writeBytes(condAddr);
             auto endFor = bytecode.size();
             *(uint64_t *)&bytecode[addr1] = endFor;
-            bytecode.push_back({instruction::Pop});
-            writeBytes(nextScope->stackSize);
+            if (nextScope->stackSize)
+            {
+                bytecode.push_back({instruction::Pop});
+                writeBytes(nextScope->stackSize);
+            }
             break;
         }
         case NodeType::WHILE:
