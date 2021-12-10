@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
     auto outopt = app.add_option("-o,--output", output, "Output file");
     bool toStdout = false;
     app.add_flag("--stdout, !--nstdout", toStdout)->excludes(outopt);
-    bool pponly;
+    bool pponly = false;
     app.add_flag("-P", pponly);
     //TODO: direct different loglevels to different outputs, use callbacks
     std::string logFile;
