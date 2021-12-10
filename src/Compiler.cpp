@@ -262,8 +262,8 @@ namespace VWA
 
             Imports::ImportedFileData::FuncDef *definition;
             auto f = std::find_if(data.importedFunctions.begin(), data.importedFunctions.end(),
-                                  [&funcName](const auto &f)
-                                  { return f.first == funcName; });
+                                  [&funcName](const auto &f_)
+                                  { return f_.first == funcName; });
             if (f == data.importedFunctions.end())
             {
                 auto stdlib = manager.getModule("stdlib");

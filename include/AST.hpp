@@ -180,6 +180,7 @@ namespace VWA
         case VarType::STRUCT:
             return type.structInfo->size;
         }
+        throw std::runtime_error("Unknown type");
     }
 
     struct AST
@@ -272,6 +273,7 @@ namespace VWA
             case VarType::STRUCT:
                 return type.structInfo->name;
             }
+            throw std::runtime_error("Unknown type");
         }
 
         std::string NodeTypeToString(NodeType type) const
@@ -351,6 +353,7 @@ namespace VWA
             case NodeType::NOOP:
                 return "NOOP";
             }
+            throw std::runtime_error("Unknown node type");
         }
 
         std::string NodeToString(const ASTNode &node, int depth = 0) const
@@ -427,7 +430,7 @@ namespace VWA
                 ss << ") -> " << typeAsString(func.returnType);
                 ss << NodeToString(func.body, 1);
             }
-            ss<<'\n';
+            ss << '\n';
             return ss.str();
         }
     };

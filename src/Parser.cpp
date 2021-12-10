@@ -366,7 +366,7 @@ namespace VWA
         case TokenType::semicolon:
             return ParseTreeNode{tokens[pos++]};
         case TokenType::return_:
-        {
+        { //TODO: rewrite this, because evaluation order is unspecified
             ParseTreeNode node{tokens[pos++], {tokens[pos].type == TokenType::semicolon ? std::vector<ParseTreeNode>{} : std::vector<ParseTreeNode>{TRY(parseExpression(tokens, pos))}}};
             if (tokens[pos++].type != TokenType::semicolon)
             {

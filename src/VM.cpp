@@ -114,7 +114,8 @@ namespace VWA::VM
             case JumpFFI:
             {
                 auto where = ReadInstructionArg<FFIFunc>(instruction + 1);
-                auto argSize = ReadInstructionArg<uint64_t>(instruction + 1 + sizeof(FFIFunc));
+                //I should probably remove this entirely
+                [[maybe_unused]] auto argSize = ReadInstructionArg<uint64_t>(instruction + 1 + sizeof(FFIFunc));
                 where(&mmu.stack, this);
                 instruction += 1 + sizeof(FFIFunc) + sizeof(uint64_t);
                 continue;

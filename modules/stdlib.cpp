@@ -1,39 +1,35 @@
 #include <Module.hpp>
 #include <functional>
 
-static int64_t begin;
+MODULE_IMPL
 
-FFI_STRUCT inp
-{
-    int a, b;
-};
+static int64_t begin;
 
 int add(int a, int b)
 {
     return a + b;
 }
-
-int addUsingStruct(inp in)
-{
-    return in.a + in.b;
-}
+EXPORT_F(add)
 
 void printN(int n)
 {
     printf("%i\n", n);
 }
+EXPORT_F(printN)
 
 int getN()
 {
     int n;
-    scanf("%i", &n);
+    [[maybe_unused]] int _ = scanf("%i", &n);
     return n;
 }
+EXPORT_F(getN)
 
 void printC(char c)
 {
     printf("%c", c);
 }
+EXPORT_F(printC)
 
 char getC()
 {
@@ -41,130 +37,48 @@ char getC()
     scanf("%c", &c);
     return c;
 }
+EXPORT_F(getC)
 
 void mwrite(long addr, char val)
 {
     *(char *)addr = val;
 }
+EXPORT_F(mwrite)
 
 char mread(long addr)
 {
     return *(char *)addr;
 }
+EXPORT_F(mread)
 
 long now()
 {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count() - begin;
 }
+EXPORT_F(now)
 
 void printL(long n)
 {
     printf("%li\n", n);
 }
+EXPORT_F(printL)
 
 template <typename T>
-concept FFIType = requires(T t)
+void stuff(T t)
 {
-    {
-        T::typeName()
-        } -> std::same_as<std::string_view>;
-    {
-        T::size()
-        } -> std::same_as<size_t>;
-    {t.get()};
-};
-
-struct S
-{
-    constexpr static std::string_view foo()
-    {
-        return "foo";
-    }
-    constexpr static size_t size()
-    {
-        return sizeof(int);
-    }
-    constexpr int get()
-    {
-        return 42;
-        //TODO: is this a good idea? Or should I just require that the struct can be reinterpreted as the respective type?
-    }
-};
-
-template <typename T>
-struct typeName;
-
-template <>
-struct typeName<int>
-{
-    static constexpr std::string_view value = "int";
-};
-
-template <>
-struct typeName<char>
-{
-    static constexpr std::string_view value = "char";
-};
-
-template <>
-struct typeName<float>
-{
-    static constexpr std::string_view value = "float";
-};
-
-template <>
-struct typeName<double>
-{
-    static constexpr std::string_view value = "double";
-};
-
-template <>
-struct typeName<long>
-{
-    static constexpr std::string_view value = "long";
-};
-
-template <>
-struct typeName<void>
-{
-    static constexpr std::string_view value = "void";
-};
-
-//TODO: structs
-template <typename R, typename... Args>
-VWA::Imports::ImportedFileData::FuncDef exportDef(std::string_view name, R (*)(Args...))
-{
-    return {.name = std::string{name}, .returnType = std::string{typeName<R>::value}, .parameters = {{std::string{typeName<Args>::value}, true}...}, .isC = true};
+    printf("%i\n", t);
 }
-//TODO: make fully compile time
-//TODO: remove hack involving passing in function pointer, the template system should be able to do this
-//TODO: make this run outside of a function, allowing it to be used next to the definition, ideally as part of the definition
-#define EXPORT_F(f)                                                         \
-    data.exportedFunctions.emplace(#f, (                                    \
-                                           {                                \
-                                               auto tmp = exportDef(#f, f); \
-                                               tmp.func = WRAP_FUNC(f);     \
-                                               tmp;                         \
-                                           }));
 
 //How do I get rid of the warning about linkage?
+//TODO: automate, with option for manually implementing if necessary
+//TODO: add macros for supporting custom types, so that I don't have to manually implement them,
+//... or I could just force the user to add a layer of abstraction
+//TODO: return a pointer instead, try modifiying the map of files, so that a pointer will work, so as to avoid unnecessary copying
 extern "C" VWA::Imports::ImportedFileData
 MODULE_ENTRY_POINT(VWA::Imports::ImportManager *manager)
 {
-    //TODO: make a wrapper that auto detects parameter types and generates appropriate boiler plate code.
-    //This might require wrapping everything in a struct which then returns the correct type.
-    VWA::Imports::ImportedFileData data;
-    EXPORT_F(add);
-    EXPORT_F(printN);
-    EXPORT_F(getN);
-    EXPORT_F(printC);
-    EXPORT_F(getC);
-    EXPORT_F(mwrite);
-    EXPORT_F(mread);
-    EXPORT_F(now);
-    EXPORT_F(printL);
-    data.exportedFunctions.emplace("malloc", VWA::Imports::ImportedFileData::FuncDef{.name = "malloc", .returnType = "long", .parameters = {{"long", true}}, .func = WRAP_FUNC(malloc), .isC = true});
-    data.exportedFunctions.emplace("free", VWA::Imports::ImportedFileData::FuncDef{.name = "free", .returnType = "void", .parameters = {{"long", true}}, .func = WRAP_FUNC(free), .isC = true});
 
-    return data;
+    VWA::fileData.exportedFunctions.emplace("malloc", VWA::Imports::ImportedFileData::FuncDef{.name = "malloc", .returnType = "long", .parameters = {{"long", true}}, .func = WRAP_FUNC(malloc), .isC = true});
+    VWA::fileData.exportedFunctions.emplace("free", VWA::Imports::ImportedFileData::FuncDef{.name = "free", .returnType = "void", .parameters = {{"long", true}}, .func = WRAP_FUNC(free), .isC = true});
+    return std::move(VWA::fileData);
 }

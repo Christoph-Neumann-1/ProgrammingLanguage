@@ -19,7 +19,7 @@ namespace VWA
         void writeBytes(T value)
         {
             uint8_t *ptr = (uint8_t *)&value;
-            for (int i = 0; i < sizeof(T); i++)
+            for (size_t i = 0; i < sizeof(T); i++)
             {
                 bytecode.push_back({ptr[i]});
             }
@@ -28,7 +28,7 @@ namespace VWA
         {
             const Scope *scope = &mainScope;
             uint64_t offset = sizeof(instruction::ByteCodeElement *) + sizeof(uint8_t *);
-            for (int i = 0; i < var.offsets.size(); ++i)
+            for (size_t i = 0; i < var.offsets.size(); ++i)
             {
                 offset += scope->stackSize;
                 scope = &scope->children[var.offsets[i]];

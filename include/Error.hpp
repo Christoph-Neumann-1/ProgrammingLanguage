@@ -108,14 +108,14 @@ namespace VWA
         }
 
         //TODO: implicit constructors
-        ErrorOr(const T &value) requires std::is_copy_constructible_v<T>
-            : value(value), errorState(false) {}
-        ErrorOr(T &&value) requires std::is_move_constructible_v<T>
-            : value(std::move(value)), errorState(false) {}
-        ErrorOr(const Error &error)
-            : error(error), errorState(true) {}
-        ErrorOr(Error &&error)
-            : error(std::move(error)), errorState(true) {}
+        ErrorOr(const T &value_) requires std::is_copy_constructible_v<T>
+            : value(value_), errorState(false) {}
+        ErrorOr(T &&value_) requires std::is_move_constructible_v<T>
+            : value(std::move(value_)), errorState(false) {}
+        ErrorOr(const Error &error_)
+            : error(error_), errorState(true) {}
+        ErrorOr(Error &&error_)
+            : error(std::move(error_)), errorState(true) {}
         //TODO: measure performance and remove copies of empty optional if necessary
         ErrorOr(const ErrorOr &other) requires std::is_copy_constructible_v<T>
             : value(other.value), error(other.error), errorState(other.errorState) {}
