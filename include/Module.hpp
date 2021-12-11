@@ -56,18 +56,18 @@
 #define EXPORT_F(f) \
     EXPORT_F_WITH_NAME(f, f)
 
-#define EXPORT_F_WITH_NAME(f, name)                                                                         \
-    namespace                                                                                               \
-    {                                                                                                       \
-        VWA::Autorun INTERNAL_UNIQUE_NAME(runner){                                                          \
-            []() {                                                                                          \
-                VWA::fileData.exportedFunctions.emplace(#name, (                                            \
-                                                                   {                                        \
-                                                                       auto tmp = VWA::exportDef(#name, f); \
-                                                                       tmp.func = WRAP_FUNC(f);             \
-                                                                       tmp;                                 \
-                                                                   }));                                     \
-            }};                                                                                             \
+#define EXPORT_F_WITH_NAME(f, name)                                                                                 \
+    namespace                                                                                                       \
+    {                                                                                                               \
+        VWA::Autorun INTERNAL_UNIQUE_NAME(runner){                                                                  \
+            []() {                                                                                                  \
+                VWA::fileData.exportedFunctions.emplace(#name, (                                                    \
+                                                                   {                                                \
+                                                                       auto tmp = VWA::getFuncDefFromPtr(#name, f); \
+                                                                       tmp.func = WRAP_FUNC(f);                     \
+                                                                       tmp;                                         \
+                                                                   }));                                             \
+            }};                                                                                                     \
     }
 //TODO:
 #define IMPORT_FUNC(module, ret, name, args...) \
@@ -77,6 +77,21 @@
 #define CONCAT(a, b) CONCAT_IMPL(a, b)
 
 #define INTERNAL_UNIQUE_NAME(name) CONCAT(name, __COUNTER__)
+
+#define STRUCT_NAME(name) \
+    static constexpr std::string_view typeName() { return #name; }
+
+#define EXPORT_STRUCT(name, members...) \
+    EXPORT_STRUCT_WITH_NAME(name, name, members)
+
+#define EXPORT_STRUCT_WITH_NAME(internalName, exportedName, members...)                                                                         \
+    namespace                                                                                                                                   \
+    {                                                                                                                                           \
+        VWA::Autorun INTERNAL_UNIQUE_NAME(internal_struct_autorun){                                                                             \
+            []() {                                                                                                                              \
+                VWA::fileData.exportedStructs.emplace(VWA::typeName_v<internalName>, VWA::getStructDefFromMemberList<internalName, members>()); \
+            }};                                                                                                                                 \
+    }
 
 namespace VWA
 {
@@ -211,6 +226,7 @@ namespace VWA
         func(stack, vm, (*(Args *)((argBegin += sizeof(Args)) - sizeof(Args)))...);
     }
     //TODO: support structs requiring conversion
+    //TODO: extend to work with builtin types
     template <typename T>
     concept FFIType = requires
     {
@@ -265,11 +281,23 @@ namespace VWA
         static constexpr std::string_view value = "void";
     };
 
+    template <typename T>
+    inline constexpr std::string_view typeName_v = typeName<T>::value;
+
     //TODO: structs
     template <typename R, typename... Args>
-    VWA::Imports::ImportedFileData::FuncDef exportDef(std::string_view name, R (*)(Args...))
+    VWA::Imports::ImportedFileData::FuncDef getFuncDefFromPtr(std::string_view name, R (*)(Args...))
     {
-        return {.name = std::string{name}, .returnType = std::string{typeName<R>::value}, .parameters = {{std::string{typeName<Args>::value}, true}...}, .isC = true};
+        return {.name = std::string{name}, .returnType = std::string{typeName_v<R>}, .parameters = {{std::string{typeName_v<Args>}, true}...}, .isC = true};
+    }
+
+    template <FFIType S, typename... Args>
+    VWA::Imports::ImportedFileData::StructDef getStructDefFromMemberList(std::string_view exportedName = typeName_v<S>)
+    {
+        //TODO: consider using requires instead of static_assert
+        static_assert(sizeof...(Args) > 0, "Structs must not be empty");
+        static_assert(sizeof(S) == (sizeof(Args) + ...), "Member list must be same size as struct");
+        return {.name = std::string{exportedName}, .fields = {{std::string{typeName_v<Args>}, true}...}};
     }
 
     //Note: You need to declare all structs yourself, you can't import them. Maybe I'll make a code generator for this
