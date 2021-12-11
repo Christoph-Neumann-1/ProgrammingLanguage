@@ -1,5 +1,4 @@
 #include <Module.hpp>
-#include <functional>
 
 MODULE_IMPL
 

@@ -2,8 +2,6 @@
 #include <Imports.hpp>
 #include <Stack.hpp>
 
-//TODO: implement
-extern "C" std::vector<std::pair<std::string, VWA::Imports::ImportedFileData::FuncDef>> *imports;
 //TODO: fix for the argument order, right now the args are passed in the exact opposite order
 #define WRAP_FUNC(func) \
     [](VWA::Stack *stack, VWA::VM::VM *vm) { VWA::WrapFunc(stack, func); }
@@ -15,13 +13,30 @@ extern "C" std::vector<std::pair<std::string, VWA::Imports::ImportedFileData::Fu
 
 //TODO: return a pointer instead, try modifiying the map of files, so that a pointer will work, so as to avoid unnecessary copying
 //This should ideally be outside of a namespace
-#define MODULE_IMPL                                          \
-    VWA::Imports::ImportedFileData VWA::fileData;            \
-    extern "C" VWA::Imports::ImportedFileData                \
-    MODULE_ENTRY_POINT(VWA::Imports::ImportManager *manager) \
-    {                                                        \
-        return std::move(VWA::fileData);                     \
+#define MODULE_IMPL                                                                                                  \
+    VWA::Imports::ImportedFileData VWA::fileData;                                                                    \
+    std::vector<void (*)()> VWA::LoadCallbacks;                                                                      \
+    std::vector<void (*)()> VWA::LinkCallbacks;                                                                      \
+    extern "C" VWA::Imports::ImportedFileData                                                                        \
+    MODULE_ENTRY_POINT(VWA::Imports::ImportManager *manager)                                                         \
+    {                                                                                                                \
+        for (auto &cb : VWA::LoadCallbacks)                                                                          \
+            cb();                                                                                                    \
+        return std::move(VWA::fileData);                                                                             \
+    }                                                                                                                \
+    /*The purpose of this function is to initialize the functions pointers used for communication with other modules \
+    data refers to the data of this module, it will be removed once I remove the need to move from fileData*/        \
+    extern "C" void MODULE_LINK(VWA::Imports::ImportedFileData &data)                                                \
+    {                                                                                                                \
+        for (auto &cb : VWA::LinkCallbacks)                                                                          \
+            cb();                                                                                                    \
     }
+
+#define ADD_LOAD_CALLBACK(cb) \
+    VWA::Autorun INTERNAL_UNIQUE_NAME(registerLoadCb){[]() { VWA::LoadCallbacks.push_back(cb); }};
+
+#define ADD_LINK_CALLBACK(cb) \
+    VWA::Autorun INTERNAL_UNIQUE_NAME(registerLinkCb){[]() { VWA::LinkCallbacks.push_back(cb); }};
 
 //TODO: make fully compile time
 //TODO: I should be able to use it like this: EXPORT_FUNC(void, func, int, int)
@@ -54,6 +69,9 @@ extern "C" std::vector<std::pair<std::string, VWA::Imports::ImportedFileData::Fu
                                                                    }));                                     \
             }};                                                                                             \
     }
+//TODO:
+#define IMPORT_FUNC(module, ret, name, args...) \
+    ret (*name)(args){[]() { return nullptr; }()};
 
 #define CONCAT_IMPL(a, b) a##b
 #define CONCAT(a, b) CONCAT_IMPL(a, b)
@@ -64,6 +82,10 @@ namespace VWA
 {
 
     extern Imports::ImportedFileData fileData;
+    extern std::vector<void (*)()> LoadCallbacks;
+    extern std::vector<void (*)()> LinkCallbacks;
+
+    //TODO: make this easier to use
     struct Autorun
     {
         Autorun(auto &&func)
