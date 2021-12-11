@@ -13,13 +13,31 @@ extern "C" std::vector<std::pair<std::string, VWA::Imports::ImportedFileData::Fu
 
 #define FFI_STRUCT struct __attribute__((__packed__))
 
+//TODO: return a pointer instead, try modifiying the map of files, so that a pointer will work, so as to avoid unnecessary copying
 //This should ideally be outside of a namespace
-#define MODULE_IMPL \
-    VWA::Imports::ImportedFileData VWA::fileData;
+#define MODULE_IMPL                                          \
+    VWA::Imports::ImportedFileData VWA::fileData;            \
+    extern "C" VWA::Imports::ImportedFileData                \
+    MODULE_ENTRY_POINT(VWA::Imports::ImportManager *manager) \
+    {                                                        \
+        return std::move(VWA::fileData);                     \
+    }
 
 //TODO: make fully compile time
+//TODO: I should be able to use it like this: EXPORT_FUNC(void, func, int, int)
 //TODO: remove hack involving passing in function pointer, the template system should be able to do this
 //TODO: make this run outside of a function, allowing it to be used next to the definition, ideally as part of the definition
+//TODO: change name
+#define EXPORT_FUNC(ret, name, args...) \
+    ret name(args);                     \
+    EXPORT_F(name)                      \
+    ret name(args)
+
+#define EXPORT_FUNC_WITH_NAME(exportedName, ret, name, args...) \
+    ret name(args);                                             \
+    EXPORT_F_WITH_NAME(name, exportedName)                      \
+    ret name(args)
+
 #define EXPORT_F(f) \
     EXPORT_F_WITH_NAME(f, f)
 

@@ -1,5 +1,7 @@
 #pragma once
 #include <cstdint>
+#include <string>
+#include <sstream>
 namespace VWA
 {
     namespace instruction
@@ -116,7 +118,20 @@ namespace VWA
         };
     }
 
-    //TODO:
-    // std::string instructionToString(instruction::instruction instr);
-    // std::string ByteCodeToString(instruction::instruction *bc, size_t lenght) {}
+    std::string instructionToString(instruction::instruction instr);
+    //TODO: look up symbols in table and print names instead of indices
+    std::string ByteCodeToString(instruction::instruction *bc, size_t length)
+    {
+        std::stringstream ss;
+        for (size_t i = 0; i < length; i++)
+        {
+            ss << instructionToString(bc[i]);
+            if (i != length - 1)
+            {
+                ss << " ";
+            }
+        }
+        return ss.str();
+    }
+
 }
