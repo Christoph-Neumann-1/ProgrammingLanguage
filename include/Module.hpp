@@ -185,11 +185,6 @@ namespace VWA
         };
         stack->pop((sizeof(Args) + ... + 0));
         auto argBegin = stack->getData() + stack->getTop();
-        //TODO: this originally caused a warning about unsequenced modification, this seems to make the warning go away, but as far as I know, it is still unspecified behavior
-        //Idea: create a metaprogram that sums up the sizes of all previous arguments, this can then be used to access the arguments, evaluation order can therefore be ignored.
-        //Problem: How to split the args at a certain point? Or another way to do this, maybe a variadic macro?
-        //TODO: ask on forum
-        // stack->pushVal(func(WrapGetNextArg<Args>(argBegin)...));
         stack->pushVal(expander(argBegin, typename reader::sequence{}));
     }
 
@@ -212,18 +207,30 @@ namespace VWA
     template <typename R, typename... Args>
     requires(!std::is_void_v<R>) void WrapFunc(Stack *stack, VM::VM *vm, R (*func)(Stack *, VM::VM *, Args...))
     {
+        using reader = ParameterReader<Args...>;
+        auto expander = [&]<size_t... I>(uint8_t * start, std::integer_sequence<size_t, I...>)
+        {
+            return func(stack, vm, reader::offsets::template get<I>(start)...);
+        };
         stack->pop((sizeof(Args) + ... + 0));
         auto argBegin = stack->getData() + stack->getTop();
-        stack->pushVal(func(stack, vm, (*(Args *)((argBegin += sizeof(Args)) - sizeof(Args)))...));
+        stack->pushVal(expander(argBegin, typename reader::sequence{}));
     }
 
     template <typename R, typename... Args>
     requires std::is_void_v<R>
     void WrapFunc(Stack *stack, VM::VM *vm, R (*func)(Stack *, VM::VM *, Args...))
     {
+        using reader = ParameterReader<Args...>;
+        auto expander = [&]<size_t... I>(uint8_t * start, std::integer_sequence<size_t, I...>)
+        {
+            // func(reader::offsets::read<I>(start)...);
+            func(stack, vm, reader::offsets::template get<I>(start)...);
+        };
         stack->pop((sizeof(Args) + ... + 0));
         auto argBegin = stack->getData() + stack->getTop();
-        func(stack, vm, (*(Args *)((argBegin += sizeof(Args)) - sizeof(Args)))...);
+        // func(WrapGetNextArg<Args>(argBegin)...);
+        expander(argBegin, typename reader::sequence{});
     }
     //TODO: support structs requiring conversion
     //TODO: extend to work with builtin types
