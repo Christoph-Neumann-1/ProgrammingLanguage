@@ -139,7 +139,7 @@ namespace VWA
         struct Get
         {
             static constexpr auto value = Get<idx - 1, typename next::next, typename next::type>::value;
-            using type = typename next::Get<idx - 1, typename next::next, typename next::type>::type;
+            using type = typename next::template Get<idx - 1, typename next::next, typename next::type>::type;
         };
 
         template <typename next, typename U>
