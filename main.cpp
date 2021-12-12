@@ -73,26 +73,8 @@ int main(int argc, char *argv[])
         root.getError().log(*logger);
         return -1;
     }
-    // std::cout << VWA::TreeToString(root) << std::endl;
     VWA::AST tree(root.getValue());
     std::cout << tree.toString();
-    //     using namespace VWA::instruction;
-    // #pragma clang diagnostic push
-    // #pragma clang diagnostic ignored "-Wmissing-braces"
-    //     ByteCodeElement code[]{
-    //         JumpFunc, 26, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    //         Return, 4, 0, 0, 0, 0, 0, 0, 0,
-    //         PushConst32, 1, 0, 0, 0,
-    //         PushConst32, 2, 0, 0, 0,
-    //         AddI,
-    //         Return, 4, 0, 0, 0, 0, 0, 0, 0};
-    // #pragma clang diagnostic pop
-    //     VWA::Imports::ImportedFileData fileData;
-    //     fileData.bc = std::make_unique<ByteCodeElement[]>(sizeof(code) / sizeof(ByteCodeElement));
-    //     std::memcpy(fileData.bc.get(), code, sizeof(code));
-    //     fileData.bcSize = sizeof(code);
-    //     fileData.main=0;
-    //     fileData.hasMain=true;
     VWA::Imports::ImportManager manager;
     manager.AddIncludePath("modules/bin");
     VWA::Compiler compiler(manager);

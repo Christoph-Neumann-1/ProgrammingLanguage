@@ -15,9 +15,10 @@ namespace VWA::Imports
                 throw std::runtime_error("Function not found");
             if (funcDecl->second != func.second)
                 throw std::runtime_error("Function signature mismatch");
-            if (funcDecl->second.isC)
+            if (funcDecl->second.directFunc)
             {
-                func.second.func = funcDecl->second.func;
+                func.second.ffiFunc = funcDecl->second.ffiFunc;
+                func.second.directFunc = funcDecl->second.directFunc;
             }
             else
             {
@@ -130,7 +131,7 @@ namespace VWA::Imports
             switch (position->byteCode)
             {
                 using namespace instruction;
-            case JumpFFI:
+            case JumpFFI: //TODO: this should not exist yet
                 position += sizeof(FFIFunc) + sizeof(uint64_t) + 1;
                 continue;
                 //TODO: add this back.
@@ -155,10 +156,10 @@ namespace VWA::Imports
             {
                 auto index = reinterpret_cast<uint64_t *>(position + 1);
                 auto &function = importedFunctions[*index].second;
-                if (function.isC)
+                if (function.directFunc)
                 {
                     auto addr = reinterpret_cast<FFIFunc *>(index);
-                    *addr = function.func;
+                    *addr = function.ffiFunc;
                     position->byteCode = JumpFFI;
                     position += 2 * sizeof(uint64_t) + 1;
                     continue;

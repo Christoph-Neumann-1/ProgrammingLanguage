@@ -64,10 +64,13 @@ namespace VWA::Imports
             std::vector<Parameter> parameters;
             union
             {
-                FFIFunc func;
+                //TODO: in the case of a ffi function, store the pointer to the function itself, as well as to the wrapper function
+                //If the function is imported from a c++ module, the direct pointer should be used. The isC flag can then be removed.
+                FFIFunc ffiFunc;
                 instruction::ByteCodeElement *bc;
             };
-            bool isC;
+            //To save space this is also used to tell the vm if the function is a ffi function or not
+            void *directFunc = nullptr;
             bool operator==(const FuncDef &other) const
             {
                 return name == other.name && returnType == other.returnType && [&]()

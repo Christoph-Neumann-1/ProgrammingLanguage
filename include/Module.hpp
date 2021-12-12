@@ -56,18 +56,19 @@
 #define EXPORT_F(f) \
     EXPORT_F_WITH_NAME(f, f)
 
-#define EXPORT_F_WITH_NAME(f, name)                                                                                 \
-    namespace                                                                                                       \
-    {                                                                                                               \
-        VWA::Autorun INTERNAL_UNIQUE_NAME(runner){                                                                  \
-            []() {                                                                                                  \
-                VWA::fileData.exportedFunctions.emplace(#name, (                                                    \
-                                                                   {                                                \
-                                                                       auto tmp = VWA::getFuncDefFromPtr(#name, f); \
-                                                                       tmp.func = WRAP_FUNC(f);                     \
-                                                                       tmp;                                         \
-                                                                   }));                                             \
-            }};                                                                                                     \
+#define EXPORT_F_WITH_NAME(f, name)                                                                                  \
+    namespace                                                                                                        \
+    {                                                                                                                \
+        VWA::Autorun INTERNAL_UNIQUE_NAME(runner){                                                                   \
+            []() {                                                                                                   \
+                VWA::fileData.exportedFunctions.emplace(#name, (                                                     \
+                                                                   {                                                 \
+                                                                       auto tmp = VWA::getFuncDefFromPtr(#name, f);  \
+                                                                       tmp.ffiFunc = WRAP_FUNC(f);                   \
+                                                                       tmp.directFunc = reinterpret_cast<void *>(f); \
+                                                                       tmp;                                          \
+                                                                   }));                                              \
+            }};                                                                                                      \
     }
 //TODO:
 #define IMPORT_FUNC(module, ret, name, args...) \
@@ -254,7 +255,7 @@ namespace VWA
     template <typename R, typename... Args>
     VWA::Imports::ImportedFileData::FuncDef getFuncDefFromPtr(std::string_view name, R (*)(Args...))
     {
-        return {.name = std::string{name}, .returnType = std::string{typeName<R>}, .parameters = {{std::string{typeName<Args>}, true}...}, .isC = true};
+        return {.name = std::string{name}, .returnType = std::string{typeName<R>}, .parameters = {{std::string{typeName<Args>}, true}...}};
     }
 
     template <FFIType S, typename... Args>

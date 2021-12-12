@@ -58,7 +58,7 @@ namespace VWA
             {
                 params.push_back({AST::typeAsString(param.type), true});
             }
-            data.importedFunctions.push_back({func.first, Imports::ImportedFileData::FuncDef{.name = func.first, .returnType = AST::typeAsString(func.second.returnType), .parameters = std::move(params), .isC = false}});
+            data.importedFunctions.push_back({func.first, Imports::ImportedFileData::FuncDef{.name = func.first, .returnType = AST::typeAsString(func.second.returnType), .parameters = std::move(params)}});
         }
         for (auto &func : ast.functions)
         {
@@ -319,10 +319,11 @@ namespace VWA
                     CastToType(argType, expectedType);
             }
             auto argSize = sizeof(int) * (vec.size() - 1);
-            if (definition->isC)
+            //This should generate FCall, not JumpFFI
+            if (definition->directFunc)
             {
                 bytecode.push_back({instruction::JumpFFI});
-                writeBytes(definition->func);
+                writeBytes(definition->ffiFunc);
                 writeBytes<uint64_t>(argSize);
             }
             else
