@@ -79,18 +79,18 @@
 #define INTERNAL_UNIQUE_NAME(name) CONCAT(name, __COUNTER__)
 
 #define STRUCT_NAME(name) \
-    static constexpr std::string_view typeName() { return #name; }
+    static constexpr std::string_view typeName = #name;
 
 #define EXPORT_STRUCT(name, members...) \
     EXPORT_STRUCT_WITH_NAME(name, name, members)
 
-#define EXPORT_STRUCT_WITH_NAME(internalName, exportedName, members...)                                                                         \
-    namespace                                                                                                                                   \
-    {                                                                                                                                           \
-        VWA::Autorun INTERNAL_UNIQUE_NAME(internal_struct_autorun){                                                                             \
-            []() {                                                                                                                              \
-                VWA::fileData.exportedStructs.emplace(VWA::typeName_v<internalName>, VWA::getStructDefFromMemberList<internalName, members>()); \
-            }};                                                                                                                                 \
+#define EXPORT_STRUCT_WITH_NAME(internalName, exportedName, members...)                                                                       \
+    namespace                                                                                                                                 \
+    {                                                                                                                                         \
+        VWA::Autorun INTERNAL_UNIQUE_NAME(internal_struct_autorun){                                                                           \
+            []() {                                                                                                                            \
+                VWA::fileData.exportedStructs.emplace(VWA::typeName<internalName>, VWA::getStructDefFromMemberList<internalName, members>()); \
+            }};                                                                                                                               \
     }
 
 namespace VWA
@@ -155,17 +155,6 @@ namespace VWA
             return *(typename T2::type *)(start + T2::value);
         }
     };
-
-    // template <size_t idx, typename offset>
-    // auto readParameter(uint8_t *start)
-    // {
-    //     return readParameter<idx - 1, offset::next>(start);
-    // }
-    // template <typename offset>
-    // auto readParameter<0, offset>(uint8_t *start)
-    // {
-    //     return offset::read(start);
-    // }
 
     template <typename... Args>
     struct ParameterReader
@@ -235,76 +224,46 @@ namespace VWA
     //TODO: support structs requiring conversion
     //TODO: extend to work with builtin types
     template <typename T>
-    concept FFIType = requires
-    {
-        {
-            T::typeName()
-            } -> std::same_as<std::string_view>;
-    };
+    concept FFIType = std::same_as<decltype(T::typeName), const std::string_view>;
 
     template <typename T>
-    struct typeName;
-
-    template <typename T>
-    requires FFIType<T>
-    struct typeName<T>
-    {
-        static constexpr std::string_view value = T::typeName();
-    };
+    constexpr std::string_view typeName = T::typeName;
 
     template <>
-    struct typeName<int>
-    {
-        static constexpr std::string_view value = "int";
-    };
+    constexpr std::string_view typeName<int> = "int";
 
     template <>
-    struct typeName<char>
-    {
-        static constexpr std::string_view value = "char";
-    };
+    constexpr std::string_view typeName<float> = "float";
 
     template <>
-    struct typeName<float>
-    {
-        static constexpr std::string_view value = "float";
-    };
+    constexpr std::string_view typeName<double> = "double";
 
     template <>
-    struct typeName<double>
-    {
-        static constexpr std::string_view value = "double";
-    };
+    constexpr std::string_view typeName<long> = "long";
 
     template <>
-    struct typeName<long>
-    {
-        static constexpr std::string_view value = "long";
-    };
+    constexpr std::string_view typeName<char> = "char";
 
     template <>
-    struct typeName<void>
-    {
-        static constexpr std::string_view value = "void";
-    };
+    constexpr std::string_view typeName<bool> = "bool";
 
-    template <typename T>
-    inline constexpr std::string_view typeName_v = typeName<T>::value;
+    template <>
+    constexpr std::string_view typeName<void> = "void";
 
     //TODO: structs
     template <typename R, typename... Args>
     VWA::Imports::ImportedFileData::FuncDef getFuncDefFromPtr(std::string_view name, R (*)(Args...))
     {
-        return {.name = std::string{name}, .returnType = std::string{typeName_v<R>}, .parameters = {{std::string{typeName_v<Args>}, true}...}, .isC = true};
+        return {.name = std::string{name}, .returnType = std::string{typeName<R>}, .parameters = {{std::string{typeName<Args>}, true}...}, .isC = true};
     }
 
     template <FFIType S, typename... Args>
-    VWA::Imports::ImportedFileData::StructDef getStructDefFromMemberList(std::string_view exportedName = typeName_v<S>)
+    VWA::Imports::ImportedFileData::StructDef getStructDefFromMemberList(std::string_view exportedName = typeName<S>)
     {
         //TODO: consider using requires instead of static_assert
         static_assert(sizeof...(Args) > 0, "Structs must not be empty");
         static_assert(sizeof(S) == (sizeof(Args) + ...), "Member list must be same size as struct");
-        return {.name = std::string{exportedName}, .fields = {{std::string{typeName_v<Args>}, true}...}};
+        return {.name = std::string{exportedName}, .fields = {{std::string{typeName<Args>}, true}...}};
     }
 
     //Note: You need to declare all structs yourself, you can't import them. Maybe I'll make a code generator for this
