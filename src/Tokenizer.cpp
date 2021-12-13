@@ -408,7 +408,7 @@ namespace VWA
                     tokens.pop_back();
             }
         }
-        tokens.push_back(Token{.type = TokenType::eof, .file = tokens.back().file, .line = tokens.back().line});
+        tokens.push_back(Token{.type = TokenType::eof, .file = nullptr, .line = -1});
         return tokens;
     }
 

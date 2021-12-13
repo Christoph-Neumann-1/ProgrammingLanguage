@@ -138,7 +138,7 @@ namespace VWA::Imports
     class ImportManager
     {
         std::unordered_map<std::string, ImportedFileData> importedFiles;
-        instruction::ByteCodeElement *main = nullptr;
+        instruction::ByteCodeElement *main = nullptr; //TODO: make this an exported function
         //After linking the original files may be unloaded. All the relevant data is then stored here.
 
         std::vector<DLHandle> dlHandles;

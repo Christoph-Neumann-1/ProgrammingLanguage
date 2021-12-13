@@ -79,6 +79,8 @@ int main(int argc, char *argv[])
     manager.AddIncludePath("modules/bin");
     VWA::Compiler compiler(manager);
     compiler.compile(tree);
+    if (!manager.getMain())
+        throw std::runtime_error("Invalid program no main funtion found");
     VWA::VM::VM vm;
     manager.compact();
     std::cout << "Running" << std::endl;
