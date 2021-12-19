@@ -7,6 +7,7 @@
 #include <Node.hpp>
 #include <optional>
 #include <sstream>
+#include <Imports.hpp>
 
 //TODO: implicit return in void functions
 
@@ -187,6 +188,7 @@ namespace VWA
     {
         std::unordered_map<std::string, StructInfo> structs;
         std::unordered_map<std::string, FunctionData> functions;
+        std::vector<std::string> importedFiles;
 
         size_t ComputeTypeSize(StructInfo &info, size_t depth = 0)
         {
@@ -225,6 +227,7 @@ namespace VWA
         ASTNode processNode(const ParseTreeNode &oldNode, Scope &scope);
 
         std::pair<StructInfo &, const ParseTreeNode &> readStructDecl(const ParseTreeNode &_struct);
+        std::pair<FunctionData &, const ParseTreeNode &> readFuncDecl(const ParseTreeNode &_func);
 
         TypeInfo getType(const std::string &_type)
         {

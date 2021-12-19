@@ -12,6 +12,8 @@ namespace VWA
             case TokenType::struct_definition:
                 structDeclarations.push_back(readStructDecl(child));
                 break;
+            case TokenType::import_:
+                importedFiles.push_back(std::get<std::string>(child.value.value));
             case TokenType::function_definition:
                 break;
             default:
@@ -26,10 +28,10 @@ namespace VWA
         {
             switch (child.value.type)
             {
-            case TokenType::struct_definition:
-                break;
             case TokenType::function_definition:
                 processFunc(child);
+            case TokenType::struct_definition:
+            case TokenType::import_:
                 break;
             default:
                 throw std::runtime_error("How?");

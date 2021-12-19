@@ -324,14 +324,13 @@ namespace VWA
             {
                 bytecode.push_back({instruction::JumpFFI});
                 writeBytes(definition->ffiFunc);
-                writeBytes<uint64_t>(argSize);
             }
             else
             {
                 bytecode.push_back({instruction::FCall});
                 writeBytes(std::distance(data.importedFunctions.begin(), f));
-                writeBytes<uint64_t>(argSize);
             }
+            writeBytes<uint64_t>(argSize);
             return rtype;
         }
         case NodeType::RETURN:

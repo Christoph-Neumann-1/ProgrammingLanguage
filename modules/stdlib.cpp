@@ -61,3 +61,12 @@ EXPORT_FUNC(void, deallocate, long addr)
 {
     free((void *)addr);
 }
+
+FFI_STRUCT S
+{
+    int a;
+    int b;
+    STRUCT_NAME(S)
+};
+
+EXPORT_STRUCT(S, int, int)

@@ -55,6 +55,7 @@ namespace VWA::Imports
         {
             //TODO: convert to proper type
             std::string name;
+            //TODO: try caching types, so that I don't allocate them every time
             std::string returnType;
             struct Parameter
             {
@@ -97,6 +98,7 @@ namespace VWA::Imports
             struct Field
             {
                 std::string typeName;
+                //TODO: store name as well, because I need it for compil
                 bool isMutable;
             };
             std::vector<Field> fields;
@@ -145,6 +147,8 @@ namespace VWA::Imports
         std::vector<std::unique_ptr<instruction::ByteCodeElement[]>> byteCodes;
 
         std::vector<std::string> includePaths;
+
+        //TODO: a list of all the functions that are imported from the files
 
         void TransferContents()
         {

@@ -604,6 +604,17 @@ namespace VWA
         return root;
     }
 
+    [[nodiscard]] ErrorOr<ParseTreeNode> parseImport(const std::vector<Token> &tokens, size_t &pos)
+    {
+
+        if (tokens[++pos].type != TokenType::identifier)
+            return Error{.message = "Expected name after import"};
+        if (tokens[++pos].type != TokenType::semicolon)
+            return Error{.message = "Expected ; after import"};
+        ++pos;
+        return ParseTreeNode{Token{TokenType::import_, tokens[pos - 2].value}};
+    }
+
     [[nodiscard]] ErrorOr<ParseTreeNode> generateParseTree(const std::vector<VWA::Token> &tokens)
     {
         //There are two types of top level definitions: functions and structs
@@ -620,6 +631,9 @@ namespace VWA
                 break;
             case TokenType::struct_definition:
                 root.children.emplace_back(TRY(parseStruct(tokens, pos)));
+                break;
+            case TokenType::import_:
+                root.children.emplace_back(TRY(parseImport(tokens, pos)));
                 break;
             default:
                 //TODO: file and line number
